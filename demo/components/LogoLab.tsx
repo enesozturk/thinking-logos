@@ -7,7 +7,18 @@ import type { LogoSource } from '../../src/bake/bake';
 import { BRANDS } from '../brands';
 import { CopyButton } from './CopyButton';
 
-const STATES: LogoState[] = ['thinking', 'idle', 'searching', 'working', 'orbiting'];
+const STATES: LogoState[] = [
+  'thinking',
+  'solving',
+  'connecting',
+  'listening',
+  'searching',
+  'working',
+  'weaving',
+  'orbiting',
+  'breathing',
+  'idle'
+];
 const STYLES: LogoStyle[] = ['fill', 'outline', 'both'];
 const SHELLS: ShellMode[] = ['dome', 'flat', 'slab'];
 

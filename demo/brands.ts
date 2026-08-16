@@ -54,17 +54,17 @@ function brand(
  */
 export const BRANDS: Brand[] = [
   brand(siVercel, 'vercel', 'Thinking', 'simple'),
-  brand(siFramer, 'framer', 'Working', 'simple'),
-  brand(siAnthropic, 'anthropic', 'Searching', 'simple'),
-  brand(siSupabase, 'supabase', 'Thinking', 'simple'),
-  brand(siStripe, 'stripe', 'Working', 'medium'),
+  brand(siFramer, 'framer', 'Solving', 'simple'),
+  brand(siAnthropic, 'anthropic', 'Connecting', 'simple'),
+  brand(siSupabase, 'supabase', 'Listening', 'simple'),
+  brand(siStripe, 'stripe', 'Solving', 'medium'),
   brand(siLinear, 'linear', 'Thinking', 'medium'),
-  brand(siNike, 'nike', 'Searching', 'medium'),
-  brand(siNotion, 'notion', 'Working', 'medium'),
-  brand(siSpotify, 'spotify', 'Thinking', 'medium'),
+  brand(siNike, 'nike', 'Weaving', 'medium'),
+  brand(siNotion, 'notion', 'Connecting', 'medium'),
+  brand(siSpotify, 'spotify', 'Listening', 'medium'),
   brand(siGithub, 'github', 'Searching', 'busy'),
   brand(siShopify, 'shopify', 'Working', 'busy'),
-  brand(siFigma, 'figma', 'Thinking', 'busy')
+  brand(siFigma, 'figma', 'Breathing', 'busy')
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

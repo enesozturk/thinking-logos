@@ -11,6 +11,7 @@ import type { LogoPointSet } from './engine/cloud';
 import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
+  buildGraph,
   frameLogoAssemble,
   frameLogoOrbit,
   frameLogoScan,
@@ -18,21 +19,57 @@ import {
   frameLogoUnrest,
   seatMap
 } from './engine/logo';
+import {
+  frameLogoBreathe,
+  frameLogoConnect,
+  frameLogoSolve,
+  frameLogoWave,
+  frameLogoWeave
+} from './engine/logoDeform';
 
-export type LogoMode = 'assemble' | 'spin' | 'scan' | 'unrest' | 'orbit';
+export type LogoMode =
+  | 'assemble'
+  | 'spin'
+  | 'scan'
+  | 'unrest'
+  | 'orbit'
+  | 'solve'
+  | 'wave'
+  | 'connect'
+  | 'weave'
+  | 'breathe';
 
 /**
- * What the mark is doing. The verbs mirror the orb states so a product can
- * swap a generic orb for its own logo without renaming anything.
+ * What the mark is doing.
+ *
+ * The verbs are the orb states' verbs on purpose, and nine of the ten line
+ * up one-for-one. A product can swap a generic orb for its own logo without
+ * renaming a single call site — and, more usefully, can run both in the
+ * same UI and have them mean the same thing.
  */
-export type LogoState = 'thinking' | 'idle' | 'searching' | 'working' | 'orbiting';
+export type LogoState =
+  | 'thinking'
+  | 'idle'
+  | 'searching'
+  | 'working'
+  | 'orbiting'
+  | 'solving'
+  | 'listening'
+  | 'connecting'
+  | 'weaving'
+  | 'breathing';
 
 export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   thinking: 'assemble',
   idle: 'spin',
   searching: 'scan',
   working: 'unrest',
-  orbiting: 'orbit'
+  orbiting: 'orbit',
+  solving: 'solve',
+  listening: 'wave',
+  connecting: 'connect',
+  weaving: 'weave',
+  breathing: 'breathe'
 };
 
 export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
@@ -40,7 +77,12 @@ export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   spin: frameLogoSpin,
   scan: frameLogoScan,
   unrest: frameLogoUnrest,
-  orbit: frameLogoOrbit
+  orbit: frameLogoOrbit,
+  solve: frameLogoSolve,
+  wave: frameLogoWave,
+  connect: frameLogoConnect,
+  weave: frameLogoWeave,
+  breathe: frameLogoBreathe
 };
 
 export interface LogoPreset {
@@ -143,6 +185,103 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rsPow: 0.6,
       rMin: 0.3
     }
+  },
+  solve: {
+    speed: 1.55,
+    opts: {
+      yawAmp: 0.3,
+      yawRate: 0.5,
+      tiltAmp: 0.14,
+      moveCount: 8,
+      slotDur: 0.42,
+      rest: 1.2,
+      rActive: 0.35,
+      rBase: 0.55,
+      rDepth: 1.4,
+      inkFar: 0.6,
+      inkSpan: 0.5,
+      inkRim: 0.16,
+      rsPow: 0.6,
+      rMin: 0.3
+    }
+  },
+  wave: {
+    speed: 1.5,
+    opts: {
+      yawAmp: 0.26,
+      tilt: 0.22,
+      waveAmp: 0.4,
+      waveK: 3.4,
+      waveK2: 1.7,
+      waveRate: 2.2,
+      rBase: 0.5,
+      rDepth: 1.6,
+      inkFar: 0.6,
+      inkSpan: 0.5,
+      inkRim: 0.16,
+      rsPow: 0.6,
+      rMin: 0.3
+    }
+  },
+  connect: {
+    speed: 1.2,
+    opts: {
+      yawAmp: 0.3,
+      yawRate: 0.55,
+      tiltAmp: 0.12,
+      nodeCount: 34,
+      reach: 1.55,
+      wirePeriod: 4.2,
+      wireSharp: 3.4,
+      signals: 5,
+      signalRate: 0.55,
+      ghostR: 0.75,
+      ghostA: 0.34,
+      nodeR: 1.1,
+      nodeRDepth: 1.4,
+      lineW: 0.8,
+      lineA: 0.7,
+      partR: 1,
+      partRDepth: 1.2,
+      inkFar: 0.6,
+      inkSpan: 0.5,
+      inkRim: 0.16,
+      rsPow: 0.6,
+      rMin: 0.3
+    }
+  },
+  weave: {
+    speed: 1,
+    opts: {
+      yawAmp: 0.24,
+      tiltAmp: 0.12,
+      shear: 1.15,
+      shearRate: 0.85,
+      rBase: 0.55,
+      rDepth: 1.4,
+      inkFar: 0.6,
+      inkSpan: 0.5,
+      inkRim: 0.16,
+      rsPow: 0.6,
+      rMin: 0.3
+    }
+  },
+  breathe: {
+    speed: 1,
+    opts: {
+      yawAmp: 0.14,
+      tiltAmp: 0.07,
+      breathe: 0.05,
+      breatheRate: 0.85,
+      shimmer: 0.12,
+      rBase: 0.55,
+      rDepth: 1.4,
+      inkFar: 0.6,
+      inkSpan: 0.5,
+      inkRim: 0.16,
+      rsPow: 0.6,
+      rMin: 0.3
+    }
   }
 };
 
@@ -170,11 +309,16 @@ export function resolveLogo(
 ): ResolvedLogo {
   const mode = LOGO_STATE_TO_MODE[state];
   const preset = LOGO_PRESETS[mode];
+  const opts = { ...preset.opts, ...overrides };
+  // The constellation graph costs a farthest-point pass and a quadratic
+  // edge test, so it is only built for the one state that reads it.
+  const graph =
+    mode === 'connect' ? buildGraph(points, opts.nodeCount ?? 34, opts.reach ?? 1.55) : undefined;
   return {
     mode,
     frame: LOGO_MODE_FRAMES[mode],
     speed: preset.speed,
-    opts: { ...preset.opts, ...overrides },
-    binding: { points, seats: seatMap(points) }
+    opts,
+    binding: { points, seats: seatMap(points), nodes: graph?.nodes, edges: graph?.edges }
   };
 }

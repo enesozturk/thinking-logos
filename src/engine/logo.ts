@@ -52,6 +52,83 @@ export function seatMap(points: LogoPointSet): SeatMap {
 }
 
 /**
+ * Pick well-spread nodes and wire the near ones together.
+ *
+ * Nodes come from farthest-point sampling rather than every k-th index: a
+ * strided pick inherits whatever order the Poisson sampler happened to
+ * place dots in, which clumps. Farthest-point spreads them over the mark's
+ * actual extent, so the constellation covers the whole silhouette instead
+ * of crowding wherever the fill started.
+ *
+ * The edge threshold is derived from the marks's own nearest-neighbour
+ * spacing, not fixed, because a wide logo and a thin one have completely
+ * different scales — a constant would over-connect one into a solid mesh
+ * and leave the other as unconnected dust.
+ *
+ * Quadratic in the node count (a few dozen), so this is resolve-time work.
+ */
+export function buildGraph(
+  points: LogoPointSet,
+  nodeCount: number,
+  reach: number
+): { nodes: Uint32Array; edges: Uint32Array } {
+  const { p, n } = points;
+  const k = Math.max(2, Math.min(nodeCount, n));
+  const nodes = new Uint32Array(k);
+  const best = new Float64Array(n).fill(Number.POSITIVE_INFINITY);
+
+  let current = 0;
+  nodes[0] = current;
+  for (let c = 1; c < k; c++) {
+    let far = -1;
+    let farD = -1;
+    const cx = p[current * 3];
+    const cy = p[current * 3 + 1];
+    const cz = p[current * 3 + 2];
+    for (let i = 0; i < n; i++) {
+      const dx = p[i * 3] - cx;
+      const dy = p[i * 3 + 1] - cy;
+      const dz = p[i * 3 + 2] - cz;
+      const d = dx * dx + dy * dy + dz * dz;
+      if (d < best[i]) best[i] = d;
+      if (best[i] > farD) {
+        farD = best[i];
+        far = i;
+      }
+    }
+    current = far;
+    nodes[c] = current;
+  }
+
+  // Mean nearest-neighbour distance across the chosen nodes sets the scale.
+  let sum = 0;
+  for (let a = 0; a < k; a++) {
+    let near = Number.POSITIVE_INFINITY;
+    for (let b = 0; b < k; b++) {
+      if (a === b) continue;
+      const dx = p[nodes[a] * 3] - p[nodes[b] * 3];
+      const dy = p[nodes[a] * 3 + 1] - p[nodes[b] * 3 + 1];
+      const dz = p[nodes[a] * 3 + 2] - p[nodes[b] * 3 + 2];
+      const d = dx * dx + dy * dy + dz * dz;
+      if (d < near) near = d;
+    }
+    sum += Math.sqrt(near);
+  }
+  const thr = (sum / k) * reach;
+
+  const edges: number[] = [];
+  for (let a = 0; a < k; a++) {
+    for (let b = a + 1; b < k; b++) {
+      const dx = p[nodes[a] * 3] - p[nodes[b] * 3];
+      const dy = p[nodes[a] * 3 + 1] - p[nodes[b] * 3 + 1];
+      const dz = p[nodes[a] * 3 + 2] - p[nodes[b] * 3 + 2];
+      if (Math.sqrt(dx * dx + dy * dy + dz * dz) <= thr) edges.push(a, b);
+    }
+  }
+  return { nodes, edges: Uint32Array.from(edges) };
+}
+
+/**
  * What a logo mode renders before its artwork is baked. A fresh object each
  * time: a shared one would be handed to a caller that is free to mutate it.
  */

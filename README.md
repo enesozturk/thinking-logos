@@ -24,17 +24,26 @@ It is a superset of thinking-orbs: all nine procedural orb states are still expo
 
 ## States
 
-Five verbs, deliberately named to mirror the orb states.
+Ten distinct motions on the same mark — not one animation with ten labels. The verbs are the orb states' verbs, so you can run both in one UI and have them mean the same thing.
 
 ```tsx
-<ThinkingLogo logo={art} state="thinking" />   {/* sphere ⇄ logo — the headline */}
-<ThinkingLogo logo={art} state="idle" />       {/* the mark turning gently in space */}
-<ThinkingLogo logo={art} state="searching" />  {/* a scan sweeps across the mark */}
-<ThinkingLogo logo={art} state="working" />    {/* the mark simmering in place */}
-<ThinkingLogo logo={art} state="orbiting" />   {/* particles circling the mark */}
+<ThinkingLogo logo={art} state="thinking" />    {/* sphere ⇄ logo — the headline */}
+<ThinkingLogo logo={art} state="solving" />     {/* slabs twist in quarter turns, then click back */}
+<ThinkingLogo logo={art} state="connecting" />  {/* the mark wires itself, packets on the edges */}
+<ThinkingLogo logo={art} state="listening" />   {/* a waveform rolls through it in depth */}
+<ThinkingLogo logo={art} state="searching" />   {/* a scan sweeps across the mark */}
+<ThinkingLogo logo={art} state="working" />     {/* the mark simmering in place */}
+<ThinkingLogo logo={art} state="weaving" />     {/* shears into ribbons and unwinds back */}
+<ThinkingLogo logo={art} state="orbiting" />    {/* particles circling the mark */}
+<ThinkingLogo logo={art} state="breathing" />   {/* a slow pulse with drifting ink */}
+<ThinkingLogo logo={art} state="idle" />        {/* turning gently in space */}
 ```
 
-`thinking` is the one to reach for first. It runs a cycle: the dots churn as a sphere while work is in flight, fold inward, and settle face-on into your logo — the spin easing to a genuine stop rather than freezing mid-turn.
+`thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on — the spin integrated in closed form so it eases to a genuine stop rather than freezing mid-turn.
+
+`solving` is the other one to try immediately. It runs the real rubik solver from thinking-orbs over your mark's own coordinates: slabs of the logo rotate out of plane and the palindrome cycle lands it back exactly on itself.
+
+Each state reads differently at a glance, which is the point — a user can tell retrieval from generation from tool use without reading a word.
 
 ## Baking
 
@@ -117,6 +126,12 @@ Two halves, split on a hard line.
 **Engine** (`thinking-logo/engine`) — no DOM, no closures, `Math` only. Frame functions take `(size, t, opts, logo)` and return a finished, z-sorted list of circles. The same discipline as the orb modes, which is what lets the React Native and SwiftUI ports consume this output verbatim and be diffed numerically against the web.
 
 Nothing in the engine knows what an SVG is.
+
+### Motion is separable from geometry
+
+The insight behind the ten states: an orb state is not a kind of object, it is a motion field that happened to be written against the geometry it generates. `frameRubik` builds a lat/long lattice *and* twists it; `frameWave` builds rings *and* rolls a waveform through them. Split those and the motion is the portable half — a function of position and time that does not care whether the position came from a Fibonacci lattice or a rasterised trademark.
+
+So `solving` calls the *original* solver out of `lattice.ts` rather than reimplementing it. A second copy would drift out of step on the first tuning change, and a product showing an orb and a logo side by side would have two subtly different heartbeats.
 
 ## Credits
 

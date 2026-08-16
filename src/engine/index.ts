@@ -30,8 +30,16 @@ export {
   frameLogoScan,
   frameLogoSpin,
   frameLogoUnrest,
-  seatMap
+  seatMap,
+  buildGraph
 } from './logo';
+export {
+  frameLogoBreathe,
+  frameLogoConnect,
+  frameLogoSolve,
+  frameLogoWave,
+  frameLogoWeave
+} from './logoDeform';
 export { resolveLogo, LOGO_PRESETS, LOGO_MODE_FRAMES, LOGO_STATE_TO_MODE } from '../logoPresets';
 export type { LogoMode, LogoState, LogoPreset, ResolvedLogo } from '../logoPresets';
 export type { LogoPointSet, LogoStyle, ShellMode, SeatMap } from './cloud';

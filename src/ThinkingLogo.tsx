@@ -25,7 +25,12 @@ const LABELS: Record<LogoState, string> = {
   idle: 'Idle',
   searching: 'Searching…',
   working: 'Working…',
-  orbiting: 'Working…'
+  orbiting: 'Working…',
+  solving: 'Solving…',
+  listening: 'Listening…',
+  connecting: 'Connecting…',
+  weaving: 'Weaving…',
+  breathing: 'Thinking…'
 };
 
 export interface ThinkingLogoProps extends Omit<CanvasHTMLAttributes<HTMLCanvasElement>, 'style'> {

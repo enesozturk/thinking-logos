@@ -4,10 +4,19 @@ import type { LogoState } from '../../src/logoPresets';
 import type { Brand } from '../brands';
 import { BRANDS } from '../brands';
 
+// The grid's real job: show that these are ten distinct MOTIONS on the
+// same kind of object, not one animation with ten labels.
 const VERB_TO_STATE: Record<string, LogoState> = {
   Thinking: 'thinking',
+  Solving: 'solving',
+  Connecting: 'connecting',
+  Listening: 'listening',
+  Searching: 'searching',
   Working: 'working',
-  Searching: 'searching'
+  Weaving: 'weaving',
+  Breathing: 'breathing',
+  Orbiting: 'orbiting',
+  Idle: 'idle'
 };
 
 const WEIGHT_LABEL: Record<Brand['weight'], string> = {
