@@ -187,14 +187,16 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
     }
   },
   solve: {
-    speed: 1.55,
+    speed: 1.1,
     opts: {
       yawAmp: 0.3,
       yawRate: 0.5,
       tiltAmp: 0.14,
-      moveCount: 8,
-      slotDur: 0.42,
-      rest: 1.2,
+      // Four moves, held longer, with a real pause on the solved state —
+      // the mark has to be legible often enough for the reset to land.
+      moveCount: 4,
+      slotDur: 0.55,
+      rest: 1.6,
       rActive: 0.35,
       rBase: 0.55,
       rDepth: 1.4,
@@ -229,18 +231,20 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       yawAmp: 0.3,
       yawRate: 0.55,
       tiltAmp: 0.12,
-      nodeCount: 34,
-      reach: 1.55,
+      nodeCount: 30,
+      reach: 1.6,
       wirePeriod: 4.2,
       wireSharp: 3.4,
       signals: 5,
       signalRate: 0.55,
-      ghostR: 0.75,
-      ghostA: 0.34,
+      // The mark underneath has to stay readable, or the state reads as an
+      // abstract constellation that happens to sit near a logo.
+      ghostR: 0.85,
+      ghostA: 0.5,
       nodeR: 1.1,
       nodeRDepth: 1.4,
       lineW: 0.8,
-      lineA: 0.7,
+      lineA: 0.85,
       partR: 1,
       partRDepth: 1.2,
       inkFar: 0.6,

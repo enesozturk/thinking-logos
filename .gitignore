@@ -4,5 +4,6 @@ dist-playground
 .DS_Store
 *.log
 node_modules
+*.tgz
 *.tsbuildinfo
 .wrangler

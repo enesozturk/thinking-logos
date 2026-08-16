@@ -1,0 +1,121 @@
+// A review harness, not a demo page.
+//
+// Every state here is a moving thing, and a screenshot of a moving thing
+// tells you almost nothing — the `thinking` cycle in particular spends its
+// most interesting second mid-flight between sphere and mark, which no
+// single frame catches. So this drives the engine directly at FIXED times
+// rather than off a clock, and lays the results out as a filmstrip.
+//
+// Driving `frame(size, t, ...)` by hand like this is also the cheapest
+// possible proof that the geometry is a pure function of time: the same t
+// renders the same picture, every reload, on any machine.
+
+import React, { useEffect, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
+import { bakeLogo } from '../src/bake/bake';
+import type { LogoPointSet } from '../src/engine/cloud';
+import { paintFrame } from '../src/engine/core';
+import { adaptTint, paintFrameTinted, parseTint } from '../src/engine/tint';
+import type { LogoState } from '../src/logoPresets';
+import { resolveLogo } from '../src/logoPresets';
+import { BRAND_BY_KEY } from './brands';
+import './tailwind.css';
+
+const CELL = 96;
+
+/** One still, rendered at an exact point in the state's own timeline. */
+function Still({
+  points,
+  state,
+  t,
+  tint
+}: {
+  points: LogoPointSet;
+  state: LogoState;
+  t: number;
+  tint?: string;
+}) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const dpr = 2;
+    c.width = CELL * dpr;
+    c.height = CELL * dpr;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    const { frame, speed, opts, binding } = resolveLogo(state, points);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, CELL, CELL);
+    const f = frame(CELL, t * speed, opts, binding);
+    const rgb = tint ? parseTint(tint) : null;
+    if (rgb) paintFrameTinted(ctx, f, true, adaptTint(rgb, true));
+    else paintFrame(ctx, f, true);
+  }, [points, state, t, tint]);
+  return <canvas ref={ref} style={{ width: CELL, height: CELL, display: 'block' }} />;
+}
+
+function Strip({
+  points,
+  state,
+  times,
+  note,
+  tint
+}: {
+  points: LogoPointSet;
+  state: LogoState;
+  times: number[];
+  note: string;
+  tint?: string;
+}) {
+  return (
+    <section style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+        <h2 style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>{state}</h2>
+        <span style={{ fontSize: 12, color: 'rgba(251,251,251,0.4)' }}>{note}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {times.map((t) => (
+          <div key={t} style={{ background: 'rgba(217,217,217,0.04)', borderRadius: 12, padding: 2 }}>
+            <Still points={points} state={state} t={t} tint={tint} />
+            <div style={{ textAlign: 'center', fontSize: 10, color: 'rgba(251,251,251,0.3)', paddingBottom: 3 }}>
+              {t.toFixed(1)}s
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  const [points, setPoints] = React.useState<LogoPointSet | null>(null);
+  useEffect(() => {
+    void bakeLogo({ path: BRAND_BY_KEY.stripe.path }, { count: 300, shell: 'dome' }).then(setPoints);
+  }, []);
+  if (!points) return <div style={{ color: '#888', padding: 40 }}>baking…</div>;
+
+  const tint = `#${BRAND_BY_KEY.stripe.hex}`;
+  // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
+  // fall out. Sampled unevenly on purpose — the transitions deserve more
+  // frames than the holds do.
+  const assemble = [0, 1.4, 2.3, 2.7, 3.0, 3.3, 4.4, 5.8, 6.2];
+  const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
+
+  return (
+    <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>
+      <h1 style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>Cycle filmstrip — Stripe mark</h1>
+      <p style={{ fontSize: 13, color: 'rgba(251,251,251,0.45)', marginBottom: 24 }}>
+        Engine driven at fixed times, not off a clock. Same t, same picture, every reload.
+      </p>
+      <Strip points={points} state="thinking" times={assemble} note="sphere → mark → back" tint={tint} />
+      <Strip points={points} state="solving" times={even} note="slabs twist, then click back" tint={tint} />
+      <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
+      <Strip points={points} state="listening" times={even} note="waveform rolls through in depth" tint={tint} />
+      <Strip points={points} state="weaving" times={even} note="shears into ribbons, unwinds" tint={tint} />
+      <Strip points={points} state="searching" times={even} note="scan sweeps across" tint={tint} />
+    </main>
+  );
+}
+
+createRoot(document.getElementById('root') as HTMLElement).render(<App />);

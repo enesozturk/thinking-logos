@@ -16,7 +16,8 @@
 
 import type { Dot, Line, LogoBinding, ModeFrame, OrbFrame } from './types';
 import { finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
-import { applyMoves, makeMoves, solveCycle } from './lattice';
+import type { Move } from './lattice';
+import { applyMoves, solveCycle } from './lattice';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -33,14 +34,45 @@ function ink(o: Record<string, number | undefined>, zx: number, edge: number): n
 // --- Solving: the mark scrambles in quarter turns, then clicks back ----
 
 /**
+ * Slabs for a plate, not for a cube.
+ *
+ * `makeMoves` picks its rotation axis uniformly, which is correct for a
+ * sphere — a sphere is equally thick in x, y and z, so every axis cuts a
+ * meaningful slab. A logo is a thin plate: it spans the full width in x and
+ * y but only a fraction of that in z. A z-axis move therefore selects
+ * EVERY point into one slab and spins the entire mark in the picture plane,
+ * which is a different animation wearing this one's clothes.
+ *
+ * So the axis is restricted to x and y, where a slab is a genuine strip of
+ * the artwork — a vertical column tumbling forward, a horizontal band
+ * turning about the upright. That is what makes the state read as machinery
+ * operating on the mark rather than the mark being shaken.
+ */
+function makeLogoMoves(count: number): Move[] {
+  const moves: Move[] = [];
+  for (let i = 0; i < count; i++) {
+    const axis = (hashD(i, 2.3) < 0.5 ? 0 : 1) as 0 | 1;
+    const lo = -1.0 + 0.5 * Math.min(3, Math.floor(hashD(i, 5.9) * 4));
+    const dir = hashD(i, 7.7) < 0.5 ? 1 : -1;
+    moves.push({ axis, lo, hi: lo + 0.5, ang: (dir * Math.PI) / 2 });
+  }
+  return moves;
+}
+
+/**
  * Rubik's motion, applied to the logo.
  *
- * The slabs are cut in the mark's own space, so a z-axis move spins a
- * horizontal band of the logo in the picture plane while an x- or y-axis
- * move swings it out of plane — and because the cycle is a palindrome, the
- * mark always resolves back to itself exactly. That reset is the whole
- * effect: scrambling alone reads as corruption, scrambling that lands is a
- * machine finishing a job.
+ * Because the cycle is a palindrome the mark always resolves back to itself
+ * exactly, and that reset is the whole effect: scrambling alone reads as
+ * corruption, scrambling that lands reads as a machine finishing a job.
+ *
+ * The move count is deliberately far below rubik's fourteen. Every move
+ * that is still open composes with the next one, and past about five
+ * simultaneous rotations a flat mark has been folded through itself enough
+ * times that no silhouette survives — what the viewer sees is debris, and
+ * the payoff of the reset is lost because there was nothing left to root
+ * for. A sphere tolerates fourteen because it looks like a sphere from
+ * every angle; a logo does not.
  */
 export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -58,8 +90,8 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
     R
   );
 
-  const moveCount = o.moveCount ?? 8;
-  const moves = makeMoves(moveCount);
+  const moveCount = o.moveCount ?? 4;
+  const moves = makeLogoMoves(moveCount);
   const sc = solveCycle(t, moveCount, o.slotDur ?? 0.42, o.rest ?? 1.2);
 
   const dots: Dot[] = [];
