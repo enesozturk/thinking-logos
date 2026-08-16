@@ -2,6 +2,11 @@
 // rows are inkform's `fine` profiles; each shipped preset (state × size)
 // applies count / radius multipliers on top, resolved once per mount.
 
+/**
+ * Per-mode tuning numbers. Stays strictly numeric: a baked logo is passed
+ * as its own argument to a frame function rather than smuggled in here, so
+ * this object remains a flat bag of scalars that a worklet can hold.
+ */
 export interface ModeOpts {
   [key: string]: number | undefined;
 }

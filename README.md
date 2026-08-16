@@ -1,87 +1,125 @@
-# thinking-orbs
+# thinking-logo
 
-Dotted thought-orb loading indicators for AI & agent UIs. Nine hand-tuned animated states, each shipped at two purpose-tuned sizes, rendered on a plain 2D canvas — no WebGL, no filters, works identically in Chrome, Safari and Firefox.
+Your logo as the loading state. Bake any SVG into a 3D point cloud and animate it with the [thinking-orbs](https://github.com/Jakubantalik/thinking-orbs) engine — the mark scatters into a sphere while the model works, and reassembles into your brand when it lands.
 
-[Live demo](https://orbs.jakubantalik.com) · [Repository](https://github.com/Jakubantalik/thinking-orbs) · [Report an issue](https://github.com/Jakubantalik/thinking-orbs/issues)
+Plain 2D canvas. No WebGL, no filters, no runtime dependency beyond React.
 
-## Install
+[Live demo](https://enesozturk.github.io/thinking-logo/) · [Report an issue](https://github.com/enesozturk/thinking-logo/issues)
 
 ```bash
-npm install thinking-orbs
+npm install thinking-logo
 ```
-
-## Quick start
 
 ```tsx
-import { ThinkingOrb } from 'thinking-orbs';
+import { ThinkingLogo } from 'thinking-logo';
 
-function Status() {
-  return <ThinkingOrb state="searching" size={64} />;
-}
+<ThinkingLogo logo={{ svg: mySvg }} state="thinking" size={64} />;
 ```
+
+## Why
+
+Every AI product now ships the same shimmering orb. A loading state is one of the few moments where a user is doing nothing but looking at your app — spending it on a generic spinner is a wasted impression. This turns that moment into your mark.
+
+It is a superset of thinking-orbs: all nine procedural orb states are still exported and unchanged, so `ThinkingOrb` remains a drop-in and you can move to `ThinkingLogo` when you have artwork ready.
 
 ## States
 
-Nine verbs an agent can be doing, each a distinct animation:
+Five verbs, deliberately named to mirror the orb states.
 
 ```tsx
-<ThinkingOrb state="working" />     {/* particles on tilted orbits */}
-<ThinkingOrb state="searching" />   {/* a scan meridian sweeps a dotted globe */}
-<ThinkingOrb state="solving" />     {/* bands scramble, then click back solved */}
-<ThinkingOrb state="listening" />   {/* a waveform rolls through the rings */}
-<ThinkingOrb state="connecting" />  {/* a constellation wires itself */}
-<ThinkingOrb state="weaving" />     {/* three strands plait around the sphere */}
-<ThinkingOrb state="composing" />   {/* an undulating multi-band sash */}
-<ThinkingOrb state="breathing" />   {/* a ring slowly morphing */}
-<ThinkingOrb state="shaping" />     {/* dotted outline: circle → triangle → square */}
+<ThinkingLogo logo={art} state="thinking" />   {/* sphere ⇄ logo — the headline */}
+<ThinkingLogo logo={art} state="idle" />       {/* the mark turning gently in space */}
+<ThinkingLogo logo={art} state="searching" />  {/* a scan sweeps across the mark */}
+<ThinkingLogo logo={art} state="working" />    {/* the mark simmering in place */}
+<ThinkingLogo logo={art} state="orbiting" />   {/* particles circling the mark */}
 ```
 
-## Sizes
+`thinking` is the one to reach for first. It runs a cycle: the dots churn as a sphere while work is in flight, fold inward, and settle face-on into your logo — the spin easing to a genuine stop rather than freezing mid-turn.
 
-Two tuned presets — separate designs, not a scale factor. `64` for chat-avatar scale, `20` for inline-text scale. Each carries its own dot count, dot size and speed tuning:
+## Baking
+
+A bake turns artwork into points. It is the only part that needs a DOM, and it happens once.
 
 ```tsx
-<ThinkingOrb state="working" size={64} />
-<ThinkingOrb state="working" size={20} />
+// From SVG markup
+<ThinkingLogo logo={{ svg: mySvgString }} />
+
+// From a bare path `d` (what most icon sets ship)
+<ThinkingLogo logo={{ path: 'M13.976 9.15...', viewBox: 24 }} />
+
+// From a decoded bitmap
+<ThinkingLogo logo={{ image: myImageBitmap }} />
 ```
 
-## Theme
-
-Strictly monochrome — light ink for dark backgrounds, dark ink for light backgrounds — with the mode picked automatically from the host project:
+| Option       | Default  | What it does                                                            |
+| ------------ | -------- | ----------------------------------------------------------------------- |
+| `count`      | by size  | Target dot count. The one knob that governs legibility.                  |
+| `style`      | `fill`   | `fill` covers the mark, `outline` traces its silhouette, `both` does each. |
+| `shell`      | `dome`   | `flat`, `dome` (inflated), or `slab` (extruded with a side wall).         |
+| `depth`      | `0.34`   | Shell height, in unit-sphere units.                                      |
+| `resolution` | `256`    | Raster size for the bake. Higher = finer edges, slower.                  |
+| `threshold`  | `0.5`    | Coverage at which a pixel counts as ink.                                 |
+| `margin`     | `0.06`   | Empty frame around the mark, so every logo lands at the same weight.     |
+| `seed`       | `1`      | Blue-noise seed. Same seed, same bytes.                                  |
 
 ```tsx
-<ThinkingOrb theme="auto" />   {/* default — detects from the project */}
-<ThinkingOrb theme="dark" />   {/* pin: light dots for dark backgrounds */}
-<ThinkingOrb theme="light" />  {/* pin: dark dots for light backgrounds */}
+<ThinkingLogo logo={{ svg }} bake={{ style: 'outline', shell: 'slab', count: 220 }} />
 ```
 
-`auto` resolves in three layers and updates live when any of them change:
+### Bake once, ship JSON
 
-1. an ancestor `data-theme="dark|light"` attribute or `dark`/`light` class (the Tailwind / shadcn convention), watched via `MutationObserver`;
-2. otherwise `prefers-color-scheme`, subscribed for live OS theme switches;
-3. SSR-safe — the canvas paints only on the client, after the theme has resolved.
+The runtime path above rasterises in the browser on first mount. For production, do it at build time and ship the result — then no rasteriser, no `<img>` decode, and no work on the user's main thread.
 
-## Other props
+```ts
+// build script
+import { bakeLogo, serializeLogo } from 'thinking-logo/bake';
+
+const set = await bakeLogo({ svg }, { count: 300, shell: 'dome' });
+writeFileSync('logo.json', serializeLogo(set));
+```
 
 ```tsx
-<ThinkingOrb
-  state="solving"
-  size={20}
-  speed={1.5}          // multiplier on the preset's baked speed
-  paused={false}       // freeze on the current frame
-  aria-label="Analysing repository…"  // overrides the per-state default
-/>
+// app
+import { deserializeLogo } from 'thinking-logo';
+import points from './logo.json';
+
+<ThinkingLogo logo={deserializeLogo(points)} state="thinking" />;
 ```
 
-All other `<canvas>` props (`className`, `style`, `data-*`, …) pass through.
+A point set is plain JSON — commit it, diff it, and hand it to a platform that has no SVG renderer at all.
 
-## Accessibility & performance
+## Brand colour
 
-- `role="img"` with a sensible per-state `aria-label` out of the box.
-- `prefers-reduced-motion: reduce` renders a static representative frame — no animation — and still follows the live theme.
-- Every instance pauses automatically when scrolled offscreen (`IntersectionObserver`) or when the tab is hidden, and resumes in phase — all instances share one clock.
-- Plain 2D canvas arcs only: no `ctx.filter`, no SVG filters, no WebGL — the same pixels everywhere, cheap on low-end devices. Device-pixel-ratio capped at 2.
+```tsx
+<ThinkingLogo logo={art} tint="#635BFF" />
+```
 
-## License
+Tinting replaces the hue only. Depth in this engine *is* the ink value, so a flat brand fill would collapse the mark into a toneless silhouette; instead the ramp runs from the substrate to your colour and every dot keeps its place on it.
 
-MIT © Jakub Antalik
+Brand blacks are handled: a great many marks are specified as pure black (Vercel, Notion, Nike, GitHub), and painting those on a dark UI would render nothing. The tint is lightened just far enough to survive, hue intact.
+
+## What this cannot do
+
+Worth knowing before you commit to it.
+
+- **Detail does not survive.** At 20px there is room for a few dozen dots. A wordmark, a gradient, or a five-shape composite will read as a smudge. Simple, bold, single-colour marks work; the demo's bottom row shows what busy ones look like, on purpose.
+- **It is a silhouette, not a picture.** Multi-colour artwork bakes as one shape. Interior colour boundaries disappear.
+- **Thin marks hit a floor.** If you ask for 600 dots and get 300, the shape had nowhere to put the rest. That is the artwork talking, not a failed bake.
+
+Preview at the smallest size you actually ship, and judge it there.
+
+## How it works
+
+Two halves, split on a hard line.
+
+**Bake** (`thinking-logo/bake`) — DOM allowed, runs once. Rasterise the artwork to an alpha mask, because the browser already solved compound paths, even-odd fills, strokes and unconverted text. Then trace contours with marching squares for the outline styles, blue-noise fill the interior with Poisson-disk for the fill styles, and lift the flat result into 3D via a distance transform. Out comes a flat `Float32Array`.
+
+**Engine** (`thinking-logo/engine`) — no DOM, no closures, `Math` only. Frame functions take `(size, t, opts, logo)` and return a finished, z-sorted list of circles. The same discipline as the orb modes, which is what lets the React Native and SwiftUI ports consume this output verbatim and be diffed numerically against the web.
+
+Nothing in the engine knows what an SVG is.
+
+## Credits
+
+Built on [thinking-orbs](https://github.com/Jakubantalik/thinking-orbs) by [Jakub Antalik](https://www.jakubantalik.com) — the rendering engine, the nine orb states and the depth-through-ink design language are his. This fork adds the bake pipeline and the logo modes. MIT, both.
+
+Demo brand marks come from [simple-icons](https://simpleicons.org) (CC0). Trademarks remain their owners'; none of those companies endorse this project.

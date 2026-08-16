@@ -33,6 +33,6 @@ export const MODE_FRAMES: Record<ModeKey, ModeFrame> = {
 export const MODE_DRAWS: Record<ModeKey, ModeDraw> = Object.fromEntries(
   Object.entries(MODE_FRAMES).map(([key, frame]) => [
     key,
-    ((ctx, size, t, dark, opts) => paintFrame(ctx, frame(size, t, opts), dark)) as ModeDraw
+    ((ctx, size, t, dark, opts, logo) => paintFrame(ctx, frame(size, t, opts, logo), dark)) as ModeDraw
   ])
 ) as Record<ModeKey, ModeDraw>;

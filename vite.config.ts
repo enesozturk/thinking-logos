@@ -18,9 +18,12 @@ export default defineConfig({
       // `engine` is the React-free geometry surface the native ports consume.
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
-        engine: resolve(__dirname, 'src/engine/index.ts')
+        engine: resolve(__dirname, 'src/engine/index.ts'),
+        // `bake` is the DOM-only half: rasterise, sample, shell. Split out
+        // so a runtime-only or native bundle can drop it entirely.
+        bake: resolve(__dirname, 'src/bake/index.ts')
       },
-      name: 'ThinkingOrbs',
+      name: 'ThinkingLogo',
       // The package is type:module, so the CJS bundle needs a real `.cjs`
       // extension — a `.js` file would be parsed as ESM and its
       // `exports.*` assignments would silently produce an empty require().

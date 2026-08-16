@@ -1,7 +1,7 @@
 {
-  "name": "thinking-orbs",
-  "version": "0.3.1",
-  "description": "Dotted thought-orb loading indicators for AI & agent UIs — nine tuned states, two sizes, auto dark/light",
+  "name": "thinking-logo",
+  "version": "0.1.0",
+  "description": "Turn your logo into a dotted thinking orb \u2014 bake any SVG into a 3D point cloud and animate it as an AI/agent loading state",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.es.js",
@@ -25,6 +25,16 @@
       "require": {
         "types": "./dist/engine/index.d.ts",
         "default": "./dist/engine.cjs"
+      }
+    },
+    "./bake": {
+      "import": {
+        "types": "./dist/bake/index.d.ts",
+        "default": "./dist/bake.es.js"
+      },
+      "require": {
+        "types": "./dist/bake/index.d.ts",
+        "default": "./dist/bake.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -52,6 +62,7 @@
     "clsx": "^2.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "simple-icons": "^16.28.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.12",
@@ -69,16 +80,23 @@
     "llm",
     "canvas",
     "animation",
+    "logo",
+    "branding",
+    "svg",
+    "point-cloud",
     "dark-mode"
   ],
-  "author": "Jakub Antalik",
+  "author": "Enes Ozturk",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jakubantalik/thinking-orbs.git"
+    "url": "git+https://github.com/enesozturk/thinking-logo.git"
   },
   "bugs": {
-    "url": "https://github.com/Jakubantalik/thinking-orbs/issues"
+    "url": "https://github.com/enesozturk/thinking-logo/issues"
   },
-  "homepage": "https://orbs.jakubantalik.com"
+  "homepage": "https://github.com/enesozturk/thinking-logo",
+  "contributors": [
+    "Jakub Antalik (thinking-orbs, the engine this is built on)"
+  ]
 }

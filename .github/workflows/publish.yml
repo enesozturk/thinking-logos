@@ -18,18 +18,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      - run: npm run build
+      - run: pnpm build
 
       # Publish; --access public is required for unscoped packages on a
-      # personal account. The ORBS secret must be an npm "Automation" token
-      # with publish rights to the thinking-orbs package.
+      # personal account. NPM_TOKEN must be an npm "Automation" token with
+      # publish rights to the thinking-logo package.
       - run: npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.ORBS }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

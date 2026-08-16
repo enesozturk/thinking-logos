@@ -5,11 +5,14 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: resolve(__dirname, 'demo'),
+  // The demo is served from a project page (enesozturk.github.io/thinking-logo),
+  // so assets need the repo path as their base. Dev serves from / as usual.
+  base: process.env.NODE_ENV === 'production' ? '/thinking-logo/' : '/',
   plugins: [react(), tailwindcss()],
   server: { port: 5177 },
   resolve: {
     alias: {
-      'thinking-orbs': resolve(__dirname, 'src/index.ts')
+      'thinking-logo': resolve(__dirname, 'src/index.ts')
     }
   },
   build: {
