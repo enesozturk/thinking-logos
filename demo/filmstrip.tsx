@@ -90,16 +90,25 @@ function Strip({
 
 function App() {
   const [points, setPoints] = React.useState<LogoPointSet | null>(null);
+  const [cube, setCube] = React.useState<LogoPointSet | null>(null);
   useEffect(() => {
     void bakeLogo({ path: BRAND_BY_KEY.stripe.path }, { count: 300, shell: 'dome' }).then(setPoints);
+    // Notion's mark is the hard case for solving: it already reads as a 3D
+    // box, so any motion that mangles it is immediately obvious.
+    void bakeLogo({ path: BRAND_BY_KEY.notion.path }, { count: 300, shell: 'dome' }).then(setCube);
   }, []);
-  if (!points) return <div style={{ color: '#888', padding: 40 }}>baking…</div>;
+  if (!points || !cube) return <div style={{ color: '#888', padding: 40 }}>baking…</div>;
 
   const tint = `#${BRAND_BY_KEY.stripe.hex}`;
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
   const assemble = [0, 1.4, 2.3, 2.7, 3.0, 3.3, 4.4, 5.8, 6.2];
+  // The same instant of the hold, four cycles apart. If the mark is not
+  // pixel-identical across these, the spin is not landing face-on and the
+  // logo is being shown at an angle it should never be shown at.
+  const holds = [4.4, 10.9, 17.4, 23.9, 30.4];
+  const solve = [0, 1.2, 2.4, 3.6, 4.8, 5.6, 6.4, 7.4, 8.6];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
 
   return (
@@ -109,11 +118,21 @@ function App() {
         Engine driven at fixed times, not off a clock. Same t, same picture, every reload.
       </p>
       <Strip points={points} state="thinking" times={assemble} note="sphere → mark → back" tint={tint} />
-      <Strip points={points} state="solving" times={even} note="slabs twist, then click back" tint={tint} />
+      <Strip
+        points={points}
+        state="thinking"
+        times={holds}
+        note="HOLD, four cycles apart — must be identical"
+        tint={tint}
+      />
+      <Strip points={points} state="solving" times={solve} note="sphere → cube → solve → mark" tint={tint} />
+      <Strip points={points} state="orbiting" times={even} note="dots leave the mark and return" tint={tint} />
       <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
-      <Strip points={points} state="listening" times={even} note="waveform rolls through in depth" tint={tint} />
-      <Strip points={points} state="weaving" times={even} note="shears into ribbons, unwinds" tint={tint} />
+      <Strip points={points} state="listening" times={even} note="bounce + light ripple, no ghosting" tint={tint} />
+      <Strip points={points} state="weaving" times={even} note="rows slide, then knit back" tint={tint} />
       <Strip points={points} state="searching" times={even} note="scan sweeps across" tint={tint} />
+      <Strip points={cube} state="solving" times={solve} note="Notion — the 3D-looking hard case" />
+      <Strip points={cube} state="connecting" times={even} note="Notion — mark must stay readable" />
     </main>
   );
 }

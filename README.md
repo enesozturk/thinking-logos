@@ -28,22 +28,33 @@ Ten distinct motions on the same mark — not one animation with ten labels. The
 
 ```tsx
 <ThinkingLogo logo={art} state="thinking" />    {/* sphere ⇄ logo — the headline */}
-<ThinkingLogo logo={art} state="solving" />     {/* slabs twist in quarter turns, then click back */}
-<ThinkingLogo logo={art} state="connecting" />  {/* the mark wires itself, packets on the edges */}
-<ThinkingLogo logo={art} state="listening" />   {/* a waveform rolls through it in depth */}
+<ThinkingLogo logo={art} state="solving" />     {/* sphere → cube → rubik solve → your mark */}
+<ThinkingLogo logo={art} state="connecting" />  {/* wires and packets run across the mark */}
+<ThinkingLogo logo={art} state="listening" />   {/* bounces on a beat, light ripples across */}
 <ThinkingLogo logo={art} state="searching" />   {/* a scan sweeps across the mark */}
 <ThinkingLogo logo={art} state="working" />     {/* the mark simmering in place */}
-<ThinkingLogo logo={art} state="weaving" />     {/* shears into ribbons and unwinds back */}
-<ThinkingLogo logo={art} state="orbiting" />    {/* particles circling the mark */}
+<ThinkingLogo logo={art} state="weaving" />     {/* rows slide apart and knit back together */}
+<ThinkingLogo logo={art} state="orbiting" />    {/* the mark's own dots leave, orbit, return */}
 <ThinkingLogo logo={art} state="breathing" />   {/* a slow pulse with drifting ink */}
 <ThinkingLogo logo={art} state="idle" />        {/* turning gently in space */}
 ```
 
 `thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on — the spin integrated in closed form so it eases to a genuine stop rather than freezing mid-turn.
 
-`solving` is the other one to try immediately. It runs the real rubik solver from thinking-orbs over your mark's own coordinates: slabs of the logo rotate out of plane and the palindrome cycle lands it back exactly on itself.
+`solving` runs the real rubik solver from thinking-orbs, but on a cube rather than on your logo — sphere rounds into a cube, the cube scrambles and solves, then it flies apart into your mark. Twisting the logo directly was tried first and destroyed it; see below.
 
 Each state reads differently at a glance, which is the point — a user can tell retrieval from generation from tool use without reading a word.
+
+### The rule every state obeys
+
+**The viewer must always be able to see what the logo is.** A sphere reads correctly from every angle and has no silhouette to protect. A mark has exactly one correct appearance, and everything follows from that:
+
+- **`thinking` lands face-on, every cycle.** The spin's hold angle is pinned to a whole number of turns in closed form. Simply easing the rotation to a stop leaves it at whatever angle it reached — and that angle drifts each cycle, so the mark settles into a slightly different three-quarter view every time.
+- **`solving` scrambles a cube, not the logo.** A thin plate sliced and twisted becomes debris within two moves, and the reset then lands on nothing because the viewer stopped tracking a shape long ago.
+- **`listening` never displaces a dot.** The ripple modulates radius and ink only. Displacing in depth projects to a screen offset under any camera tilt, which stamped the mark three or four times across the frame — a logo rendered more than once is worse than no animation at all.
+- **`connecting` draws the mark at full strength** and puts the wiring on top. Held back as a ghost, the logo vanished and what remained was an abstract node graph sitting near it.
+- **`orbiting` uses the mark's own dots.** Travellers detach and leave real gaps, capped at a sixth of the mark, then return to the exact seat they left. Separate particles orbiting an intact logo read as two unrelated things sharing a frame.
+- **`weaving` quantises into rigid rows** with a π phase lag, so every row's offset crosses zero at the same instant and the mark reassembles completely twice a cycle. A continuous shear reads as warping — like a rendering fault, not a choice.
 
 ## Baking
 

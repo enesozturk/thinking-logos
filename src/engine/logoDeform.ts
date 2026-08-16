@@ -2,126 +2,177 @@
 //
 // The nine orb states are not nine kinds of object — they are nine motion
 // fields that happen to have been written against the geometry each one
-// generates. `frameRubik` builds a lat/long lattice AND twists it; `frameWave`
-// builds rings AND rolls a waveform through them. Separate the two and the
-// motion is revealed as the portable half: a function of (position, time)
-// that does not care whether the position came from a Fibonacci lattice or
-// from a rasterised trademark.
+// generates. Separate the two and the motion is the portable half: a
+// function of (position, time) that does not care whether the position came
+// from a Fibonacci lattice or a rasterised trademark.
 //
-// So these modes reuse the ORIGINAL solver and timing from `lattice.ts`
-// rather than reimplementing them. That matters more than it looks: a
-// second copy of the rubik cycle would drift out of step with the orb
-// version on the first tuning change, and a product showing both would
-// have two subtly different heartbeats.
+// The catch, learned the hard way: a motion that flatters a sphere can
+// destroy a logo. A sphere reads correctly from every angle and has no
+// silhouette to protect; a mark has exactly one correct appearance. Every
+// state here is therefore built around a rule — whatever else happens, the
+// viewer must be able to see what the logo IS. Where an orb motion could
+// not respect that, it was re-conceived rather than ported.
 
-import type { Dot, Line, LogoBinding, ModeFrame, OrbFrame } from './types';
-import { finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
+import type { Dot, Line, ModeFrame, OrbFrame } from './types';
+import { fibDir, finalizeFrame, hashD, makeProj, radiusScale } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
+import { assembleYaw, dotAssembly, inkOf } from './logo';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
+function smoothE(x: number): number {
+  return x * x * (3 - 2 * x);
 }
 
 function empty(): OrbFrame {
   return { dots: [], lines: [] };
 }
 
-function ink(o: Record<string, number | undefined>, zx: number, edge: number): number {
-  return (o.inkFar ?? 0.6) - (o.inkSpan ?? 0.5) * zx - (o.inkRim ?? 0.16) * (1 - edge);
-}
+// --- Solving: orb → cube → solve → logo -------------------------------
 
-// --- Solving: the mark scrambles in quarter turns, then clicks back ----
+// The solve gets its own, longer cycle: a scramble that resolves is the
+// entire point, and it cannot be rushed into the assemble state's churn.
+const S_FORM = 1.1; // sphere rounds into a cube
+const S_SOLVE = 4.2; // the cube scrambles and unscrambles
+const S_RISE = 1.15; // cube flies apart into the mark
+const S_HOLD = 2.2;
+const S_FALL = 0.95;
+const S_CYCLE = S_FORM + S_SOLVE + S_RISE + S_HOLD + S_FALL;
 
 /**
- * Slabs for a plate, not for a cube.
+ * A point on the surface of a cube, from the same Fibonacci index.
  *
- * `makeMoves` picks its rotation axis uniformly, which is correct for a
- * sphere — a sphere is equally thick in x, y and z, so every axis cuts a
- * meaningful slab. A logo is a thin plate: it spans the full width in x and
- * y but only a fraction of that in z. A z-axis move therefore selects
- * EVERY point into one slab and spins the entire mark in the picture plane,
- * which is a different animation wearing this one's clothes.
- *
- * So the axis is restricted to x and y, where a slab is a genuine strip of
- * the artwork — a vertical column tumbling forward, a horizontal band
- * turning about the upright. That is what makes the state read as machinery
- * operating on the mark rather than the mark being shaken.
+ * Pushing a sphere direction out to the cube face — divide by the largest
+ * component — keeps the seat assignment identical between the two forms, so
+ * the sphere can round into a cube with no re-pairing and no crossing. The
+ * distribution bunches slightly toward the corners, which is if anything
+ * helpful: it makes the edges read.
  */
-function makeLogoMoves(count: number): Move[] {
+function cubeSeat(i: number, n: number, half: number): [number, number, number] {
+  const [x, y, z] = fibDir(i, n);
+  const m = Math.max(Math.abs(x), Math.abs(y), Math.abs(z)) || 1;
+  return [(x / m) * half, (y / m) * half, (z / m) * half];
+}
+
+/** Quarter-turn slabs sized to the cube, three per axis. */
+function makeCubeMoves(count: number, half: number): Move[] {
   const moves: Move[] = [];
+  const band = (2 * half) / 3;
   for (let i = 0; i < count; i++) {
-    const axis = (hashD(i, 2.3) < 0.5 ? 0 : 1) as 0 | 1;
-    const lo = -1.0 + 0.5 * Math.min(3, Math.floor(hashD(i, 5.9) * 4));
+    const axis = Math.min(2, Math.floor(hashD(i, 2.3) * 3)) as 0 | 1 | 2;
+    const lo = -half + band * Math.min(2, Math.floor(hashD(i, 5.9) * 3));
     const dir = hashD(i, 7.7) < 0.5 ? 1 : -1;
-    moves.push({ axis, lo, hi: lo + 0.5, ang: (dir * Math.PI) / 2 });
+    moves.push({ axis, lo, hi: lo + band, ang: (dir * Math.PI) / 2 });
   }
   return moves;
 }
 
 /**
- * Rubik's motion, applied to the logo.
+ * Solving, rebuilt: the mark is never the thing being scrambled.
  *
- * Because the cycle is a palindrome the mark always resolves back to itself
- * exactly, and that reset is the whole effect: scrambling alone reads as
- * corruption, scrambling that lands reads as a machine finishing a job.
+ * The first attempt applied rubik's slabs directly to the logo, and it did
+ * not work — for a reason worth recording. A sphere is equally thick in
+ * every axis, so every slab is a real slice and the object looks like
+ * itself throughout. A logo is a thin plate with one correct silhouette:
+ * slice it and rotate the pieces and within two moves there is no mark
+ * left, only debris. The reset then lands on nothing, because the viewer
+ * long ago stopped tracking a shape.
  *
- * The move count is deliberately far below rubik's fourteen. Every move
- * that is still open composes with the next one, and past about five
- * simultaneous rotations a flat mark has been folded through itself enough
- * times that no silhouette survives — what the viewer sees is debris, and
- * the payoff of the reset is lost because there was nothing left to root
- * for. A sphere tolerates fourteen because it looks like a sphere from
- * every angle; a logo does not.
+ * So the scrambling happens to a CUBE — an object that survives being
+ * twisted, because that is what a cube is for — and the logo arrives after
+ * it is solved. sphere → cube → scramble → solve → mark. The rubik motion
+ * keeps the geometry it was designed for, and the logo keeps its silhouette
+ * intact for every frame it is on screen.
  */
 export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
+  const seats = logo.seats;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  // Yaw stays a shallow oscillation, not a spin: the payoff of this state
-  // is watching the mark come back together, which needs it kept readable.
-  const pt = makeProj(
-    (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.5)),
-    (o.tiltAmp ?? 0.14) * Math.sin(t * 0.42),
-    cx,
-    cx,
-    R
-  );
+  const half = o.cubeHalf ?? 0.6;
 
-  const moveCount = o.moveCount ?? 4;
-  const moves = makeLogoMoves(moveCount);
-  const sc = solveCycle(t, moveCount, o.slotDur ?? 0.42, o.rest ?? 1.2);
+  const local = t % S_CYCLE;
+  // form: 0 at sphere, 1 at cube. assembly: 0 at cube, 1 at mark.
+  const form = local < S_FORM ? smoothE(local / S_FORM) : 1;
+  let m = 0;
+  if (local >= S_FORM + S_SOLVE) {
+    const after = local - S_FORM - S_SOLVE;
+    if (after < S_RISE) m = smoothE(after / S_RISE);
+    else if (after < S_RISE + S_HOLD) m = 1;
+    else m = 1 - smoothE((after - S_RISE - S_HOLD) / S_FALL);
+  }
+
+  // Only twist while the cube is formed and still whole; once the mark
+  // starts arriving the moves unwind so nothing is mid-rotation when the
+  // logo lands.
+  const solveT = clamp01((local - S_FORM) / S_SOLVE) * S_SOLVE;
+  const moveCount = o.moveCount ?? 6;
+  const moves = makeCubeMoves(moveCount, half);
+  const sc = solveCycle(solveT, moveCount, o.slotDur ?? 0.32, o.rest ?? 0.36);
+
+  // Spin freely while it is a cube, come to rest face-on for the mark —
+  // the same closed-form landing the assemble state uses.
+  const yaw = assembleYaw(local, o.spin ?? 1.5);
+  const tilt = (o.tiltAmp ?? 0.38) * (1 - m);
+  const pt = makeProj(yaw, tilt, cx, cx, R);
+  const stagger = o.stagger ?? 0.7;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const [x, y, z3, inActive] = applyMoves([p[i * 3], p[i * 3 + 1], p[i * 3 + 2]], moves, sc);
+    const seat = seats[i];
+    const [sx, sy, sz] = fibDir(seat, n);
+    const [qx, qy, qz] = cubeSeat(seat, n, half);
+    // sphere → cube
+    const bx = sx * (o.sphereR ?? 0.86) + (qx - sx * (o.sphereR ?? 0.86)) * form;
+    const by = sy * (o.sphereR ?? 0.86) + (qy - sy * (o.sphereR ?? 0.86)) * form;
+    const bz = sz * (o.sphereR ?? 0.86) + (qz - sz * (o.sphereR ?? 0.86)) * form;
+
+    const [tx, ty, tz, inActive] = applyMoves([bx, by, bz], moves, sc);
+
+    // cube → mark
+    const mi = dotAssembly(i, m, stagger);
+    const x = tx + (p[i * 3] - tx) * mi;
+    const y = ty + (p[i * 3 + 1] - ty) * mi;
+    const z3 = tz + (p[i * 3 + 2] - tz) * mi;
+
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
       y: py,
       z,
-      // The band being turned right now brightens, so the eye can follow
-      // which slab is moving instead of watching the whole mark shimmer.
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (inActive ? (o.rActive ?? 0.35) : 0)) * rs,
-      white: ink(o, zx, e[i])
+      // The slab under the wrench brightens, so the eye can follow which
+      // face is turning instead of watching the whole solid shimmer.
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (inActive ? (o.rActive ?? 0.3) : 0) * (1 - mi)) * rs,
+      white: inkOf(o, zx, e[i] * mi + (1 - mi))
     });
   }
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Listening: a waveform rolls through the mark ----------------------
+// --- Listening: the mark bounces; the ripple is light, not shape -------
 
 /**
- * A travelling wave, displacing points in depth rather than sideways.
+ * A pulse that never moves a dot out of place.
  *
- * Displacing in x or y would deform the silhouette — the mark would visibly
- * wobble out of shape, which is a defect, not an animation. Pushing along z
- * leaves the outline exactly where it is and lets the engine's depth cue do
- * the work: the crest swells and brightens, the trough recedes, and the
- * logo stays perfectly itself throughout.
+ * The first version rolled a wave through the mark by displacing points in
+ * depth. Under the camera's tilt and yaw a depth offset projects to a
+ * screen offset, so alternating bands of the logo slid in opposite
+ * directions and the result was a comb — the same mark stamped three or
+ * four times across the frame. A logo rendered more than once is worse than
+ * no animation at all.
+ *
+ * The fix is to stop displacing anything. A travelling band modulates only
+ * RADIUS and INK, so the silhouette is pixel-stable while a swell of
+ * brightness runs across it — which is what a level meter actually looks
+ * like. The rhythm comes from a whole-mark bounce instead: the logo drops
+ * and recovers on a beat, moving as one rigid object, so it can never
+ * ghost against itself.
  */
 export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -129,46 +180,59 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj((o.yawAmp ?? 0.26) * Math.sin(t * 0.4), o.tilt ?? 0.22, cx, cx, R);
+  // Held nearly flat on purpose: with no depth displacement left there is
+  // nothing for a strong perspective to reveal, and a still camera keeps
+  // the bounce reading as a bounce.
+  const pt = makeProj(0, o.tilt ?? 0.05, cx, cx, R);
 
-  const amp = o.waveAmp ?? 0.4;
-  const k = o.waveK ?? 3.4;
-  const speed = o.waveRate ?? 2.2;
-  // A second, slower wave crossing the first keeps it from reading as a
-  // metronome — voice is not periodic and neither should this look.
-  const k2 = o.waveK2 ?? 1.7;
+  const beat = o.beat ?? 1.9;
+  // Asymmetric bounce — a quick fall and a slower recovery is what reads as
+  // weight. A plain sine reads as floating.
+  const ph = (t * beat) % 1;
+  const drop = ph < 0.28 ? smoothE(ph / 0.28) : 1 - smoothE((ph - 0.28) / 0.72);
+  const bounce = -(o.bounce ?? 0.075) * drop;
+  const squash = 1 + (o.squash ?? 0.045) * drop;
+
+  const ripple = o.ripple ?? 0.22;
+  const k = o.rippleK ?? 2.6;
+  const rate = o.rippleRate ?? 2.4;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const x = p[i * 3];
     const y = p[i * 3 + 1];
-    const w = Math.sin(y * k - t * speed) * 0.7 + Math.sin(x * k2 + t * speed * 0.6) * 0.3;
-    const [px, py, z] = pt(x, y, p[i * 3 + 2] + w * amp);
+    // Band position drives light only. Never geometry.
+    const w = Math.sin(y * k - t * rate) * 0.6 + Math.sin(x * k * 0.7 + t * rate * 0.55) * 0.4;
+    const lift = clamp01(w * 0.5 + 0.5);
+    const [px, py, z] = pt(x / squash, y * squash + bounce, p[i * 3 + 2]);
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.6) * zx) * rs,
-      white: ink(o, zx, e[i])
+      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.2) * zx + ripple * lift) * rs,
+      white: inkOf(o, zx, e[i]) - (o.rippleInk ?? 0.18) * lift
     });
   }
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Connecting: the mark wires itself, packets running the edges ------
+// --- Connecting: the mark, fully lit, with wires across it ------------
 
 /**
- * The constellation state, drawn over the logo's own points.
+ * The logo stays the subject; the wiring is an overlay.
  *
- * Nodes and edges are chosen at resolve time (see `buildGraph`) because
- * picking well-spread nodes needs a farthest-point pass and the edge test
- * is quadratic — neither belongs in a function that runs sixty times a
- * second. What is left per frame is a lerp along each edge, which is
- * exactly the kind of arithmetic the engine is built for.
+ * The first version drew a sparse constellation over the mark held back at
+ * a third of its ink, and the mark simply vanished — what you saw was an
+ * abstract node graph that happened to sit near a logo. The lesson is the
+ * general one for this whole file: the mark is never the thing that gets
+ * sacrificed.
  *
- * The full cloud stays visible underneath at low ink, so the mark reads as
- * the thing being wired rather than disappearing behind a lattice.
+ * So the logo now renders at full strength, exactly as `idle` would draw
+ * it, and the graph is drawn on top: a handful of hub dots and thin edges
+ * that light up in a travelling wave, with packets running them. The mark
+ * is readable in every single frame, and the wiring is legible as something
+ * happening TO it.
  */
 export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
   if (!logo || !logo.nodes || !logo.edges) return empty();
@@ -179,8 +243,8 @@ export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const pt = makeProj(
-    (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.55)),
-    (o.tiltAmp ?? 0.12) * Math.sin(t * 0.4),
+    (o.yawAmp ?? 0.18) * Math.sin(t * (o.yawRate ?? 0.5)),
+    (o.tiltAmp ?? 0.08) * Math.sin(t * 0.38),
     cx,
     cx,
     R
@@ -188,9 +252,8 @@ export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
 
   const dots: Dot[] = [];
   const lines: Line[] = [];
-  const ghostA = o.ghostA ?? 0.34;
 
-  // the mark itself, held back
+  // The mark, at full presence.
   for (let i = 0; i < n; i++) {
     const [px, py, z] = pt(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
     const zx = clamp01((z + 1) / 2);
@@ -198,95 +261,98 @@ export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
       x: px,
       y: py,
       z,
-      r: (o.ghostR ?? 0.75) * rs,
-      white: ink(o, zx, e[i]),
-      a: ghostA
+      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx) * rs,
+      white: inkOf(o, zx, e[i])
     });
   }
 
-  // Project each node once; the edge pass and the packet pass both need it.
   const nn = nodes.length;
-  const px = new Float64Array(nn);
-  const py = new Float64Array(nn);
-  const pz = new Float64Array(nn);
+  const nx = new Float64Array(nn);
+  const ny = new Float64Array(nn);
+  const nz = new Float64Array(nn);
   for (let a = 0; a < nn; a++) {
     const i = nodes[a];
     const [x, y, z] = pt(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
-    px[a] = x;
-    py[a] = y;
-    pz[a] = z;
+    nx[a] = x;
+    ny[a] = y;
+    nz[a] = z;
   }
 
-  // Edges light up in a rolling wave rather than all at once, so the
-  // constellation reads as assembling itself continuously.
-  const period = o.wirePeriod ?? 4.2;
+  // Edges arrive in a rolling wave so the graph reads as assembling itself
+  // continuously rather than blinking.
+  const period = o.wirePeriod ?? 3.6;
   const phase = (t % period) / period;
   const edgeCount = edges.length / 2;
   for (let k = 0; k < edgeCount; k++) {
     const a = edges[k * 2];
     const b = edges[k * 2 + 1];
     const own = hashD(k, 2.7);
-    const live = clamp01(1 - Math.abs(((phase - own + 1.5) % 1) - 0.5) * (o.wireSharp ?? 3.4));
+    const live = clamp01(1 - Math.abs(((phase - own + 1.5) % 1) - 0.5) * (o.wireSharp ?? 3.2));
     if (live <= 0.02) continue;
-    const zx = clamp01((((pz[a] + pz[b]) / 2 + 1) / 2));
     lines.push({
-      x1: px[a],
-      y1: py[a],
-      x2: px[b],
-      y2: py[b],
-      white: 0.5 - 0.3 * zx,
-      a: live * (o.lineA ?? 0.7),
-      w: (o.lineW ?? 0.8) * rs
+      x1: nx[a],
+      y1: ny[a],
+      x2: nx[b],
+      y2: ny[b],
+      white: o.lineInk ?? 0.3,
+      a: live * (o.lineA ?? 0.8),
+      // Floored at just over half a pixel. `rs` scales dot radii
+      // sub-linearly, which is right for filled circles but wrong for a
+      // stroke: below about 0.5px a line stops being drawn as a line and
+      // dissolves into a faint antialiased haze. At 44px the wires had
+      // vanished entirely while the numbers still said they were there.
+      w: Math.max(0.55, (o.lineW ?? 0.9) * rs)
     });
   }
 
-  // nodes
+  // Hubs, sitting proud of the mark.
   for (let a = 0; a < nn; a++) {
-    const zx = clamp01((pz[a] + 1) / 2);
+    const zx = clamp01((nz[a] + 1) / 2);
     dots.push({
-      x: px[a],
-      y: py[a],
-      z: pz[a],
-      r: ((o.nodeR ?? 1.1) + (o.nodeRDepth ?? 1.4) * zx) * rs,
-      white: 0.3 - 0.22 * zx
+      x: nx[a],
+      y: ny[a],
+      z: nz[a] + 0.001,
+      r: ((o.nodeR ?? 1.15) + (o.nodeRDepth ?? 1.2) * zx) * rs,
+      white: 0.22 - 0.16 * zx
     });
   }
 
-  // packets running the edges
-  const signals = o.signals ?? 5;
+  // Packets.
+  const signals = o.signals ?? 6;
   for (let s = 0; s < signals; s++) {
     if (!edgeCount) break;
     const k = Math.floor(hashD(s, 9.1) * edgeCount) % edgeCount;
     const a = edges[k * 2];
     const b = edges[k * 2 + 1];
-    const f = (t * (o.signalRate ?? 0.55) + hashD(s, 3.3)) % 1;
-    const x = px[a] + (px[b] - px[a]) * f;
-    const y = py[a] + (py[b] - py[a]) * f;
-    const z = pz[a] + (pz[b] - pz[a]) * f;
+    const f = (t * (o.signalRate ?? 0.6) + hashD(s, 3.3)) % 1;
+    const z = nz[a] + (nz[b] - nz[a]) * f;
     const zx = clamp01((z + 1) / 2);
     dots.push({
-      x,
-      y,
-      z,
-      r: ((o.partR ?? 1) + (o.partRDepth ?? 1.2) * zx) * rs,
-      white: 0.22 - 0.18 * zx
+      x: nx[a] + (nx[b] - nx[a]) * f,
+      y: ny[a] + (ny[b] - ny[a]) * f,
+      z: z + 0.002,
+      r: ((o.partR ?? 1.05) + (o.partRDepth ?? 1.1) * zx) * rs,
+      white: 0.12 - 0.1 * zx
     });
   }
 
   return finalizeFrame(dots, lines, o.rMin);
 };
 
-// --- Weaving: strands of the mark drift and re-knit --------------------
+// --- Weaving: rows of the mark slide, in sequence ---------------------
 
 /**
- * Points swirl around the mark's own centre and settle back, in bands.
+ * Discrete rows sliding sideways, offset by a travelling phase.
  *
- * The orb's braid state plaits three strands around a sphere, which has no
- * meaning for arbitrary artwork — there is no axis to plait around. What
- * carries over is the READ of it: material in motion that stays coherent.
- * Here each dot rotates about the centre by an amount that varies with its
- * radius, so the mark shears into ribbons and unwinds back, and the outer
- * dots travel furthest exactly as they do on a braid.
+ * The rotational shear this replaced was smooth, and smooth was the
+ * problem: a continuous twist reads as the artwork being warped, which
+ * looks like a rendering fault rather than a choice. Quantising into a
+ * fixed number of rows makes each one move as a rigid unit, and a rigid
+ * unit sliding is unmistakably deliberate — the mark comes apart into
+ * strips and knits back together.
+ *
+ * The camera is held completely still. Rotating while the rows slide gives
+ * two competing motions and the eye cannot read either.
  */
 export const frameLogoWeave: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -294,28 +360,41 @@ export const frameLogoWeave: ModeFrame = (size, t, o, logo) => {
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj((o.yawAmp ?? 0.24) * Math.sin(t * 0.45), (o.tiltAmp ?? 0.12) * Math.sin(t * 0.33), cx, cx, R);
-  const shear = o.shear ?? 1.15;
-  const rate = o.shearRate ?? 0.85;
+  const pt = makeProj(0, o.tilt ?? 0.06, cx, cx, R);
+
+  const rows = Math.max(3, Math.round(o.rows ?? 9));
+  const amp = o.slide ?? 0.3;
+  const rate = o.slideRate ?? 1.15;
+  // Neighbouring rows lag rather than mirror, so the offsets read as one
+  // wave crossing the mark instead of rows fighting each other.
+  const lag = o.rowLag ?? 1.5;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const x0 = p[i * 3];
-    const y0 = p[i * 3 + 1];
-    const rad = Math.hypot(x0, y0);
-    // Shear amount oscillates through zero, so the mark passes through
-    // perfectly readable twice per cycle instead of never.
-    const a = Math.sin(t * rate) * shear * rad;
-    const ca = Math.cos(a);
-    const sa = Math.sin(a);
-    const [pxv, pyv, z] = pt(x0 * ca - y0 * sa, x0 * sa + y0 * ca, p[i * 3 + 2]);
+    const x = p[i * 3];
+    const y = p[i * 3 + 1];
+    // Row index from y, quantised. Same row ⇒ same offset, always.
+    const row = Math.floor(clamp01((y + 1) / 2) * rows);
+    // A lag of exactly π is what buys the knit-back: neighbouring rows
+    // shear in opposite directions, but every row's offset passes through
+    // zero at the same instant, so the mark reassembles completely twice a
+    // cycle. Any other lag leaves the rows permanently out of phase and the
+    // logo never once appears whole.
+    const swing = Math.sin(t * rate - row * lag);
+    // Rows rest at zero offset together once per cycle, which is when the
+    // mark is whole — the moment the whole state exists to deliver.
+    const dx = swing * amp * (0.55 + 0.45 * hashD(row, 3.7));
+
+    const [px, py, z] = pt(x + dx, y, p[i * 3 + 2]);
     const zx = clamp01((z + 1) / 2);
     dots.push({
-      x: pxv,
-      y: pyv,
+      x: px,
+      y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx) * rs,
-      white: ink(o, zx, e[i])
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.2) * zx) * rs,
+      // Rows furthest from home dim slightly, so the knitted-together
+      // instant is also the brightest one.
+      white: inkOf(o, zx, e[i]) + (o.strayInk ?? 0.1) * Math.abs(swing)
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -323,7 +402,7 @@ export const frameLogoWeave: ModeFrame = (size, t, o, logo) => {
 
 // --- Breathing: the mark at rest, alive -------------------------------
 
-/** A slow scale-and-ink pulse with a drifting noise field. The quiet state. */
+/** A slow scale-and-ink pulse. The quiet state. */
 export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
@@ -335,19 +414,14 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const x = p[i * 3];
-    const y = p[i * 3 + 1];
-    // A slow noise field moves ink around the mark without moving a single
-    // dot, so it shimmers while staying pin-sharp.
-    const shimmer = (vnoise(x * 2 + t * 0.3, y * 2) - 0.5) * (o.shimmer ?? 0.12);
-    const [pxv, pyv, z] = pt(x * s, y * s, p[i * 3 + 2] * s);
+    const [px, py, z] = pt(p[i * 3] * s, p[i * 3 + 1] * s, p[i * 3 + 2] * s);
     const zx = clamp01((z + 1) / 2);
     dots.push({
-      x: pxv,
-      y: pyv,
+      x: px,
+      y: py,
       z,
       r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx) * rs,
-      white: ink(o, zx, e[i]) + shimmer
+      white: inkOf(o, zx, e[i])
     });
   }
   return finalizeFrame(dots, [], o.rMin);

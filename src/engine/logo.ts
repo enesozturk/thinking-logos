@@ -148,7 +148,7 @@ function empty(): OrbFrame {
  * face-on, where projected depth alone is nearly constant and the whole
  * thing would otherwise flatten to a single tone.
  */
-function inkOf(o: Record<string, number | undefined>, zx: number, edge: number): number {
+export function inkOf(o: Record<string, number | undefined>, zx: number, edge: number): number {
   const far = o.inkFar ?? 0.6;
   const span = o.inkSpan ?? 0.5;
   const rim = o.inkRim ?? 0.16;
@@ -261,14 +261,16 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 // --- Assemble: sphere ⇄ logo — the whole point of the library ----------
 
 // One cycle, in engine seconds before the preset's speed multiplier.
-const CHURN = 2.1;
-const RISE = 1.15;
-const HOLD = 2.3;
-const FALL = 0.95;
-const CYCLE = CHURN + RISE + HOLD + FALL;
+export const CHURN = 2.1;
+export const RISE = 1.15;
+export const HOLD = 2.3;
+export const FALL = 0.95;
+export const CYCLE = CHURN + RISE + HOLD + FALL;
+
+const TURN = Math.PI * 2;
 
 /** Assembly amount in [0, 1] at a point in the cycle: 0 sphere, 1 logo. */
-function assembly(local: number): number {
+export function assembly(local: number): number {
   if (local < CHURN) return 0;
   if (local < CHURN + RISE) return smoothE((local - CHURN) / RISE);
   if (local < CHURN + RISE + HOLD) return 1;
@@ -276,28 +278,61 @@ function assembly(local: number): number {
 }
 
 /**
- * Accumulated spin angle at a point in the cycle.
+ * Spin angle through the cycle, landing the mark exactly face-on.
  *
- * The sphere spins freely and the assembled logo must come to rest facing
- * the viewer, so angular velocity is `spin · (1 − assembly)`. Integrating
- * that numerically would need state the engine is not allowed to keep, so
- * it is integrated in closed form instead: ∫₀ᵘ (1 − smoothstep) = u − u³ +
- * u⁴/2. The result is a rotation that eases to a genuine stop and then
- * accelerates back out, with no seam at the cycle boundary.
+ * The obvious version — integrate `spin · (1 − assembly)` so the rotation
+ * eases to a stop — stops at whatever angle it happened to reach, and that
+ * angle advances every cycle. The logo then settles at a slightly
+ * different three-quarter view each time it assembles, which is the one
+ * thing a logo must never do: a mark viewed off-axis is a mark shown wrong.
+ *
+ * So the hold angle is pinned to a whole number of turns instead. Each
+ * phase is a closed-form ease between known endpoints:
+ *
+ *   churn → spins freely from where the previous cycle's fall left off
+ *   rise  → eases to TARGET, the whole turn nearest its natural landing
+ *   hold  → TARGET, which is 0 mod 2π: dead face-on, every single cycle
+ *   fall  → accelerates back out by exactly the offset the churn expects
+ *
+ * That last line is what keeps it seamless: the fall ends at TARGET +
+ * spin·FALL/2, and since TARGET is a whole turn, that is congruent to the
+ * churn's starting offset. Position is continuous across the boundary with
+ * no accumulator and no state.
  */
-function spinAngle(local: number, cycles: number, spin: number): number {
-  const perCycle = spin * (CHURN + 0.5 * RISE + 0.5 * FALL);
-  let a = cycles * perCycle;
-  if (local < CHURN) return a + spin * local;
-  a += spin * CHURN;
+export function assembleYaw(local: number, spin: number): number {
+  // Where the previous cycle's fall handed off — also this cycle's start.
+  const churnStart = spin * FALL * 0.5;
+  if (local < CHURN) return churnStart + spin * local;
+
+  const riseStart = churnStart + spin * CHURN;
+  // Round the angle it WOULD have coasted to, so the deceleration reads as
+  // natural rather than as a snap to the nearest landmark.
+  const target = TURN * Math.round((riseStart + spin * RISE * 0.5) / TURN);
   if (local < CHURN + RISE) {
-    const u = (local - CHURN) / RISE;
-    return a + spin * RISE * (u - u * u * u + (u * u * u * u) / 2);
+    return riseStart + (target - riseStart) * smoothE((local - CHURN) / RISE);
   }
-  a += spin * RISE * 0.5;
-  if (local < CHURN + RISE + HOLD) return a;
+  if (local < CHURN + RISE + HOLD) return target;
+
   const u = (local - CHURN - RISE - HOLD) / FALL;
-  return a + spin * FALL * (u * u * u - (u * u * u * u) / 2);
+  return target + spin * FALL * (u * u * u - (u * u * u * u) / 2);
+}
+
+/** Split absolute time into a cycle index, position within it, and assembly. */
+export function cycleAt(t: number): { cycles: number; local: number; m: number } {
+  const cycles = Math.floor(t / CYCLE);
+  const local = t - cycles * CYCLE;
+  return { cycles, local, m: assembly(local) };
+}
+
+/**
+ * Per-dot assembly, hashed rather than indexed.
+ *
+ * An index-ordered stagger sweeps the assembly across the mark like a
+ * wipe, which reads as a progress bar. Hashed, the mark condenses out of
+ * the cloud all at once.
+ */
+export function dotAssembly(i: number, m: number, stagger: number): number {
+  return smoothE(clamp01(m * (1 + stagger) - hashD(i, 3.1) * stagger));
 }
 
 export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
@@ -308,10 +343,8 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const cycles = Math.floor(t / CYCLE);
-  const local = t - cycles * CYCLE;
-  const m = assembly(local);
-  const yaw = spinAngle(local, cycles, o.spin ?? 0.85);
+  const { local, m } = cycleAt(t);
+  const yaw = assembleYaw(local, o.spin ?? 2);
   // The camera tilt settles with the assembly for the same reason the spin
   // does: a mark read at an angle is a mark read wrong.
   const tilt = (o.tiltAmp ?? 0.34) * (1 - m);
@@ -324,11 +357,7 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    // Per-dot delay, hashed rather than indexed: an index-ordered stagger
-    // would sweep the assembly across the mark like a wipe, which reads as
-    // a progress bar. Hashed, the mark condenses out of the cloud at once.
-    const delay = hashD(i, 3.1) * stagger;
-    const mi = smoothE(clamp01(m * (1 + stagger) - delay));
+    const mi = dotAssembly(i, m, stagger);
 
     const seat = seats[i];
     const [fx, fy, fz] = fibDir(seat, n);
@@ -368,43 +397,95 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Orbit: the mark, circled by particles — a compound state ----------
+// --- Orbit: dots leave the mark, circle it, and come back -------------
 
+/**
+ * Particles that are the logo's own dots, not extras added on top.
+ *
+ * Drawing separate particles around an intact mark is the easy version and
+ * it reads as two unrelated things sharing a frame. Here a hashed subset of
+ * the dots detaches, flies an inclined orbit, and returns to the exact seat
+ * it left — so the mark visibly loses material while the work is happening
+ * and is made whole again when it finishes. The gap is the point: it is
+ * what makes the motion belong to the logo rather than decorate it.
+ *
+ * Each traveller keeps its own period and phase from its index hash, so
+ * departures are staggered and the mark is never all there or all gone.
+ */
 export const frameLogoOrbit: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
-  const base = frameLogoSpin(size, t, o, logo);
+  const { p, e, n } = logo.points;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
-  const pt = makeProj(t * (o.orbitSpin ?? 0.9), o.orbitTilt ?? 0.38, cx, cx, R);
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const orbitN = o.orbitN ?? 3;
-  const perOrbit = o.perOrbit ?? 2;
-  const ro = o.orbitR ?? 1.02;
+  const pt = makeProj(
+    (o.yawAmp ?? 0.26) * Math.sin(t * (o.yawRate ?? 0.55)),
+    (o.tiltAmp ?? 0.12) * Math.sin(t * 0.4),
+    cx,
+    cx,
+    R
+  );
 
-  const dots = base.dots;
-  for (let orb = 0; orb < orbitN; orb++) {
-    const h = hashD(orb, 4.4);
-    const inc = 0.3 + 1.1 * h;
-    const ci = Math.cos(inc);
-    const si = Math.sin(inc);
-    for (let k = 0; k < perOrbit; k++) {
-      const a = t * (0.8 + 0.5 * h) + (k / perOrbit) * 2 * Math.PI + orb * 2.1;
-      const ox = Math.cos(a) * ro;
-      const oy = Math.sin(a) * ro * ci;
-      const oz = Math.sin(a) * ro * si;
-      const [px, py, z] = pt(ox, oy, oz);
+  // Fraction of the mark that is allowed to be away at any one time. Past
+  // roughly a fifth the silhouette starts to break up, and a logo with
+  // holes in it stops being recognisable — which is the failure this whole
+  // library exists to avoid.
+  const share = o.travelShare ?? 0.16;
+  const orbitR = o.orbitR ?? 1.06;
+  const rate = o.travelRate ?? 0.34;
+
+  const dots: Dot[] = [];
+  for (let i = 0; i < n; i++) {
+    const pick = hashD(i, 6.7);
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
+
+    if (pick >= share) {
+      const [px, py, z] = pt(lx, ly, lz);
       const zx = clamp01((z + 1) / 2);
       dots.push({
         x: px,
         y: py,
         z,
-        r: ((o.partR ?? 0.9) + (o.partRDepth ?? 1.2) * zx) * rs,
-        white: 0.3 - 0.22 * zx
+        r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx) * rs,
+        white: inkOf(o, zx, e[i])
       });
+      continue;
     }
+
+    // A traveller's cycle: leave, orbit, return, then rest at home for a
+    // while. `away` is the eased in-flight amount; at 0 the dot sits in the
+    // mark and is indistinguishable from a dot that never travels. The
+    // per-dot rate jitter stops the whole set pulsing in lockstep.
+    const phase = (t * rate * (0.7 + hashD(i, 1.9) * 0.6) + hashD(i, 8.3)) % 1;
+    const flight = clamp01((phase - 0.08) / 0.62);
+    const away = Math.sin(Math.PI * clamp01(flight)) ** 0.75;
+
+    // Orbit plane from the dot's own hash, so travellers fan out over many
+    // inclinations instead of sharing one visible ring.
+    const inc = hashD(i, 4.1) * Math.PI;
+    const spin = t * (0.7 + hashD(i, 5.5) * 0.7) * (hashD(i, 2.2) < 0.5 ? 1 : -1) + hashD(i, 7.1) * 6.28;
+    const ox = Math.cos(spin) * orbitR;
+    const oy = Math.sin(spin) * orbitR * Math.cos(inc);
+    const oz = Math.sin(spin) * orbitR * Math.sin(inc);
+
+    const x = lx + (ox - lx) * away;
+    const y = ly + (oy - ly) * away;
+    const z3 = lz + (oz - lz) * away;
+
+    const [px, py, z] = pt(x, y, z3);
+    const zx = clamp01((z + 1) / 2);
+    dots.push({
+      x: px,
+      y: py,
+      z,
+      // A dot in flight is doing the work, so it reads brighter and larger
+      // than the mark it came out of — and fades back as it re-seats.
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.partBoost ?? 0.5) * away) * rs,
+      white: inkOf(o, zx, e[i]) - (o.partInk ?? 0.22) * away,
+      a: 1 - 0.15 * away * (1 - away) * 4
+    });
   }
-  // Re-finalise: the particles were appended after the base frame was
-  // already sorted, and drawing an unsorted frame breaks the occlusion that
-  // makes a particle read as passing behind the mark.
-  return finalizeFrame(dots, base.lines, o.rMin);
+  return finalizeFrame(dots, [], o.rMin);
 };
