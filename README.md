@@ -24,37 +24,32 @@ It is a superset of thinking-orbs: all nine procedural orb states are still expo
 
 ## States
 
-Ten distinct motions on the same mark — not one animation with ten labels. The verbs are the orb states' verbs, so you can run both in one UI and have them mean the same thing.
+Eight distinct motions on the same mark — not one animation with eight labels. The verbs are the orb states' verbs, so you can run both in one UI and have them mean the same thing.
 
 ```tsx
 <ThinkingLogo logo={art} state="thinking" />    {/* sphere ⇄ logo — the headline */}
-<ThinkingLogo logo={art} state="solving" />     {/* sphere → cube → rubik solve → your mark */}
+<ThinkingLogo logo={art} state="solving" />     {/* logo → cube → rubik solve → logo */}
+<ThinkingLogo logo={art} state="listening" />   {/* logo → level meter → logo */}
 <ThinkingLogo logo={art} state="connecting" />  {/* wires and packets run across the mark */}
-<ThinkingLogo logo={art} state="listening" />   {/* bounces on a beat, light ripples across */}
 <ThinkingLogo logo={art} state="searching" />   {/* a scan sweeps across the mark */}
 <ThinkingLogo logo={art} state="working" />     {/* the mark simmering in place */}
-<ThinkingLogo logo={art} state="weaving" />     {/* rows slide apart and knit back together */}
 <ThinkingLogo logo={art} state="orbiting" />    {/* the mark's own dots leave, orbit, return */}
-<ThinkingLogo logo={art} state="breathing" />   {/* a slow pulse with drifting ink */}
-<ThinkingLogo logo={art} state="idle" />        {/* turning gently in space */}
+<ThinkingLogo logo={art} state="breathing" />   {/* a slow pulse with a halo drifting in depth */}
 ```
 
-`thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on — the spin integrated in closed form so it eases to a genuine stop rather than freezing mid-turn.
+`thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on.
 
-`solving` runs the real rubik solver from thinking-orbs, but on a cube rather than on your logo — sphere rounds into a cube, the cube scrambles and solves, then it flies apart into your mark. Twisting the logo directly was tried first and destroyed it; see below.
-
-Each state reads differently at a glance, which is the point — a user can tell retrieval from generation from tool use without reading a word.
+`solving` and `listening` share a shape: the mark becomes something else, that thing does the work, and the mark comes back. A cube gets solved; a level meter runs. In both, the logo is the state the animation RETURNS to — never a stage it passes through, and never itself the thing being deformed.
 
 ### The rule every state obeys
 
 **The viewer must always be able to see what the logo is.** A sphere reads correctly from every angle and has no silhouette to protect. A mark has exactly one correct appearance, and everything follows from that:
 
 - **`thinking` lands face-on, every cycle.** The spin's hold angle is pinned to a whole number of turns in closed form. Simply easing the rotation to a stop leaves it at whatever angle it reached — and that angle drifts each cycle, so the mark settles into a slightly different three-quarter view every time.
-- **`solving` scrambles a cube, not the logo.** A thin plate sliced and twisted becomes debris within two moves, and the reset then lands on nothing because the viewer stopped tracking a shape long ago.
-- **`listening` never displaces a dot.** The ripple modulates radius and ink only. Displacing in depth projects to a screen offset under any camera tilt, which stamped the mark three or four times across the frame — a logo rendered more than once is worse than no animation at all.
+- **`solving` scrambles a cube, not the logo.** A thin plate sliced and twisted becomes debris within two moves, and the reset then lands on nothing because the viewer stopped tracking a shape long ago. The rotation is confined to the cube — exactly one whole turn — so the mark itself never spins and is only ever shown square to the viewer.
+- **`listening` becomes a level meter.** Rolling a wave through the logo by displacing points in depth stamped the mark three or four times across the frame, because a depth offset projects to a screen offset under any camera tilt. Modulating only radius and ink fixed the ghosting but read as a shimmer — nothing about it said *audio*. Bar assignment is spatial, so the mark folds into the meter rather than shuffling into it.
 - **`connecting` draws the mark at full strength** and puts the wiring on top. Held back as a ghost, the logo vanished and what remained was an abstract node graph sitting near it.
-- **`orbiting` uses the mark's own dots.** Travellers detach and leave real gaps, capped at a sixth of the mark, then return to the exact seat they left. Separate particles orbiting an intact logo read as two unrelated things sharing a frame.
-- **`weaving` quantises into rigid rows** with a π phase lag, so every row's offset crosses zero at the same instant and the mark reassembles completely twice a cycle. A continuous shear reads as warping — like a rendering fault, not a choice.
+- **`orbiting` uses the mark's own dots.** A third detach and leave real gaps, drifting within a bounded arc of where they started, then return to the exact seat they left. A shared orbit radius draws a ring, and a ring is a separate object circling the logo rather than the logo coming apart.
 
 ## Baking
 

@@ -11,11 +11,11 @@ import type { LogoPointSet } from './engine/cloud';
 import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
+  buildBars,
   buildGraph,
   frameLogoAssemble,
   frameLogoOrbit,
   frameLogoScan,
-  frameLogoSpin,
   frameLogoUnrest,
   seatMap
 } from './engine/logo';
@@ -23,20 +23,17 @@ import {
   frameLogoBreathe,
   frameLogoConnect,
   frameLogoSolve,
-  frameLogoWave,
-  frameLogoWeave
+  frameLogoWave
 } from './engine/logoDeform';
 
 export type LogoMode =
   | 'assemble'
-  | 'spin'
   | 'scan'
   | 'unrest'
   | 'orbit'
   | 'solve'
   | 'wave'
   | 'connect'
-  | 'weave'
   | 'breathe';
 
 /**
@@ -49,39 +46,33 @@ export type LogoMode =
  */
 export type LogoState =
   | 'thinking'
-  | 'idle'
   | 'searching'
   | 'working'
   | 'orbiting'
   | 'solving'
   | 'listening'
   | 'connecting'
-  | 'weaving'
   | 'breathing';
 
 export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   thinking: 'assemble',
-  idle: 'spin',
   searching: 'scan',
   working: 'unrest',
   orbiting: 'orbit',
   solving: 'solve',
   listening: 'wave',
   connecting: 'connect',
-  weaving: 'weave',
   breathing: 'breathe'
 };
 
 export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   assemble: frameLogoAssemble,
-  spin: frameLogoSpin,
   scan: frameLogoScan,
   unrest: frameLogoUnrest,
   orbit: frameLogoOrbit,
   solve: frameLogoSolve,
   wave: frameLogoWave,
   connect: frameLogoConnect,
-  weave: frameLogoWeave,
   breathe: frameLogoBreathe
 };
 
@@ -102,24 +93,6 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       churn: 0.09,
       sphereR: 0.92,
       flightFade: 0.25,
-      rBase: 0.55,
-      rDepth: 1.5,
-      inkFar: 0.6,
-      inkSpan: 0.5,
-      inkRim: 0.16,
-      rsPow: 0.6,
-      rMin: 0.3
-    }
-  },
-  spin: {
-    speed: 1,
-    opts: {
-      yawAmp: 0.55,
-      yawRate: 0.9,
-      tiltAmp: 0.16,
-      tiltRate: 0.63,
-      breathe: 0.02,
-      breatheRate: 1.4,
       rBase: 0.55,
       rDepth: 1.5,
       inkFar: 0.6,
@@ -190,14 +163,14 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   solve: {
     speed: 1,
     opts: {
-      spin: 1.5,
-      tiltAmp: 0.38,
-      cubeHalf: 0.6,
-      sphereR: 0.86,
-      moveCount: 6,
-      slotDur: 0.32,
-      rest: 0.36,
-      stagger: 0.7,
+      hold: 1.3,
+      out: 0.75,
+      work: 3,
+      back: 0.75,
+      turns: 1,
+      tiltAmp: 0.36,
+      cubeHalf: 0.62,
+      moveCount: 5,
       rActive: 0.3,
       rBase: 0.55,
       rDepth: 1.4,
@@ -211,15 +184,20 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   wave: {
     speed: 1,
     opts: {
-      tilt: 0.05,
-      beat: 1.9,
-      bounce: 0.075,
-      squash: 0.045,
-      ripple: 0.22,
-      rippleK: 2.6,
-      rippleRate: 2.4,
-      rippleInk: 0.18,
-      rBase: 0.5,
+      hold: 1.2,
+      out: 0.7,
+      work: 2.8,
+      back: 0.7,
+      tilt: 0.04,
+      bars: 15,
+      spread: 0.92,
+      barRate: 3.4,
+      barFloor: 0.22,
+      barHeight: 0.85,
+      barFill: 0.62,
+      loudR: 0.35,
+      loudInk: 0.16,
+      rBase: 0.52,
       rDepth: 1.2,
       inkFar: 0.6,
       inkSpan: 0.5,
@@ -259,33 +237,19 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rMin: 0.3
     }
   },
-  weave: {
-    speed: 1,
-    opts: {
-      tilt: 0.06,
-      rows: 9,
-      slide: 0.22,
-      slideRate: 1.15,
-      rowLag: 3.14159,
-      strayInk: 0.1,
-      rBase: 0.55,
-      rDepth: 1.2,
-      inkFar: 0.6,
-      inkSpan: 0.5,
-      inkRim: 0.16,
-      rsPow: 0.6,
-      rMin: 0.3
-    }
-  },
   breathe: {
     speed: 1,
     opts: {
-      yawAmp: 0.14,
+      yawAmp: 0.12,
       tiltAmp: 0.07,
-      breathe: 0.05,
+      breathe: 0.055,
       breatheRate: 0.85,
+      haloShare: 0.13,
+      haloOut: 0.2,
+      haloZ: 0.85,
+      haloR: 0.25,
       rBase: 0.55,
-      rDepth: 1.4,
+      rDepth: 1.5,
       inkFar: 0.6,
       inkSpan: 0.5,
       inkRim: 0.16,
@@ -323,12 +287,20 @@ export function resolveLogo(
   // The constellation graph costs a farthest-point pass and a quadratic
   // edge test, so it is only built for the one state that reads it.
   const graph =
-    mode === 'connect' ? buildGraph(points, opts.nodeCount ?? 34, opts.reach ?? 1.55) : undefined;
+    mode === 'connect' ? buildGraph(points, opts.nodeCount ?? 58, opts.reach ?? 1.35) : undefined;
+  const meter = mode === 'wave' ? buildBars(points, opts.bars ?? 15) : undefined;
   return {
     mode,
     frame: LOGO_MODE_FRAMES[mode],
     speed: preset.speed,
     opts,
-    binding: { points, seats: seatMap(points), nodes: graph?.nodes, edges: graph?.edges }
+    binding: {
+      points,
+      seats: seatMap(points),
+      nodes: graph?.nodes,
+      edges: graph?.edges,
+      bar: meter?.bar,
+      slot: meter?.slot
+    }
   };
 }

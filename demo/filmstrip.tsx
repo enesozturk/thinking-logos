@@ -111,8 +111,9 @@ function App() {
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
   const rise = [2.1, 2.35, 2.6, 2.85, 3.0, 3.1, 3.2, 3.25, 3.6];
-  const solve = [0, 1.2, 2.4, 3.6, 4.8, 5.6, 6.4, 7.4, 8.6];
+  const solve = [0, 1.4, 2.1, 2.8, 3.6, 4.4, 5.2, 5.6, 5.9];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
+  const meter = [0, 1.1, 1.6, 2.2, 2.8, 3.4, 4.0, 4.7, 5.3];
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>
@@ -135,13 +136,13 @@ function App() {
         note="THE RISE — camera must be square before the mark is legible"
         tint={tint}
       />
-      <Strip points={points} state="solving" times={solve} note="sphere → cube → solve → mark" tint={tint} />
+      <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
       <Strip points={points} state="orbiting" times={even} note="dots leave the mark and return" tint={tint} />
       <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
-      <Strip points={points} state="listening" times={even} note="bounce + light ripple, no ghosting" tint={tint} />
-      <Strip points={points} state="weaving" times={even} note="rows slide, then knit back" tint={tint} />
+      <Strip points={points} state="listening" times={meter} note="logo → level meter → logo" tint={tint} />
       <Strip points={points} state="searching" times={even} note="scan sweeps across" tint={tint} />
       <Strip points={cube} state="solving" times={solve} note="Notion — the 3D-looking hard case" />
+      <Strip points={points} state="breathing" times={even} note="pulse + halo drifting in depth" tint={tint} />
       <Strip points={cube} state="connecting" times={even} note="Notion — mark must stay readable" />
     </main>
   );

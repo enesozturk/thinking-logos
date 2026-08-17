@@ -10,14 +10,12 @@ import { CopyButton } from './CopyButton';
 const STATES: LogoState[] = [
   'thinking',
   'solving',
-  'connecting',
   'listening',
+  'connecting',
   'searching',
   'working',
-  'weaving',
   'orbiting',
-  'breathing',
-  'idle'
+  'breathing'
 ];
 const STYLES: LogoStyle[] = ['fill', 'outline', 'both'];
 const SHELLS: ShellMode[] = ['dome', 'flat', 'slab'];

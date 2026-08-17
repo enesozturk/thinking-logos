@@ -129,6 +129,43 @@ export function buildGraph(
 }
 
 /**
+ * Lay the mark's dots out as a row of vertical bars — a level meter.
+ *
+ * Assignment is spatial, not by index: dots are ordered by x, chunked into
+ * bars, and ordered by y within each chunk. That way the dot on the left of
+ * the logo ends up in the leftmost bar and the dot at the top of the logo
+ * ends up at the top of its bar, so the mark folds into the meter and back
+ * without any dot crossing the frame. Assigning by raw index would send
+ * dots to arbitrary bars, and the transition would read as a shuffle rather
+ * than as the same material rearranging itself.
+ *
+ * One sort, so this is resolve-time work.
+ */
+export function buildBars(points: LogoPointSet, bars: number): { bar: Uint16Array; slot: Float32Array } {
+  const { p, n } = points;
+  const b = Math.max(2, Math.min(bars, n));
+  const order = new Uint32Array(n);
+  for (let i = 0; i < n; i++) order[i] = i;
+  order.sort((i, j) => p[i * 3] - p[j * 3]);
+
+  const bar = new Uint16Array(n);
+  const slot = new Float32Array(n);
+  const per = Math.ceil(n / b);
+  for (let k = 0; k < b; k++) {
+    const from = k * per;
+    const to = Math.min(n, from + per);
+    if (from >= to) break;
+    const column = Array.prototype.slice.call(order, from, to) as number[];
+    column.sort((i, j) => p[i * 3 + 1] - p[j * 3 + 1]);
+    for (let r = 0; r < column.length; r++) {
+      bar[column[r]] = k;
+      slot[column[r]] = column.length > 1 ? r / (column.length - 1) : 0.5;
+    }
+  }
+  return { bar, slot };
+}
+
+/**
  * What a logo mode renders before its artwork is baked. A fresh object each
  * time: a shared one would be handed to a caller that is free to mutate it.
  */
@@ -154,38 +191,6 @@ export function inkOf(o: Record<string, number | undefined>, zx: number, edge: n
   const rim = o.inkRim ?? 0.16;
   return far - span * zx - rim * (1 - edge);
 }
-
-// --- Spin: the mark turning in space — a branded idle ------------------
-
-export const frameLogoSpin: ModeFrame = (size, t, o, logo) => {
-  if (!logo) return empty();
-  const { p, e, n } = logo.points;
-  const cx = size / 2;
-  const R = (size / 2) * 0.82;
-  const yawAmp = o.yawAmp ?? 0.55;
-  // A full rotation would spend a third of every cycle showing the mark
-  // edge-on or mirrored, which is exactly when a logo stops being a logo.
-  // Oscillating instead keeps it readable at every instant.
-  const yaw = yawAmp * Math.sin(t * (o.yawRate ?? 0.9));
-  const tilt = (o.tiltAmp ?? 0.16) * Math.sin(t * (o.tiltRate ?? 0.63) + 1.1);
-  const pt = makeProj(yaw, tilt, cx, cx, R);
-  const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const breathe = 1 + (o.breathe ?? 0.02) * Math.sin(t * (o.breatheRate ?? 1.4));
-
-  const dots: Dot[] = [];
-  for (let i = 0; i < n; i++) {
-    const [px, py, z] = pt(p[i * 3] * breathe, p[i * 3 + 1] * breathe, p[i * 3 + 2]);
-    const zx = clamp01((z + 1) / 2);
-    dots.push({
-      x: px,
-      y: py,
-      z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx) * rs,
-      white: inkOf(o, zx, e[i])
-    });
-  }
-  return finalizeFrame(dots, [], o.rMin);
-};
 
 // --- Scan: a plane sweeps the mark — searching, in your brand ----------
 

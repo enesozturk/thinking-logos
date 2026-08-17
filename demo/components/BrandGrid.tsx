@@ -13,10 +13,8 @@ const VERB_TO_STATE: Record<string, LogoState> = {
   Listening: 'listening',
   Searching: 'searching',
   Working: 'working',
-  Weaving: 'weaving',
   Breathing: 'breathing',
-  Orbiting: 'orbiting',
-  Idle: 'idle'
+  Orbiting: 'orbiting'
 };
 
 const WEIGHT_LABEL: Record<Brand['weight'], string> = {

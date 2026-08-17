@@ -17,7 +17,7 @@ import type { Dot, Line, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, hashD, makeProj, radiusScale } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
-import { assembleYaw, dotAssembly, inkOf } from './logo';
+import { inkOf } from './logo';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -31,25 +31,63 @@ function empty(): OrbFrame {
   return { dots: [], lines: [] };
 }
 
-// --- Solving: orb → cube → solve → logo -------------------------------
-
-// The solve gets its own, longer cycle: a scramble that resolves is the
-// entire point, and it cannot be rushed into the assemble state's churn.
-const S_FORM = 1.1; // sphere rounds into a cube
-const S_SOLVE = 4.2; // the cube scrambles and unscrambles
-const S_RISE = 1.15; // cube flies apart into the mark
-const S_HOLD = 2.2;
-const S_FALL = 0.95;
-const S_CYCLE = S_FORM + S_SOLVE + S_RISE + S_HOLD + S_FALL;
+// --- shared: an excursion away from the mark and back ------------------
 
 /**
- * A point on the surface of a cube, from the same Fibonacci index.
+ * The shape both `solving` and `listening` follow: rest as the logo, become
+ * something else, do work there, become the logo again.
+ *
+ * The mark is the state the animation RETURNS to, not one it passes
+ * through. An earlier version cycled through a sphere on the way in and out
+ * — sphere → cube → solve → mark — and the sphere was pure overhead: an
+ * extra form the viewer had to parse, appearing between two forms that
+ * already told the whole story.
+ */
+interface Excursion {
+  /** 0 while the logo is showing, 1 while the other form is. */
+  c: number;
+  /** Time elapsed inside the working phase. */
+  work: number;
+  /** Progress across the whole away-span, for camera work. */
+  away: number;
+}
+
+function excursion(t: number, hold: number, out: number, work: number, back: number): Excursion {
+  const cycle = hold + out + work + back;
+  const local = t % cycle;
+  if (local < hold) return { c: 0, work: 0, away: 0 };
+  const away = clamp01((local - hold) / (out + work + back));
+  if (local < hold + out) return { c: smoothE((local - hold) / out), work: 0, away };
+  if (local < hold + out + work) return { c: 1, work: local - hold - out, away };
+  return { c: 1 - smoothE((local - hold - out - work) / back), work, away };
+}
+
+/**
+ * Camera yaw for an excursion: exactly `turns` whole revolutions across the
+ * away-span, eased so velocity is zero at both ends.
+ *
+ * Whole turns are the point. The mark is only ever shown at yaw 0, because
+ * the rotation both starts and finishes on a multiple of 2π — so the logo
+ * never spins, while the form it becomes gets all the rotation it needs to
+ * read as a solid.
+ */
+function excursionYaw(away: number, turns: number): number {
+  return Math.PI * 2 * turns * smoothE(away);
+}
+
+// --- Solving: logo → cube → solve → logo -------------------------------
+
+const SV_HOLD = 1.3;
+const SV_OUT = 0.75;
+const SV_WORK = 3;
+const SV_BACK = 0.75;
+
+/**
+ * A point on the surface of a cube, from a Fibonacci index.
  *
  * Pushing a sphere direction out to the cube face — divide by the largest
- * component — keeps the seat assignment identical between the two forms, so
- * the sphere can round into a cube with no re-pairing and no crossing. The
- * distribution bunches slightly toward the corners, which is if anything
- * helpful: it makes the edges read.
+ * component — gives an even-ish spread that bunches slightly toward the
+ * corners, which is if anything helpful: it makes the edges read.
  */
 function cubeSeat(i: number, n: number, half: number): [number, number, number] {
   const [x, y, z] = fibDir(i, n);
@@ -71,21 +109,19 @@ function makeCubeMoves(count: number, half: number): Move[] {
 }
 
 /**
- * Solving, rebuilt: the mark is never the thing being scrambled.
+ * The mark is never the thing being scrambled — the cube is.
  *
- * The first attempt applied rubik's slabs directly to the logo, and it did
- * not work — for a reason worth recording. A sphere is equally thick in
- * every axis, so every slab is a real slice and the object looks like
- * itself throughout. A logo is a thin plate with one correct silhouette:
- * slice it and rotate the pieces and within two moves there is no mark
- * left, only debris. The reset then lands on nothing, because the viewer
- * long ago stopped tracking a shape.
+ * Applying rubik's slabs to the logo directly was tried and does not work:
+ * a sphere is equally thick in every axis so every slab is a real slice,
+ * but a logo is a thin plate with one correct silhouette, and slicing it
+ * leaves debris within two moves. The reset then lands on nothing, because
+ * the viewer stopped tracking a shape long ago.
  *
- * So the scrambling happens to a CUBE — an object that survives being
- * twisted, because that is what a cube is for — and the logo arrives after
- * it is solved. sphere → cube → scramble → solve → mark. The rubik motion
- * keeps the geometry it was designed for, and the logo keeps its silhouette
- * intact for every frame it is on screen.
+ * So the logo becomes a cube — an object that survives being twisted,
+ * because that is what a cube is for — the cube is solved, and the logo
+ * comes back. The rotation is confined to the cube: it is exactly one whole
+ * turn across the away-span, so the mark itself is only ever shown square
+ * to the viewer and never spins.
  */
 export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -94,51 +130,34 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const half = o.cubeHalf ?? 0.6;
+  const half = o.cubeHalf ?? 0.62;
 
-  const local = t % S_CYCLE;
-  // form: 0 at sphere, 1 at cube. assembly: 0 at cube, 1 at mark.
-  const form = local < S_FORM ? smoothE(local / S_FORM) : 1;
-  let m = 0;
-  if (local >= S_FORM + S_SOLVE) {
-    const after = local - S_FORM - S_SOLVE;
-    if (after < S_RISE) m = smoothE(after / S_RISE);
-    else if (after < S_RISE + S_HOLD) m = 1;
-    else m = 1 - smoothE((after - S_RISE - S_HOLD) / S_FALL);
-  }
+  const ex = excursion(t, o.hold ?? SV_HOLD, o.out ?? SV_OUT, o.work ?? SV_WORK, o.back ?? SV_BACK);
+  const pt = makeProj(
+    excursionYaw(ex.away, o.turns ?? 1),
+    (o.tiltAmp ?? 0.36) * ex.c,
+    cx,
+    cx,
+    R
+  );
 
-  // Only twist while the cube is formed and still whole; once the mark
-  // starts arriving the moves unwind so nothing is mid-rotation when the
-  // logo lands.
-  const solveT = clamp01((local - S_FORM) / S_SOLVE) * S_SOLVE;
-  const moveCount = o.moveCount ?? 6;
+  // Five moves scrambling and unscrambling inside the working phase, so the
+  // palindrome completes exactly as the cube starts turning back into the
+  // mark — nothing is ever caught mid-rotation when the logo lands.
+  const moveCount = o.moveCount ?? 5;
   const moves = makeCubeMoves(moveCount, half);
-  const sc = solveCycle(solveT, moveCount, o.slotDur ?? 0.32, o.rest ?? 0.36);
-
-  // Spin freely while it is a cube, come to rest face-on for the mark —
-  // the same closed-form landing the assemble state uses.
-  const yaw = assembleYaw(local, o.spin ?? 1.5);
-  const tilt = (o.tiltAmp ?? 0.38) * (1 - m);
-  const pt = makeProj(yaw, tilt, cx, cx, R);
-  const stagger = o.stagger ?? 0.7;
+  const slot = (o.work ?? SV_WORK) / (2 * moveCount);
+  const sc = solveCycle(ex.work, moveCount, slot, 0);
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const seat = seats[i];
-    const [sx, sy, sz] = fibDir(seat, n);
-    const [qx, qy, qz] = cubeSeat(seat, n, half);
-    // sphere → cube
-    const bx = sx * (o.sphereR ?? 0.86) + (qx - sx * (o.sphereR ?? 0.86)) * form;
-    const by = sy * (o.sphereR ?? 0.86) + (qy - sy * (o.sphereR ?? 0.86)) * form;
-    const bz = sz * (o.sphereR ?? 0.86) + (qz - sz * (o.sphereR ?? 0.86)) * form;
+    const [qx, qy, qz] = cubeSeat(seats[i], n, half);
+    const [tx, ty, tz, inActive] = applyMoves([qx, qy, qz], moves, sc);
 
-    const [tx, ty, tz, inActive] = applyMoves([bx, by, bz], moves, sc);
-
-    // cube → mark
-    const mi = dotAssembly(i, m, stagger);
-    const x = tx + (p[i * 3] - tx) * mi;
-    const y = ty + (p[i * 3 + 1] - ty) * mi;
-    const z3 = tz + (p[i * 3 + 2] - tz) * mi;
+    const c = ex.c;
+    const x = p[i * 3] + (tx - p[i * 3]) * c;
+    const y = p[i * 3 + 1] + (ty - p[i * 3 + 1]) * c;
+    const z3 = p[i * 3 + 2] + (tz - p[i * 3 + 2]) * c;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
@@ -148,70 +167,87 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
       z,
       // The slab under the wrench brightens, so the eye can follow which
       // face is turning instead of watching the whole solid shimmer.
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (inActive ? (o.rActive ?? 0.3) : 0) * (1 - mi)) * rs,
-      white: inkOf(o, zx, e[i] * mi + (1 - mi))
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (inActive ? (o.rActive ?? 0.3) : 0) * c) * rs,
+      white: inkOf(o, zx, e[i] * (1 - c) + c)
     });
   }
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Listening: the mark bounces; the ripple is light, not shape -------
+// --- Listening: logo → level meter → logo ------------------------------
+
+const LS_HOLD = 1.2;
+const LS_OUT = 0.7;
+const LS_WORK = 2.8;
+const LS_BACK = 0.7;
 
 /**
- * A pulse that never moves a dot out of place.
+ * The mark folds into a row of bars, the bars move like a level meter, and
+ * the mark comes back.
  *
- * The first version rolled a wave through the mark by displacing points in
- * depth. Under the camera's tilt and yaw a depth offset projects to a
- * screen offset, so alternating bands of the logo slid in opposite
- * directions and the result was a comb — the same mark stamped three or
- * four times across the frame. A logo rendered more than once is worse than
- * no animation at all.
+ * Two earlier attempts failed in instructive ways. Rolling a wave through
+ * the logo by displacing points in depth stamped the mark three or four
+ * times across the frame, because a depth offset projects to a screen
+ * offset under any camera tilt. Modulating only radius and ink fixed the
+ * ghosting but left the state reading as a shimmer — nothing about it said
+ * *audio*.
  *
- * The fix is to stop displacing anything. A travelling band modulates only
- * RADIUS and INK, so the silhouette is pixel-stable while a swell of
- * brightness runs across it — which is what a level meter actually looks
- * like. The rhythm comes from a whole-mark bounce instead: the logo drops
- * and recovers on a beat, moving as one rigid object, so it can never
- * ghost against itself.
+ * A level meter says audio instantly, and it is a shape the mark can
+ * actually become: the same dots, re-laid as columns. Bar assignment is
+ * spatial (see `buildBars`), so the logo folds into the meter rather than
+ * shuffling into it.
  */
 export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
-  if (!logo) return empty();
+  if (!logo || !logo.bar || !logo.slot) return empty();
   const { p, e, n } = logo.points;
+  const bar = logo.bar;
+  const slot = logo.slot;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  // Held nearly flat on purpose: with no depth displacement left there is
-  // nothing for a strong perspective to reveal, and a still camera keeps
-  // the bounce reading as a bounce.
-  const pt = makeProj(0, o.tilt ?? 0.05, cx, cx, R);
 
-  const beat = o.beat ?? 1.9;
-  // Asymmetric bounce — a quick fall and a slower recovery is what reads as
-  // weight. A plain sine reads as floating.
-  const ph = (t * beat) % 1;
-  const drop = ph < 0.28 ? smoothE(ph / 0.28) : 1 - smoothE((ph - 0.28) / 0.72);
-  const bounce = -(o.bounce ?? 0.075) * drop;
-  const squash = 1 + (o.squash ?? 0.045) * drop;
+  const ex = excursion(t, o.hold ?? LS_HOLD, o.out ?? LS_OUT, o.work ?? LS_WORK, o.back ?? LS_BACK);
+  // The meter is read head-on, like a meter. No rotation at all.
+  const pt = makeProj(0, (o.tilt ?? 0.04) * ex.c, cx, cx, R);
 
-  const ripple = o.ripple ?? 0.22;
-  const k = o.rippleK ?? 2.6;
-  const rate = o.rippleRate ?? 2.4;
+  const bars = Math.max(2, Math.round(o.bars ?? 15));
+  const spread = o.spread ?? 0.92;
+  const barW = (2 * spread) / bars;
+  const rate = o.barRate ?? 3.4;
+  const floorH = o.barFloor ?? 0.22;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const x = p[i * 3];
-    const y = p[i * 3 + 1];
-    // Band position drives light only. Never geometry.
-    const w = Math.sin(y * k - t * rate) * 0.6 + Math.sin(x * k * 0.7 + t * rate * 0.55) * 0.4;
-    const lift = clamp01(w * 0.5 + 0.5);
-    const [px, py, z] = pt(x / squash, y * squash + bounce, p[i * 3 + 2]);
+    const b = bar[i];
+    // Each bar breathes on its own frequency and phase. Shared timing reads
+    // as a graphic equaliser demo; independent timing reads as a signal.
+    const wob =
+      0.5 +
+      0.5 *
+        Math.sin(t * rate * (0.6 + hashD(b, 1.3) * 0.9) + hashD(b, 4.7) * 6.28) *
+        Math.sin(t * rate * 0.37 + hashD(b, 8.1) * 6.28);
+    const h = floorH + (1 - floorH) * wob;
+
+    // Jitter inside the column so a bar reads as a bar with width, not as a
+    // one-dot-wide line.
+    const jx = (hashD(i, 2.1) - 0.5) * barW * (o.barFill ?? 0.62);
+    const bx = ((b + 0.5) / bars - 0.5) * 2 * spread + jx;
+    const by = (slot[i] - 0.5) * 2 * h * (o.barHeight ?? 0.85);
+
+    const c = ex.c;
+    const x = p[i * 3] + (bx - p[i * 3]) * c;
+    const y = p[i * 3 + 1] + (by - p[i * 3 + 1]) * c;
+    const z3 = p[i * 3 + 2] * (1 - c);
+
+    const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.2) * zx + ripple * lift) * rs,
-      white: inkOf(o, zx, e[i]) - (o.rippleInk ?? 0.18) * lift
+      // Taller bars read louder.
+      r: ((o.rBase ?? 0.52) + (o.rDepth ?? 1.2) * zx + (o.loudR ?? 0.35) * h * c) * rs,
+      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.loudInk ?? 0.16) * h * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -339,88 +375,57 @@ export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, lines, o.rMin);
 };
 
-// --- Weaving: rows of the mark slide, in sequence ---------------------
+// --- Breathing: the mark at rest, with a live halo ---------------------
 
 /**
- * Discrete rows sliding sideways, offset by a travelling phase.
+ * A slow pulse, plus a scatter of dots drifting toward and away from the
+ * viewer in time with it.
  *
- * The rotational shear this replaced was smooth, and smooth was the
- * problem: a continuous twist reads as the artwork being warped, which
- * looks like a rendering fault rather than a choice. Quantising into a
- * fixed number of rows makes each one move as a rigid unit, and a rigid
- * unit sliding is unmistakably deliberate — the mark comes apart into
- * strips and knits back together.
- *
- * The camera is held completely still. Rotating while the rows slide gives
- * two competing motions and the eye cannot read either.
+ * The pulse alone was correct but inert — a logo quietly scaling is hard to
+ * distinguish from a logo doing nothing. The halo dots are drawn from the
+ * mark itself, pushed just outside the silhouette and swung through depth
+ * on the breathing frequency. Because the engine carries depth as radius
+ * and ink, a dot moving in z alone visibly advances and recedes, which
+ * gives the state a foreground and a background without any dot ever
+ * landing somewhere that breaks the outline.
  */
-export const frameLogoWeave: ModeFrame = (size, t, o, logo) => {
-  if (!logo) return empty();
-  const { p, e, n } = logo.points;
-  const cx = size / 2;
-  const R = (size / 2) * 0.82;
-  const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj(0, o.tilt ?? 0.06, cx, cx, R);
-
-  const rows = Math.max(3, Math.round(o.rows ?? 9));
-  const amp = o.slide ?? 0.3;
-  const rate = o.slideRate ?? 1.15;
-  // Neighbouring rows lag rather than mirror, so the offsets read as one
-  // wave crossing the mark instead of rows fighting each other.
-  const lag = o.rowLag ?? 1.5;
-
-  const dots: Dot[] = [];
-  for (let i = 0; i < n; i++) {
-    const x = p[i * 3];
-    const y = p[i * 3 + 1];
-    // Row index from y, quantised. Same row ⇒ same offset, always.
-    const row = Math.floor(clamp01((y + 1) / 2) * rows);
-    // A lag of exactly π is what buys the knit-back: neighbouring rows
-    // shear in opposite directions, but every row's offset passes through
-    // zero at the same instant, so the mark reassembles completely twice a
-    // cycle. Any other lag leaves the rows permanently out of phase and the
-    // logo never once appears whole.
-    const swing = Math.sin(t * rate - row * lag);
-    // Rows rest at zero offset together once per cycle, which is when the
-    // mark is whole — the moment the whole state exists to deliver.
-    const dx = swing * amp * (0.55 + 0.45 * hashD(row, 3.7));
-
-    const [px, py, z] = pt(x + dx, y, p[i * 3 + 2]);
-    const zx = clamp01((z + 1) / 2);
-    dots.push({
-      x: px,
-      y: py,
-      z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.2) * zx) * rs,
-      // Rows furthest from home dim slightly, so the knitted-together
-      // instant is also the brightest one.
-      white: inkOf(o, zx, e[i]) + (o.strayInk ?? 0.1) * Math.abs(swing)
-    });
-  }
-  return finalizeFrame(dots, [], o.rMin);
-};
-
-// --- Breathing: the mark at rest, alive -------------------------------
-
-/** A slow scale-and-ink pulse. The quiet state. */
 export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj((o.yawAmp ?? 0.14) * Math.sin(t * 0.3), (o.tiltAmp ?? 0.07) * Math.sin(t * 0.23), cx, cx, R);
-  const s = 1 + (o.breathe ?? 0.05) * Math.sin(t * (o.breatheRate ?? 0.85));
+  const pt = makeProj((o.yawAmp ?? 0.12) * Math.sin(t * 0.28), (o.tiltAmp ?? 0.07) * Math.sin(t * 0.21), cx, cx, R);
+
+  const rate = o.breatheRate ?? 0.85;
+  const s = 1 + (o.breathe ?? 0.055) * Math.sin(t * rate);
+  const share = o.haloShare ?? 0.13;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const [px, py, z] = pt(p[i * 3] * s, p[i * 3 + 1] * s, p[i * 3 + 2] * s);
+    let x = p[i * 3] * s;
+    let y = p[i * 3 + 1] * s;
+    let z3 = p[i * 3 + 2] * s;
+    let halo = 0;
+
+    if (hashD(i, 6.7) < share) {
+      // Phase spread so the halo is never all near or all far at once, but
+      // still locked to the same frequency as the pulse it belongs to.
+      const osc = Math.sin(t * rate + hashD(i, 8.3) * Math.PI * 2);
+      halo = 1;
+      const out = 1 + (o.haloOut ?? 0.2) * (0.5 + 0.5 * osc);
+      x *= out;
+      y *= out;
+      z3 += (o.haloZ ?? 0.85) * osc;
+    }
+
+    const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx) * rs,
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.haloR ?? 0.25) * halo) * rs,
       white: inkOf(o, zx, e[i])
     });
   }
