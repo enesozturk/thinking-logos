@@ -269,101 +269,148 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: carriers orbit between seats, gaining colour as they land --
+// --- Unrest: logo → tilted orbit rings, with couriers → logo -----------
 
 /**
- * Most of the mark sits held back while a share of its dots lift out of
- * their seats, arc around the logo, and settle into a different one.
+ * The mark becomes a set of tilted rings turning about a common centre,
+ * with a few bright couriers breaking away to carry something across and
+ * burning out where they land.
  *
- * Three things were wrong with the version before this, and they were all
- * the same mistake — treating the carriers as arriving from somewhere else.
- * They flew in from far outside the frame, which meant most of their
- * journey happened where there was nothing to relate them to; they had to
- * move fast to cover that distance; and the whole cycle had to loop
- * quickly to keep the mark from standing empty.
+ * Rings are the one form left that none of the other states use — not a
+ * solid like the orb, the cube or the breathing body, not a surface like
+ * the globe, but open paths. That reads as machinery in a way a ball never
+ * does, which is what `working` should say.
  *
- * Travelling between two points of the LOGO fixes all three at once. The
- * path is short, so it can be slow. It bows outward, so it reads as an
- * orbit rather than a jump. And every dot is always somewhere meaningful:
- * leaving the mark, over it, or part of it.
- *
- * Colour carries the state. A dot in transit is neutral grey cargo and
- * takes on the brand tint as it seats — so what the eye follows is material
- * being loaded, which is legible at any size because it is a brightness and
- * hue difference rather than a displacement.
+ * The couriers are the point of the state, and they only work because they
+ * have somewhere to be. Earlier versions had them arriving from off-frame,
+ * or hopping between seats of a stationary logo; both spent most of the
+ * motion in dead space. A courier that leaves one ring, crosses, and fades
+ * out on another is legible for its whole life, because every part of that
+ * journey happens against something.
  */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
+  const seats = logo.seats;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
+
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.breathDur ?? 0.35, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const m = b.m;
+  const c = 1 - m;
+  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
+
   const pt = makeProj(
-    (o.yawAmp ?? 0.16) * Math.sin(t * (o.yawRate ?? 0.35)),
-    (o.tiltAmp ?? 0.08) * Math.sin(t * 0.27),
+    (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.35)) * c,
+    (o.tiltAmp ?? 0.24) * c,
     cx,
     cx,
     R
   );
 
-  const share = o.carrierShare ?? 0.3;
-  const ghostInk = o.ghostInk ?? 0.14;
-  const rate = o.travelRate ?? 0.17;
-  const arc = o.arc ?? 0.5;
+  const rings = Math.max(2, Math.round(o.rings ?? 7));
+  const perRing = Math.ceil(n / rings);
+  const spin = o.ringSpin ?? 0.5;
+  const share = o.courierShare ?? 0.16;
+  const rate = o.courierRate ?? 0.3;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const lx = p[i * 3];
-    const ly = p[i * 3 + 1];
-    const lz = p[i * 3 + 2];
+    const seat = seats[i];
+    const ring = seat % rings;
+    const h1 = hashD(ring, 1.7);
+    const h2 = hashD(ring, 5.2);
+    const h3 = hashD(ring, 8.9);
 
-    if (hashD(i, 6.7) >= share) {
-      // The standing part of the mark, held back so the carriers read.
-      const [px, py, z] = pt(lx, ly, lz);
-      const zx = clamp01((z + 1) / 2);
-      dots.push({
-        x: px,
-        y: py,
-        z,
-        r: ((o.ghostR ?? 0.5) + (o.ghostRDepth ?? 1.05) * zx) * rs,
-        white: inkOf(o, zx, e[i]) + ghostInk
-      });
-      continue;
+    // Orbit plane basis, built from the ring's own hash so no two rings
+    // share an inclination.
+    const th = h1 * TURN;
+    const phi = Math.acos(2 * h2 - 1);
+    const nx = Math.sin(phi) * Math.cos(th);
+    const ny = Math.cos(phi);
+    const nz = Math.sin(phi) * Math.sin(th);
+    let ux = -ny;
+    let uy = nx;
+    const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy));
+    ux /= ul;
+    uy /= ul;
+    const vx = ny * 0 - nz * uy;
+    const vy = nz * ux - nx * 0;
+    const vz = nx * uy - ny * ux;
+
+    const ro = (o.ringR ?? 0.55) + (o.ringSpread ?? 0.48) * h1;
+    const dir = h3 > 0.5 ? 1 : -1;
+    // Evenly spaced along the ring rather than hashed: a hashed angle
+    // clumps, and a clumped ring stops looking like a path.
+    const slot = Math.floor(seat / rings) / perRing;
+    const ang = slot * TURN + t * spin * dir * (0.6 + 0.7 * h2);
+
+    let bx = (ux * Math.cos(ang) + vx * Math.sin(ang)) * ro;
+    let by = (uy * Math.cos(ang) + vy * Math.sin(ang)) * ro;
+    let bz = (0 * Math.cos(ang) + vz * Math.sin(ang)) * ro;
+
+    // A courier leaves its place on the ring, crosses to another, and burns
+    // out there before reappearing where it started.
+    let courier = 0;
+    let fade = 1;
+    if (hashD(i, 6.7) < share) {
+      const phase = (t * rate * (0.7 + hashD(i, 1.9) * 0.6) + hashD(i, 8.3)) % 1;
+      const fly = clamp01(phase / 0.62);
+      courier = smoothE(fly);
+      // Burn out on arrival, stay dark, then reappear at the start.
+      fade = phase < 0.62 ? 1 : 1 - clamp01((phase - 0.62) / 0.22);
+
+      const j = (i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n;
+      const tSeat = seats[j];
+      const tRing = tSeat % rings;
+      const t1 = hashD(tRing, 1.7);
+      const t2 = hashD(tRing, 5.2);
+      const tTh = t1 * TURN;
+      const tPhi = Math.acos(2 * t2 - 1);
+      const tnx = Math.sin(tPhi) * Math.cos(tTh);
+      const tny = Math.cos(tPhi);
+      const tnz = Math.sin(tPhi) * Math.sin(tTh);
+      let tux = -tny;
+      let tuy = tnx;
+      const tul = Math.max(1e-6, Math.sqrt(tux * tux + tuy * tuy));
+      tux /= tul;
+      tuy /= tul;
+      const tvx = tny * 0 - tnz * tuy;
+      const tvy = tnz * tux - tnx * 0;
+      const tvz = tnx * tuy - tny * tux;
+      const tro = (o.ringR ?? 0.55) + (o.ringSpread ?? 0.48) * t1;
+      const tAng = (Math.floor(tSeat / rings) / perRing) * TURN + t * spin;
+
+      const gx = (tux * Math.cos(tAng) + tvx * Math.sin(tAng)) * tro;
+      const gy = (tuy * Math.cos(tAng) + tvy * Math.sin(tAng)) * tro;
+      const gz = tvz * Math.sin(tAng) * tro;
+
+      bx += (gx - bx) * courier;
+      by += (gy - by) * courier;
+      bz += (gz - bz) * courier;
     }
 
-    // Its destination is another dot's seat, picked deterministically. Out
-    // and back, so a carrier always ends where a carrier belongs.
-    const j = (i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n;
-    const phase = (t * rate * (0.75 + hashD(i, 1.9) * 0.5) + hashD(i, 8.3)) % 1;
-    const leg = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    const f = smoothE(leg);
-
-    let x = lx + (p[j * 3] - lx) * f;
-    let y = ly + (p[j * 3 + 1] - ly) * f;
-    let z3 = lz + (p[j * 3 + 2] - lz) * f;
-
-    // Bow the path outward at mid-flight. A straight line between two
-    // points of a mark passes through the mark, and the carrier is lost in
-    // it; an arc lifts clear and reads as an orbit.
-    const lift = Math.sin(Math.PI * f);
-    const bow = 1 + arc * lift;
-    x *= bow;
-    y *= bow;
-    z3 = z3 * bow + (hashD(i, 7.3) - 0.5) * (o.arcZ ?? 0.7) * lift;
-
-    // 1 when seated at either end, 0 at the top of the arc.
-    const seated = 1 - lift;
+    const lx = p[i * 3] * puff;
+    const ly = p[i * 3 + 1] * puff;
+    const lz = p[i * 3 + 2] * puff;
+    const x = lx + (bx - lx) * c;
+    const y = ly + (by - ly) * c;
+    const z3 = lz + (bz - lz) * c;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Couriers are bright and, in flight, neutral grey — they take the
+    // brand's colour back on only once they have delivered.
+    const live = courier > 0 ? Math.sin(Math.PI * courier) : 0;
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.cargoR ?? 0.5) * lift) * rs,
-      white: inkOf(o, zx, e[i]) - (o.cargoInk ?? 0.28) * lift,
-      // Grey in the air, the brand's colour once it is part of the mark.
-      k: seated
+      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx + (o.cargoR ?? 0.85) * live * c) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.cargoInk ?? 0.32) * live * c,
+      a: 1 - (1 - fade) * c,
+      k: 1 - live * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);
