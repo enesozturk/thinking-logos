@@ -17,7 +17,7 @@ import type { Dot, Line, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
-import { envAt, inkOf, logoWindow, shimmerAt, spunAt } from './logo';
+import { beatAt, inkOf } from './logo';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -81,31 +81,18 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const half = o.cubeHalf ?? 0.62;
 
-  const dwell = o.dwell ?? 5;
-  const span = o.span ?? 3.2;
-  const pow = o.bellPow ?? 2.2;
-  const level = o.logoLevel ?? 0.55;
-  const { env, local } = envAt(t, dwell, span, pow);
-
-  const m = clamp01(env / level);
-  const glow = clamp01((env - level) / (1 - level));
+  const dwell = o.dwell ?? 5.5;
+  const b = beatAt(t, dwell, o.morph ?? 0.62, o.breathDur ?? 0.5, o.turns ?? 1, o.settle ?? 0.45);
+  const m = b.m;
   const c = 1 - m;
+  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
-  const uLo = logoWindow(level, pow);
-  const uHi = 1 - uLo;
-  const sweepP = clamp01((local - dwell - span * uLo) / (span * (uHi - uLo)));
-
-  // One integer turn in and one out. Integer counts are the honest speed
-  // control here: an earlier version span the cube fast enough to be hard
-  // to read, and slowing it with a fractional multiplier would have landed
-  // the mark at an arbitrary angle.
-  const spun = spunAt(local, dwell, span, uLo, uHi, o.turnsIn ?? 1, o.turnsOut ?? 1);
-  const pt = makeProj(Math.PI * 2 * spun, (o.tiltAmp ?? 0.36) * c, cx, cx, R);
+  const pt = makeProj(Math.PI * 2 * b.turns, (o.tiltAmp ?? 0.36) * c, cx, cx, R);
 
   // The palindrome fills the dwell and is finished — solved — before the
   // mark begins to gather.
   const moveCount = o.moveCount ?? 6;
-  const solveProgress = clamp01(local / dwell);
+  const solveProgress = clamp01(b.workT < 0 ? 1 : b.workT / dwell);
   const sc = solveCycle(solveProgress * 2 * moveCount, moveCount, 1, 0);
   const moves = makeCubeMoves(moveCount, half);
 
@@ -114,11 +101,12 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
     const [qx, qy, qz] = cubeSeat(seats[i], n, half);
     const [tx, ty, tz, inActive] = applyMoves([qx, qy, qz], moves, sc);
 
-    const x = p[i * 3] + (tx - p[i * 3]) * c;
-    const y = p[i * 3 + 1] + (ty - p[i * 3 + 1]) * c;
-    const z3 = p[i * 3 + 2] + (tz - p[i * 3 + 2]) * c;
-
-    const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
+    const lx = p[i * 3] * puff;
+    const ly = p[i * 3 + 1] * puff;
+    const lz = p[i * 3 + 2] * puff;
+    const x = lx + (tx - lx) * c;
+    const y = ly + (ty - ly) * c;
+    const z3 = lz + (tz - lz) * c;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
@@ -132,9 +120,9 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.4) * zx +
           (inActive ? (o.rActive ?? 0.3) : 0) * c +
-          (o.shimmerR ?? 0.55) * glint) *
+          (o.breatheR ?? 0.22) * b.breath) *
         rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.shimmerInk ?? 0.32) * glint
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.breatheInk ?? 0.14) * b.breath
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -168,14 +156,10 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const dwell = o.dwell ?? 4;
-  const span = o.span ?? 3.4;
-  const pow = o.bellPow ?? 2.2;
-  const level = o.logoLevel ?? 0.55;
-  const { env } = envAt(t, dwell, span, pow);
-
-  const m = clamp01(env / level);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 0.62, o.breathDur ?? 0.5, 0, o.settle ?? 0.45);
+  const m = b.m;
   const c = 1 - m;
+  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   // Yaw oscillates rather than accumulating and is scaled by the body
   // amount, so it is exactly zero whenever the mark is showing, with no
@@ -214,9 +198,12 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
     const by = fy * tall * lumpy * amp;
     const bz = fz * wide * lumpy;
 
-    const x = p[i * 3] + (bx - p[i * 3]) * c;
-    const y = p[i * 3 + 1] + (by - p[i * 3 + 1]) * c;
-    const z3 = p[i * 3 + 2] + (bz - p[i * 3 + 2]) * c;
+    const lx = p[i * 3] * puff;
+    const ly = p[i * 3 + 1] * puff;
+    const lz = p[i * 3 + 2] * puff;
+    const x = lx + (bx - lx) * c;
+    const y = ly + (by - ly) * c;
+    const z3 = lz + (bz - lz) * c;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
@@ -227,8 +214,13 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.loudR ?? 0.3) * loud * c) * rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c
+      r:
+        ((o.rBase ?? 0.55) +
+          (o.rDepth ?? 1.5) * zx +
+          (o.loudR ?? 0.3) * loud * c +
+          (o.breatheR ?? 0.22) * b.breath) *
+        rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c - (o.breatheInk ?? 0.14) * b.breath
     });
   }
   return finalizeFrame(dots, [], o.rMin);

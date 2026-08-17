@@ -29,20 +29,6 @@ export function smootherE(x: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10);
 }
 
-/**
- * A highlight sweeping left to right. Returns a 0..1 boost for a dot at
- * `x`, given how far the sweep has travelled.
- *
- * Head and tail start and finish outside the mark, so the sweep enters from
- * off-frame and leaves the same way instead of materialising at the
- * silhouette's edge.
- */
-export function shimmerAt(x: number, progress: number, width: number): number {
-  if (progress <= 0 || progress >= 1) return 0;
-  const d = (x - (-1.3 + progress * 2.6)) / width;
-  return Math.exp(-d * d);
-}
-
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
 }
@@ -303,22 +289,18 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const dwell = o.dwell ?? 4;
-  const span = o.span ?? 3.4;
-  const pow = o.bellPow ?? 2.2;
-  const level = o.logoLevel ?? 0.55;
-  const { env, local } = envAt(t, dwell, span, pow);
-
-  const m = clamp01(env / level);
-  const glow = clamp01((env - level) / (1 - level));
+  const b = beatAt(
+    t,
+    o.dwell ?? 4,
+    o.morph ?? 0.62,
+    o.breathDur ?? 0.5,
+    o.turns ?? 1,
+    o.settle ?? 0.45
+  );
+  const m = b.m;
   const g = 1 - m;
 
-  const uLo = logoWindow(level, pow);
-  const uHi = 1 - uLo;
-  const sweepP = clamp01((local - dwell - span * uLo) / (span * (uHi - uLo)));
-
-  const spun = spunAt(local, dwell, span, uLo, uHi, o.turnsIn ?? 1, o.turnsOut ?? 1);
-  const pt = makeProj(TURN * spun, (o.tiltAmp ?? 0.34) * g, cx, cx, R);
+  const pt = makeProj(TURN * b.turns, (o.tiltAmp ?? 0.34) * g, cx, cx, R);
 
   const sphereR = o.sphereR ?? 0.94;
   const width = o.scanWidth ?? 0.5;
@@ -327,6 +309,7 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   // slide off the surface as soon as the camera moved.
   const scan = t * (o.scanRate ?? 2.1);
   const dimBase = o.dimBase ?? 0.55;
+  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -334,13 +317,12 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
     const gy = g3[i * 3 + 1] * sphereR;
     const gz = g3[i * 3 + 2] * sphereR;
 
-    const x = p[i * 3] + (gx - p[i * 3]) * g;
-    const y = p[i * 3 + 1] + (gy - p[i * 3 + 1]) * g;
-    const z3 = p[i * 3 + 2] + (gz - p[i * 3 + 2]) * g;
+    const x = p[i * 3] * puff + (gx - p[i * 3] * puff) * g;
+    const y = p[i * 3 + 1] * puff + (gy - p[i * 3 + 1] * puff) * g;
+    const z3 = p[i * 3 + 2] * puff + (gz - p[i * 3 + 2] * puff) * g;
 
     const d = angleDelta(Math.atan2(gz, gx), scan);
     const boost = Math.exp(-(d * d) / width) * g;
-    const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
@@ -349,9 +331,12 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
       y: py,
       z,
       r:
-        ((o.rBase ?? 0.5) + (o.rDepth ?? 1.4) * zx + (o.rBoost ?? 1) * boost + (o.shimmerR ?? 0.55) * glint) *
+        ((o.rBase ?? 0.5) +
+          (o.rDepth ?? 1.4) * zx +
+          (o.rBoost ?? 1) * boost +
+          (o.breatheR ?? 0.22) * b.breath) *
         rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.shimmerInk ?? 0.32) * glint,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.breatheInk ?? 0.14) * b.breath,
       // Un-scanned dots dim only once the globe has formed, so the mark
       // itself is never shown at partial opacity.
       a: 1 - (1 - dimBase) * g * (1 - Math.min(1, boost))
@@ -401,39 +386,112 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 export const CYCLE = 7.6;
 
 /**
- * The excursion envelope: one continuous bell, working form at the floor,
- * shimmer at the crest.
+ * easeInOutExpo — near-still at both ends, very fast through the middle.
  *
- * This replaced four hard-edged phases — churn, rise, hold, fall — and the
- * difference is the whole feel of the animation. Discrete phases give flat
- * plateaus joined by steps: the orb sat still, snapped into assembling,
- * sat still again as a logo, the shimmer switched on as a separate event,
- * switched off, and only then did the dots disperse. Every one of those
- * joins is a moment where the motion visibly stops and something else
- * starts.
- *
- * A raised cosine has zero derivative at both ends and a rounded crest, so
- * nothing in the cycle ever holds still or changes abruptly. Raising it to
- * a power above one flattens the tails without flattening the peak — which
- * matters more than it sounds: at an exponent of 1 the orb is only briefly
- * an orb before the mark starts gathering again, and the state stops
- * reading as "working" at all. The exponent buys the floor back without
- * reintroducing a plateau anywhere.
+ * The CSS equivalent of `cubic-bezier(0.87, 0, 0.13, 1)`. Smoothstep and
+ * smootherstep spread their motion evenly enough that a morph reads as a
+ * slow continuous drift; an exponential ease holds, snaps, and settles,
+ * which is what makes a transformation feel deliberate rather than gradual.
  */
-export function bell(u: number, pow: number): number {
-  return (0.5 - 0.5 * Math.cos(TURN * u)) ** pow;
+export function expoInOut(x: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  return x < 0.5 ? 2 ** (20 * x - 10) / 2 : (2 - 2 ** (-20 * x + 10)) / 2;
 }
 
 /**
- * Where on the envelope the mark finishes assembling.
+ * Rotation that cruises: eased at both ends, constant in between.
  *
- * Below this the bell drives the assembly; above it, the shimmer. One
- * variable, read at two heights — which is what keeps the logo arriving and
- * the highlight beginning as a single continuous gesture rather than two
- * cued events.
+ * A plain smootherstep across a long span puts all the speed in the middle,
+ * so the orb visibly surges and slows for no reason. What is wanted is a
+ * turn that starts, holds a steady rate, and stops — the ramps are shaped,
+ * the middle is linear, and the whole thing integrates to exactly 1.
  */
-export function logoWindow(level: number, pow: number): number {
-  return Math.acos(1 - 2 * level ** (1 / pow)) / TURN;
+function cruise(x: number, edge: number): number {
+  const a = Math.min(0.49, Math.max(0.001, edge));
+  const v = 1 / (1 - a);
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  if (x < a) {
+    const u = x / a;
+    return v * a * (u * u * u - (u * u * u * u) / 2);
+  }
+  if (x > 1 - a) {
+    const u = (1 - x) / a;
+    return 1 - v * a * (u * u * u - (u * u * u * u) / 2);
+  }
+  return v * (a * 0.5 + (x - a));
+}
+
+/** Where the cycle is, and what everything downstream reads off it. */
+export interface Beat {
+  /** 0 = working form, 1 = the mark. */
+  m: number;
+  /** One smooth 0 → 1 → 0 pulse while the mark is showing. */
+  breath: number;
+  /** Whole turns completed; lands on an integer before the mark appears. */
+  turns: number;
+  /** Seconds into the working-form dwell — what `solve` and `scan` run on. */
+  workT: number;
+  local: number;
+  cycle: number;
+}
+
+/**
+ * The cycle: dwell in the working form, morph to the mark, one breath,
+ * morph back.
+ *
+ * Four explicit phases rather than a derived envelope, because every one of
+ * them turned out to need its own duration, and deriving them from a single
+ * bell meant tuning one by distorting the others. Nothing here is flat
+ * except the dwell, which is the one pause that is actually wanted — the
+ * mark never simply sits, it arrives, breathes once, and leaves.
+ *
+ * Rotation belongs to the working form. It runs across the dwell and eases
+ * out partway through the morph in, so the orb is still turning as it
+ * begins to become the mark, then settles. On the way back there is none at
+ * all: a whole turn crammed into a half-second exit is the spin that reads
+ * as frantic, and it buys nothing — the form is dissolving anyway.
+ *
+ * Because the count of turns is a whole number, the mark is always shown at
+ * a whole revolution — dead face-on, every cycle — and the cycle closes
+ * seamlessly with no accumulator and no state.
+ */
+export function beatAt(
+  t: number,
+  dwell: number,
+  morph: number,
+  breathDur: number,
+  turns: number,
+  settle: number
+): Beat {
+  const cycle = dwell + morph * 2 + breathDur;
+  const local = t % cycle;
+
+  // Rotation spans the dwell plus the first part of the morph in.
+  const spinSpan = dwell + morph * settle;
+  const spun = turns * cruise(Math.min(1, local / spinSpan), 0.22);
+
+  if (local < dwell) {
+    return { m: 0, breath: 0, turns: spun, workT: local, local, cycle };
+  }
+  const intoMorph = local - dwell;
+  if (intoMorph < morph) {
+    return { m: expoInOut(intoMorph / morph), breath: 0, turns: spun, workT: -1, local, cycle };
+  }
+  const intoBreath = intoMorph - morph;
+  if (intoBreath < breathDur) {
+    return {
+      m: 1,
+      breath: Math.sin(Math.PI * (intoBreath / breathDur)),
+      turns: spun,
+      workT: -1,
+      local,
+      cycle
+    };
+  }
+  const out = (intoBreath - breathDur) / morph;
+  return { m: expoInOut(1 - out), breath: 0, turns: spun, workT: -1, local, cycle };
 }
 
 /**
@@ -447,63 +505,6 @@ export function dotAssembly(i: number, m: number, stagger: number): number {
   return smoothE(clamp01(m * (1 + stagger) - hashD(i, 3.1) * stagger));
 }
 
-/**
- * Split absolute time into a dwell in the working form and one excursion to
- * the mark and back.
- *
- * Every logo state has the same shape: it spends most of the cycle being
- * something else — an orb, a cube, a globe, a body — and the logo appears
- * briefly at the crest of a single smooth arc. That is the reverse of how
- * these started out, and it is the right way round: the mark is a
- * punctuation mark, not a resting state. A logo that sits on screen for
- * three seconds every cycle stops reading as an event.
- *
- * `dwell` is the knob that matters and is deliberately per-state: it is how
- * long the working form gets to actually do its work — solve, scan, pulse —
- * before the mark interrupts.
- */
-export function envAt(
-  t: number,
-  dwell: number,
-  span: number,
-  pow: number
-): { env: number; local: number; cycle: number } {
-  const cycle = dwell + span;
-  const local = t % cycle;
-  if (local < dwell) return { env: 0, local, cycle };
-  return { env: bell((local - dwell) / span, pow), local, cycle };
-}
-
-/**
- * Whole turns completed at a point in the cycle.
- *
- * Rotation advances only while the mark is NOT showing, and is split into
- * an integer count before the mark and another after. Two consequences fall
- * out for free: the logo is always displayed at a whole revolution — dead
- * face-on, every cycle, with no closed-form integral to maintain — and the
- * cycle closes on a whole revolution too, so it loops seamlessly.
- *
- * Integer counts are also the honest speed control. Wanting a slower spin
- * means wanting fewer turns, not a smaller multiplier that lands the mark
- * somewhere arbitrary.
- */
-export function spunAt(
-  local: number,
-  dwell: number,
-  span: number,
-  uLo: number,
-  uHi: number,
-  turnsIn: number,
-  turnsOut: number
-): number {
-  const approach = dwell + span * uLo;
-  const showing = span * (uHi - uLo);
-  const leave = span * (1 - uHi);
-  if (local < approach) return turnsIn * smootherE(local / approach);
-  if (local < approach + showing) return turnsIn;
-  return turnsIn + turnsOut * smootherE((local - approach - showing) / leave);
-}
-
 export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
@@ -512,28 +513,26 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const dwell = o.dwell ?? 4;
-  const span = o.span ?? 3.6;
-  const pow = o.bellPow ?? 2.2;
-  const level = o.logoLevel ?? 0.55;
-  const { env, local } = envAt(t, dwell, span, pow);
+  const b = beatAt(
+    t,
+    o.dwell ?? 4,
+    o.morph ?? 0.62,
+    o.breathDur ?? 0.5,
+    o.turns ?? 1,
+    o.settle ?? 0.45
+  );
+  const m = b.m;
 
-  // Assembly saturates at the logo level; the crest above it is the glint.
-  const m = clamp01(env / level);
-  const glow = clamp01((env - level) / (1 - level));
+  const pt = makeProj(TURN * b.turns, (o.tiltAmp ?? 0.34) * (1 - m), cx, cx, R);
 
-  const uLo = logoWindow(level, pow);
-  const uHi = 1 - uLo;
-  const sweepP = clamp01((local - dwell - span * uLo) / (span * (uHi - uLo)));
-
-  const spun = spunAt(local, dwell, span, uLo, uHi, o.turnsIn ?? 2, o.turnsOut ?? 1);
-  const pt = makeProj(TURN * spun, (o.tiltAmp ?? 0.34) * (1 - m), cx, cx, R);
-
-  const stagger = o.stagger ?? 0.75;
-  const arc = o.arc ?? 0.22;
+  const stagger = o.stagger ?? 0.55;
+  const arc = o.arc ?? 0.2;
   const churn = o.churn ?? 0.09;
   const sphereR = o.sphereR ?? 0.92;
   const share = o.haloShare ?? 0.12;
+  // The mark's whole moment on screen: one quick swell instead of sitting
+  // still. Half a second, and then it is already leaving.
+  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -546,9 +545,9 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     // more now that the orb is where most of the cycle is spent.
     const wob = sphereR * (1 + churn * (vnoise(fx * 2 + t * 0.7, fz * 2) - 0.5) * 2);
 
-    let lx = p[i * 3];
-    let ly = p[i * 3 + 1];
-    let lz = p[i * 3 + 2];
+    let lx = p[i * 3] * puff;
+    let ly = p[i * 3 + 1] * puff;
+    let lz = p[i * 3 + 2] * puff;
 
     let halo = 0;
     if (hashD(i, 6.7) < share) {
@@ -571,10 +570,6 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     y *= bow;
     z3 *= bow;
 
-    // Keyed to the dot's HOME x, so the sweep stays a straight vertical
-    // front in the logo's own frame rather than smearing with the camera.
-    const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
-
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     const travel = Math.sin(Math.PI * mi);
@@ -586,9 +581,9 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.5) * zx +
           (o.haloR ?? 0.22) * halo +
-          (o.shimmerR ?? 0.55) * glint) *
+          (o.breatheR ?? 0.22) * b.breath) *
         rs,
-      white: inkOf(o, zx, e[i] * mi + (1 - mi)) - (o.shimmerInk ?? 0.32) * glint,
+      white: inkOf(o, zx, e[i] * mi + (1 - mi)) - (o.breatheInk ?? 0.14) * b.breath,
       a: 1 - (o.flightFade ?? 0.25) * travel
     });
   }
