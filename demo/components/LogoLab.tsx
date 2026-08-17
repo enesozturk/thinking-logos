@@ -39,7 +39,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function LogoLab() {
   const [custom, setCustom] = useState<{ name: string; svg: string } | null>(null);
-  const [brandKey, setBrandKey] = useState('stripe');
+  const [brandKey, setBrandKey] = useState('x');
   const [state, setState] = useState<LogoState>('thinking');
   const [style, setStyle] = useState<LogoStyle>('fill');
   const [shell, setShell] = useState<ShellMode>('dome');
@@ -107,9 +107,9 @@ export function LogoLab() {
     .join('\n');
 
   return (
-    <section className="w-full mb-10" aria-label="Logo playground">
+    <section className="w-full mb-10" aria-label="Playground">
       <h2 className="text-base font-normal leading-[34px] text-(--section-title-color) mb-3">
-        Bake your own
+        Playground
       </h2>
 
       <div

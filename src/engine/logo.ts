@@ -576,8 +576,18 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
 
   const pt = makeProj(TURN * b.turns, (o.tiltAmp ?? 0.34) * (1 - m), cx, cx, R);
 
-  const stagger = o.stagger ?? 0.55;
-  const arc = o.arc ?? 0.2;
+  // Both default to zero, which makes this morph identical to the one
+  // `listening` runs: every dot on the same eased parameter, straight from
+  // where it is to where it is going.
+  //
+  // They were not always zero, and the difference was the whole reason this
+  // transition felt rougher than that one. A per-dot stagger gives every
+  // dot its own delayed sub-curve, so the cloud arrives as a smear rather
+  // than a movement; the outward bow adds a second, perpendicular motion on
+  // top. Both were solving a problem — a knot forming at the centre — that
+  // the eased envelope had already solved on its own.
+  const stagger = o.stagger ?? 0;
+  const arc = o.arc ?? 0;
   const churn = o.churn ?? 0.09;
   const sphereR = o.sphereR ?? 0.92;
   const share = o.haloShare ?? 0.12;
@@ -587,7 +597,11 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const mi = dotAssembly(i, m, stagger);
+    // `dotAssembly` layers a second smoothstep on top of an already-eased
+    // parameter, which reads as sluggish at both ends. With no stagger
+    // asked for, use the envelope's own value — the way every other state
+    // does.
+    const mi = stagger > 0 ? dotAssembly(i, m, stagger) : m;
 
     const seat = seats[i];
     const [fx, fy, fz] = fibDir(seat, n);
@@ -616,10 +630,12 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     // Bow the flight path outward at mid-travel. A straight lerp collapses
     // every dot toward the centre at the same instant, and the mark briefly
     // disappears into a dense knot before re-emerging.
-    const bow = 1 + arc * Math.sin(Math.PI * mi);
-    x *= bow;
-    y *= bow;
-    z3 *= bow;
+    if (arc > 0) {
+      const bow = 1 + arc * Math.sin(Math.PI * mi);
+      x *= bow;
+      y *= bow;
+      z3 *= bow;
+    }
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);

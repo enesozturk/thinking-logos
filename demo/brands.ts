@@ -10,14 +10,14 @@
 // is also why the set spans the full difficulty range rather than only the
 // logos that happen to bake well.
 
-import stripeWordmark from './marks/stripe-wordmark.svg?raw';
+import xMark from './marks/x.svg?raw';
 import {
   siAnthropic,
   siGithub,
   siLinear,
   siShopify,
   siSpotify,
-  siStripe,
+  siX,
   siSupabase
 } from 'simple-icons';
 
@@ -61,11 +61,10 @@ function brand(
 export const BRANDS: Brand[] = [
   brand(siAnthropic, 'anthropic', 'Thinking', 'simple'),
   brand(siSupabase, 'supabase', 'Solving', 'simple'),
-  // A wordmark, and the hardest thing this library is asked to do: it is
-  // wide, thin and made of letterforms, so at chip size there is simply not
-  // enough ink for the shapes to resolve. Kept in the set on purpose —
-  // pretending otherwise would only move the disappointment downstream.
-  { ...brand(siStripe, 'stripe', 'Orbiting', 'busy'), svg: stripeWordmark, hex: '533AFD' },
+  // Supplied as full markup rather than a simple-icons path — it is the
+  // brand's own asset, and `svg` exists precisely so a caller is never
+  // forced to reduce their mark to one path to use this.
+  { ...brand(siX, 'x', 'Orbiting', 'simple'), svg: xMark },
   brand(siLinear, 'linear', 'Listening', 'medium'),
   brand(siSpotify, 'spotify', 'Searching', 'medium'),
   brand(siGithub, 'github', 'Breathing', 'busy'),

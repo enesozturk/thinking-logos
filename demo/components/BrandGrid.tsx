@@ -30,30 +30,16 @@ const SMALL = 60;
 const LAYOUT: Record<string, { h: number; sm?: boolean }> = {
   anthropic: { h: 300 },
   supabase: { h: 190, sm: true },
-  stripe: { h: 248 },
+  x: { h: 248 },
   linear: { h: 186, sm: true },
   spotify: { h: 292 },
   github: { h: 200, sm: true },
   shopify: { h: 236 }
 };
 
-export function BrandGrid({ tinted, onToggleTint }: { tinted: boolean; onToggleTint: () => void }) {
+export function BrandGrid() {
   return (
     <section className="w-full mb-10" aria-label="Brand examples">
-      <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-base font-normal leading-[34px] text-(--section-title-color)">
-          Seven marks, seven states
-        </h2>
-        <button
-          type="button"
-          onClick={onToggleTint}
-          aria-pressed={tinted}
-          className="h-8 px-3 rounded-full text-[13px] bg-(--toggle-bg) text-(--toggle-color) hover:bg-(--toggle-hover) hover:text-(--toggle-hover-color) transition-colors cursor-pointer"
-        >
-          {tinted ? 'Brand colour' : 'Monochrome'}
-        </button>
-      </div>
-
       {/* CSS multi-column rather than a grid: it is the one layout primitive
           that packs items of differing heights without measuring them, so
           the cards can be any size and the columns still balance. */}
@@ -72,7 +58,7 @@ export function BrandGrid({ tinted, onToggleTint }: { tinted: boolean; onToggleT
                 logo={source}
                 state={VERB_TO_STATE[b.verb] ?? 'thinking'}
                 size={size}
-                tint={tinted ? `#${b.hex}` : undefined}
+                tint={`#${b.hex}`}
               />
               <span className="text-[13px] leading-none text-(--chip-color)">
                 {b.title} <span className="opacity-50">{b.verb.toLowerCase()}…</span>

@@ -110,7 +110,7 @@ function App() {
   const holds = [6.05, 14.2, 22.35, 30.5, 38.65];
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
-  const rise = [4.0, 4.5, 5.0, 5.4, 5.7, 6.0, 6.3, 6.7, 7.2];
+  const rise = [3.9, 4.2, 4.5, 4.8, 5.1, 5.4, 5.7, 6.0, 6.4];
   const solve = [0, 1.8, 3.6, 5.2, 6.2, 6.9, 7.5, 8.2, 9.0];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
   const globe = [0, 2.0, 4.0, 4.9, 5.5, 6.0, 6.5, 7.1, 7.8];
@@ -134,12 +134,19 @@ function App() {
         points={points}
         state="thinking"
         times={rise}
-        note="THE MORPH — 1.9s each way, continuous throughout"
+        note="THE MORPH — must now match listening exactly"
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
       <Strip points={points} state="working" times={globe} note="logo → an armillary of rings, with couriers → logo" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
+      <Strip
+        points={points}
+        state="listening"
+        times={rise}
+        note="THE MORPH — the reference to match"
+        tint={tint}
+      />
       <Strip points={points} state="searching" times={globe} note="logo → wireframe globe, scanned → logo" tint={tint} />
       <Strip points={cube} state="solving" times={solve} note="Shopify — the busy-mark hard case" />
       <Strip points={points} state="breathing" times={globe} note="logo → a round body that bulges → logo" tint={tint} />

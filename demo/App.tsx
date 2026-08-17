@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrandGrid } from './components/BrandGrid';
 import { CopyButton } from './components/CopyButton';
 import { Footer } from './components/Footer';
@@ -37,12 +37,11 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
 
 export function App() {
   const [theme, toggleTheme] = useTheme();
-  const [tinted, setTinted] = useState(true);
 
   return (
     <main className="flex flex-col items-center max-w-[883px] mx-auto w-full px-6 pb-16 max-sm:px-4 max-sm:pb-12">
       <Header theme={theme} onToggleTheme={toggleTheme} />
-      <BrandGrid tinted={tinted} onToggleTint={() => setTinted((v) => !v)} />
+      <BrandGrid />
       <LogoLab />
       <CodeBlock title="Installation" code={INSTALL} />
       <CodeBlock title="Usage" code={USAGE} />
