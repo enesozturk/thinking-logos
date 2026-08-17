@@ -32,9 +32,9 @@ Eight distinct motions on the same mark — not one animation with eight labels.
 <ThinkingLogo logo={art} state="listening" />   {/* logo → a floating body that pulses → logo */}
 <ThinkingLogo logo={art} state="connecting" />  {/* wires and packets run across the mark */}
 <ThinkingLogo logo={art} state="searching" />   {/* logo → wireframe globe, scanned → logo */}
-<ThinkingLogo logo={art} state="working" />     {/* the mark simmering in place */}
+<ThinkingLogo logo={art} state="working" />     {/* carriers fly in and build the mark */}
 <ThinkingLogo logo={art} state="orbiting" />    {/* the mark's own dots leave, orbit, return */}
-<ThinkingLogo logo={art} state="breathing" />   {/* a slow pulse with a halo drifting in depth */}
+<ThinkingLogo logo={art} state="breathing" />   {/* logo → a spoked ring that swells → logo */}
 ```
 
 `thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on.
@@ -54,6 +54,8 @@ All four transforming states share one cycle: the working form dwells and does i
 - **`searching` becomes a globe built from meridians and parallels**, not an even scatter — precisely so it does not look like the orb in `thinking`. Two states that both dissolve into the same ball are one state with two labels. Before this it swept a highlight across a stationary logo, which read as a shimmer applied to a mark with no idea of *searching* anywhere in it.
 - **`listening` becomes one body, not a chart.** Three attempts, the last two failing in opposite directions. Rolling a wave through the logo by displacing points in depth ghosted the mark across the frame, because a depth offset projects to a screen offset under any camera tilt. Laying the dots out as separate meter bars fixed that but went too literal — a bar chart is a diagram, and the logo shattered into fifteen unrelated pieces. What belongs here is a single wide, slightly irregular volume whose vertical extent swells along its width: the waveform is legible in the silhouette, but it is the silhouette *of something*.
 - **`connecting` draws the mark at full strength** and puts the wiring on top. Held back as a ghost, the logo vanished and what remained was an abstract node graph sitting near it.
+- **Subtlety does not survive being made small.** `working` used to jitter every dot on a noise field and `breathing` pulsed the mark a few percent in place. Both are pleasant at 140px and completely invisible at 24, which is where a loading indicator actually ships. What survives is contrast and silhouette, not displacement: `working` now holds the mark back and flies bright carriers into it, so the eye tracks a brightness difference; `breathing` becomes a ring, the one shape that stays legible at any size while its radius moves by a third.
+- **`connecting` is bold and sparse, not fine and dense.** A 58-node mesh with hairline links is beautiful large and gone small, where a sub-pixel stroke dissolves into haze and a node is indistinguishable from the mark's own dots. Twenty heavy nodes with thick links read at both.
 - **`orbiting` uses the mark's own dots.** A third detach and leave real gaps, drifting within a bounded arc of where they started, then return to the exact seat they left. A shared orbit radius draws a ring, and a ring is a separate object circling the logo rather than the logo coming apart.
 
 ## Baking

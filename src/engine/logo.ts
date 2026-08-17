@@ -346,45 +346,104 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: the mark simmering in place — working --------------------
+// --- Unrest: carriers fly in and build the mark, then strip it ---------
 
+/**
+ * Most of the logo sits held back; bright carriers fly in from outside,
+ * land in their seats and complete it, then peel away and it empties again.
+ *
+ * The previous version jittered every dot on a noise field. Like the old
+ * `breathing`, it was legible at 140px and invisible at 24 — a few percent
+ * of wobble is nothing once a dot is a pixel across. What survives being
+ * made small is not subtle motion but CONTRAST: a dim mark and a handful of
+ * bright things moving against it read at any size, because the eye is
+ * tracking a brightness difference rather than a displacement.
+ *
+ * It also gives the state a meaning it did not have. Work is something
+ * arriving from elsewhere and being assembled — so that is what it looks
+ * like, rather than a logo shivering.
+ */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
-  const pt = makeProj((o.yawAmp ?? 0.22) * Math.sin(t * 0.55), (o.tiltAmp ?? 0.09) * Math.sin(t * 0.4), cx, cx, R);
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const amp = o.unrest ?? 0.045;
-  const rate = o.unrestRate ?? 0.9;
+  const pt = makeProj(
+    (o.yawAmp ?? 0.16) * Math.sin(t * (o.yawRate ?? 0.4)),
+    (o.tiltAmp ?? 0.08) * Math.sin(t * 0.3),
+    cx,
+    cx,
+    R
+  );
+
+  // The build wave. It climbs from nothing to a complete mark and falls
+  // back, so the logo is repeatedly finished and taken apart rather than
+  // simply flickering.
+  const period = o.buildPeriod ?? 4.4;
+  const phase = (t % period) / period;
+  const build = phase < 0.5 ? smoothE(phase * 2) : smoothE((1 - phase) * 2);
+
+  const share = o.carrierShare ?? 0.42;
+  const ghostInk = o.ghostInk ?? 0.34;
+  const width = o.arriveWidth ?? 0.34;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const x0 = p[i * 3];
-    const y0 = p[i * 3 + 1];
-    // Value noise sampled on a per-dot lattice offset: neighbouring dots
-    // drift together in soft eddies rather than each vibrating on its own,
-    // which is the difference between a mark that is thinking and one that
-    // looks like it has a rendering fault.
-    const nx = vnoise(x0 * 3 + t * rate, y0 * 3) - 0.5;
-    const ny = vnoise(x0 * 3 + 41.7, y0 * 3 + t * rate) - 0.5;
-    const [px, py, z] = pt(x0 + nx * amp * 2, y0 + ny * amp * 2, p[i * 3 + 2]);
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
+
+    if (hashD(i, 6.7) >= share) {
+      // The standing part of the mark, held back so the carriers read.
+      const [px, py, z] = pt(lx, ly, lz);
+      const zx = clamp01((z + 1) / 2);
+      dots.push({
+        x: px,
+        y: py,
+        z,
+        r: ((o.ghostR ?? 0.45) + (o.ghostRDepth ?? 0.8) * zx) * rs,
+        white: inkOf(o, zx, e[i]) + ghostInk
+      });
+      continue;
+    }
+
+    // Each carrier has its own place in the queue, so the mark fills in and
+    // empties as a spreading front rather than all at once.
+    const slot = hashD(i, 3.1);
+    const arrived = clamp01((build - slot) / width + 0.5);
+    const home = smoothE(arrived);
+
+    // It comes in from outside the frame along its own radial line, with a
+    // little sideways drift so the streams are not perfectly straight.
+    const ang = Math.atan2(ly, lx) + (hashD(i, 5.5) - 0.5) * 0.9;
+    const far = (o.farR ?? 1.55) + hashD(i, 4.1) * 0.5;
+    const ox = Math.cos(ang) * far;
+    const oy = Math.sin(ang) * far;
+    const oz = (hashD(i, 7.3) - 0.5) * 1.2;
+
+    const x = ox + (lx - ox) * home;
+    const y = oy + (ly - oy) * home;
+    const z3 = oz + (lz - oz) * home;
+
+    const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Brightest in flight, settling to the mark's own weight on arrival —
+    // the carrier stops being cargo once it is part of the logo.
+    const flight = 1 - home;
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx) * rs,
-      white: inkOf(o, zx, e[i])
+      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx + (o.cargoR ?? 0.7) * flight) * rs,
+      white: inkOf(o, zx, e[i]) - (o.cargoInk ?? 0.3) * flight,
+      // Fade the very start of the run so carriers arrive out of nothing
+      // instead of popping in at the frame edge.
+      a: Math.min(1, home * 6 + 0.25)
     });
   }
   return finalizeFrame(dots, [], o.rMin);
 };
-
-// --- Assemble: sphere ⇄ logo — the whole point of the library ----------
-
-/** One full cycle, in engine seconds before the preset's speed multiplier. */
-export const CYCLE = 7.6;
 
 /**
  * easeInOutExpo — the CSS `cubic-bezier(0.87, 0, 0.13, 1)` curve.

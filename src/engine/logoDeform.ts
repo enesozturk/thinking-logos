@@ -348,58 +348,83 @@ export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, lines, o.rMin);
 };
 
-// --- Breathing: the mark at rest, with a live halo ---------------------
+// --- Breathing: logo → a spoked ring that swells → logo ---------------
 
 /**
- * A slow pulse, plus a scatter of dots drifting toward and away from the
- * viewer in time with it.
+ * The mark becomes a ring of radial dashes whose radius swells and settles
+ * around its circumference.
  *
- * The pulse alone was correct but inert — a logo quietly scaling is hard to
- * distinguish from a logo doing nothing. The halo dots are drawn from the
- * mark itself, pushed just outside the silhouette and swung through depth
- * on the breathing frequency. Because the engine carries depth as radius
- * and ink, a dot moving in z alone visibly advances and recedes, which
- * gives the state a foreground and a background without any dot ever
- * landing somewhere that breaks the outline.
+ * The previous version pulsed the logo in place with a scatter of drifting
+ * dots. At 140px that is a pleasant, subtle thing; at 24px — which is where
+ * this actually ships — a five-percent scale change is invisible and the
+ * state reads as a static logo. Subtlety does not survive being made small.
+ *
+ * A ring does. It is the one silhouette that stays completely legible at
+ * any size, it is unmistakably different from the orb, the cube and the
+ * globe, and its radius can move by a third without ever stopping looking
+ * like a ring — so the breathing is finally something you can see.
  */
 export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
+  const seats = logo.seats;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj((o.yawAmp ?? 0.12) * Math.sin(t * 0.28), (o.tiltAmp ?? 0.07) * Math.sin(t * 0.21), cx, cx, R);
 
-  const rate = o.breatheRate ?? 0.85;
-  const s = 1 + (o.breathe ?? 0.055) * Math.sin(t * rate);
-  const share = o.haloShare ?? 0.13;
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.breathDur ?? 0.35, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const m = b.m;
+  const c = 1 - m;
+  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
+
+  // Face-on, always. A ring seen at an angle is an ellipse, and an ellipse
+  // is a different shape.
+  const pt = makeProj(0, 0, cx, cx, R);
+
+  const spokes = Math.max(8, Math.round(o.spokes ?? 34));
+  const step = (Math.PI * 2) / spokes;
+  const ringR = o.ringR ?? 0.78;
+  const thick = o.thick ?? 0.3;
+  const swell = o.swell ?? 0.22;
+  const rate = o.swellRate ?? 1.3;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    let x = p[i * 3] * s;
-    let y = p[i * 3 + 1] * s;
-    let z3 = p[i * 3 + 2] * s;
-    let halo = 0;
+    const [fx, fy, fz] = fibDir(seats[i], n);
+    // Quantised angle: dots that share a spoke line up radially, which is
+    // what turns a scatter of points into a ring of dashes.
+    const k = Math.round(Math.atan2(fy, fx) / step);
+    const ang = k * step;
+    const along = (fz + 1) / 2;
 
-    if (hashD(i, 6.7) < share) {
-      // Phase spread so the halo is never all near or all far at once, but
-      // still locked to the same frequency as the pulse it belongs to.
-      const osc = Math.sin(t * rate + hashD(i, 8.3) * Math.PI * 2);
-      halo = 1;
-      const out = 1 + (o.haloOut ?? 0.2) * (0.5 + 0.5 * osc);
-      x *= out;
-      y *= out;
-      z3 += (o.haloZ ?? 0.85) * osc;
-    }
+    // Two harmonics around the circumference, drifting at different rates,
+    // so the swelling wanders instead of pulsing in place.
+    const w =
+      Math.sin(ang * 3 + t * rate) * 0.6 + Math.sin(ang * 5 - t * rate * 0.63 + 1.7) * 0.4;
+    const rad = ringR * (1 + swell * w) + (along - 0.5) * thick;
+
+    const bx = Math.cos(ang) * rad;
+    const by = Math.sin(ang) * rad;
+    const bz = fz * (o.ringZ ?? 0.12);
+
+    const lx = p[i * 3] * puff;
+    const ly = p[i * 3 + 1] * puff;
+    const lz = p[i * 3 + 2] * puff;
+    const x = lx + (bx - lx) * c;
+    const y = ly + (by - ly) * c;
+    const z3 = lz + (bz - lz) * c;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Swollen arcs read brighter, so the motion is carried by ink as well
+    // as by shape.
+    const loud = clamp01(w * 0.5 + 0.5);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.haloR ?? 0.25) * halo) * rs,
-      white: inkOf(o, zx, e[i])
+      r: ((o.rBase ?? 0.6) + (o.rDepth ?? 1.2) * zx + (o.loudR ?? 0.35) * loud * c) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);

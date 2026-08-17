@@ -138,12 +138,12 @@ function App() {
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
-      <Strip points={points} state="orbiting" times={even} note="dots leave the mark and return" tint={tint} />
+      <Strip points={points} state="working" times={even} note="carriers fly in and build the mark" tint={tint} />
       <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip points={points} state="searching" times={globe} note="logo → wireframe globe, scanned → logo" tint={tint} />
       <Strip points={cube} state="solving" times={solve} note="Notion — the 3D-looking hard case" />
-      <Strip points={points} state="breathing" times={even} note="pulse + halo drifting in depth" tint={tint} />
+      <Strip points={points} state="breathing" times={globe} note="logo → spoked ring that swells → logo" tint={tint} />
       <Strip points={cube} state="connecting" times={even} note="Notion — mark must stay readable" />
     </main>
   );
