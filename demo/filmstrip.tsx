@@ -103,11 +103,11 @@ function App() {
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
-  const assemble = [0, 1.5, 2.6, 3.1, 3.6, 4.0, 5.0, 6.0, 7.4];
+  const assemble = [0, 1.5, 2.6, 3.1, 3.6, 4.1, 4.8, 5.6, 6.9];
   // The same instant of the hold, four cycles apart. If the mark is not
   // pixel-identical across these, the spin is not landing face-on and the
   // logo is being shown at an angle it should never be shown at.
-  const holds = [5.0, 13.2, 21.4, 29.6, 37.8];
+  const holds = [4.6, 12.2, 19.8, 27.4, 35.0];
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
   const rise = [2.1, 2.5, 2.9, 3.2, 3.5, 3.7, 3.9, 4.0, 4.3];
@@ -139,7 +139,7 @@ function App() {
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
       <Strip points={points} state="orbiting" times={even} note="dots leave the mark and return" tint={tint} />
       <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
-      <Strip points={points} state="listening" times={meter} note="logo → level meter → logo" tint={tint} />
+      <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip points={points} state="searching" times={even} note="scan sweeps across" tint={tint} />
       <Strip points={cube} state="solving" times={solve} note="Notion — the 3D-looking hard case" />
       <Strip points={points} state="breathing" times={even} note="pulse + halo drifting in depth" tint={tint} />

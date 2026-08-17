@@ -25,10 +25,6 @@ export interface LogoBinding {
   readonly nodes?: Uint32Array;
   /** Node-index pairs forming the constellation's edges. */
   readonly edges?: Uint32Array;
-  /** Which meter bar each dot belongs to; only the `listening` state needs these. */
-  readonly bar?: Uint16Array;
-  /** Each dot's position within its bar, 0 at the bottom. */
-  readonly slot?: Float32Array;
 }
 
 /**

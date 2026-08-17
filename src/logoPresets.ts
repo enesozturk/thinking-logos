@@ -11,7 +11,6 @@ import type { LogoPointSet } from './engine/cloud';
 import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
-  buildBars,
   buildGraph,
   frameLogoAssemble,
   frameLogoOrbit,
@@ -98,8 +97,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       haloZ: 0.8,
       haloRate: 0.9,
       haloR: 0.22,
-      shimmerFrom: 0.18,
-      shimmerSpan: 0.5,
+      shimmerFrom: 0.04,
       shimmerWidth: 0.26,
       shimmerR: 0.5,
       shimmerInk: 0.3,
@@ -178,8 +176,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       work: 3,
       back: 0.75,
       turns: 1,
-      shimmerFrom: 0.2,
-      shimmerSpan: 0.55,
+      shimmerFrom: 0.08,
       shimmerWidth: 0.26,
       shimmerR: 0.5,
       shimmerInk: 0.3,
@@ -203,17 +200,20 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       out: 0.8,
       work: 4,
       back: 0.8,
-      tilt: 0.04,
-      bars: 15,
-      spread: 0.92,
-      barRate: 1.9,
-      barFloor: 0.22,
-      barHeight: 0.72,
-      barFill: 0.14,
-      barR: 3.2,
-      loudInk: 0.16,
-      rBase: 0.52,
-      rDepth: 1.2,
+      yawAmp: 0.42,
+      yawRate: 0.55,
+      tiltAmp: 0.26,
+      wide: 1.12,
+      tall: 0.5,
+      waveK: 3.1,
+      waveK2: 6.7,
+      waveRate: 1.9,
+      swing: 0.52,
+      lumps: 0.12,
+      loudR: 0.3,
+      loudInk: 0.14,
+      rBase: 0.55,
+      rDepth: 1.5,
       inkFar: 0.6,
       inkSpan: 0.5,
       inkRim: 0.16,
@@ -303,19 +303,11 @@ export function resolveLogo(
   // edge test, so it is only built for the one state that reads it.
   const graph =
     mode === 'connect' ? buildGraph(points, opts.nodeCount ?? 58, opts.reach ?? 1.35) : undefined;
-  const meter = mode === 'wave' ? buildBars(points, opts.bars ?? 15) : undefined;
   return {
     mode,
     frame: LOGO_MODE_FRAMES[mode],
     speed: preset.speed,
     opts,
-    binding: {
-      points,
-      seats: seatMap(points),
-      nodes: graph?.nodes,
-      edges: graph?.edges,
-      bar: meter?.bar,
-      slot: meter?.slot
-    }
+    binding: { points, seats: seatMap(points), nodes: graph?.nodes, edges: graph?.edges }
   };
 }

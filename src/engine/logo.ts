@@ -155,43 +155,6 @@ export function buildGraph(
 }
 
 /**
- * Lay the mark's dots out as a row of vertical bars — a level meter.
- *
- * Assignment is spatial, not by index: dots are ordered by x, chunked into
- * bars, and ordered by y within each chunk. That way the dot on the left of
- * the logo ends up in the leftmost bar and the dot at the top of the logo
- * ends up at the top of its bar, so the mark folds into the meter and back
- * without any dot crossing the frame. Assigning by raw index would send
- * dots to arbitrary bars, and the transition would read as a shuffle rather
- * than as the same material rearranging itself.
- *
- * One sort, so this is resolve-time work.
- */
-export function buildBars(points: LogoPointSet, bars: number): { bar: Uint16Array; slot: Float32Array } {
-  const { p, n } = points;
-  const b = Math.max(2, Math.min(bars, n));
-  const order = new Uint32Array(n);
-  for (let i = 0; i < n; i++) order[i] = i;
-  order.sort((i, j) => p[i * 3] - p[j * 3]);
-
-  const bar = new Uint16Array(n);
-  const slot = new Float32Array(n);
-  const per = Math.ceil(n / b);
-  for (let k = 0; k < b; k++) {
-    const from = k * per;
-    const to = Math.min(n, from + per);
-    if (from >= to) break;
-    const column = Array.prototype.slice.call(order, from, to) as number[];
-    column.sort((i, j) => p[i * 3 + 1] - p[j * 3 + 1]);
-    for (let r = 0; r < column.length; r++) {
-      bar[column[r]] = k;
-      slot[column[r]] = column.length > 1 ? r / (column.length - 1) : 0.5;
-    }
-  }
-  return { bar, slot };
-}
-
-/**
  * What a logo mode renders before its artwork is baked. A fresh object each
  * time: a shared one would be handed to a caller that is free to mutate it.
  */
@@ -294,7 +257,7 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 // One cycle, in engine seconds before the preset's speed multiplier.
 export const CHURN = 2.1;
 export const RISE = 1.9;
-export const HOLD = 3.2;
+export const HOLD = 2.6;
 export const FALL = 1;
 export const CYCLE = CHURN + RISE + HOLD + FALL;
 
@@ -406,10 +369,14 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const sphereR = o.sphereR ?? 0.92;
   const share = o.haloShare ?? 0.12;
 
-  // One highlight sweep across the settled mark, placed inside the hold so
-  // it reads as a beat of its own rather than as part of the arrival.
+  // One highlight crossing the settled mark, spanning the hold end to end:
+  // it starts as the logo completes and leaves as the dots begin to
+  // disperse. Sized to the hold rather than given a fixed duration, so
+  // there is never a stretch of the mark simply waiting — a pause that
+  // short does not read as a beat, it reads as a stall.
   const holdT = local - CHURN - RISE;
-  const sweepP = clamp01((holdT - HOLD * (o.shimmerFrom ?? 0.18)) / (HOLD * (o.shimmerSpan ?? 0.5)));
+  const from = o.shimmerFrom ?? 0.04;
+  const sweepP = clamp01((holdT - HOLD * from) / (HOLD * (1 - from)));
   const sweeping = holdT > 0 && sweepP > 0 && sweepP < 1;
 
   const dots: Dot[] = [];

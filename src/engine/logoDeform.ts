@@ -14,7 +14,7 @@
 // not respect that, it was re-conceived rather than ported.
 
 import type { Dot, Line, ModeFrame, OrbFrame } from './types';
-import { fibDir, finalizeFrame, hashD, makeProj, radiusScale } from './core';
+import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
 import { inkOf, shimmerAt } from './logo';
@@ -139,7 +139,12 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const ex = excursion(t, hold, o.out ?? SV_OUT, o.work ?? SV_WORK, o.back ?? SV_BACK);
   // A single highlight crosses the mark while it is showing, so the logo
   // gets a beat of its own between solves instead of just waiting.
-  const sweepP = clamp01((ex.holdT - hold * (o.shimmerFrom ?? 0.2)) / (hold * (o.shimmerSpan ?? 0.55)));
+  // The sweep is scaled to finish exactly as the hold does, so the cube
+  // transition starts the instant the highlight leaves the mark. Giving it a
+  // fixed duration left a half-second of the logo just sitting there, and a
+  // pause that short does not read as a beat — it reads as a stall.
+  const from = o.shimmerFrom ?? 0.08;
+  const sweepP = clamp01((ex.holdT - hold * from) / (hold * (1 - from)));
   const sweeping = ex.holdT >= 0 && sweepP > 0 && sweepP < 1;
   const pt = makeProj(
     excursionYaw(ex.away, o.turns ?? 1),
@@ -189,7 +194,7 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Listening: logo → level meter → logo ------------------------------
+// --- Listening: logo → a floating body that bounces → logo -------------
 
 const LS_HOLD = 2;
 const LS_OUT = 0.8;
@@ -197,79 +202,85 @@ const LS_WORK = 4;
 const LS_BACK = 0.8;
 
 /**
- * The mark folds into a row of bars, the bars move like a level meter, and
- * the mark comes back.
+ * The mark becomes a single soft volume that pulses vertically, then comes
+ * back.
  *
- * Two earlier attempts failed in instructive ways. Rolling a wave through
- * the logo by displacing points in depth stamped the mark three or four
- * times across the frame, because a depth offset projects to a screen
- * offset under any camera tilt. Modulating only radius and ink fixed the
- * ghosting but left the state reading as a shimmer — nothing about it said
- * *audio*.
+ * Three attempts to get here, and the last two failed in opposite
+ * directions. Rolling a wave through the logo by displacing points in depth
+ * ghosted the mark across the frame. Laying the dots out as a row of
+ * separate meter bars fixed that but went too literal: a bar chart is a
+ * diagram, not an object, and it shares nothing with the orbs it sits
+ * beside — the logo shattered into fifteen unrelated pieces.
  *
- * A level meter says audio instantly, and it is a shape the mark can
- * actually become: the same dots, re-laid as columns. Bar assignment is
- * spatial (see `buildBars`), so the logo folds into the meter rather than
- * shuffling into it.
+ * What belongs here is one body. A wide, slightly irregular ellipsoid,
+ * lit and z-sorted like every other form in this library, whose vertical
+ * extent swells and contracts along its width as a travelling wave passes
+ * through. The waveform is legible in the silhouette, but it is the
+ * silhouette OF something — the dots stay a connected mass, so the state
+ * still reads as the mark having become a thing rather than a chart.
  */
 export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
-  if (!logo || !logo.bar || !logo.slot) return empty();
+  if (!logo) return empty();
   const { p, e, n } = logo.points;
-  const bar = logo.bar;
-  const slot = logo.slot;
+  const seats = logo.seats;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
   const ex = excursion(t, o.hold ?? LS_HOLD, o.out ?? LS_OUT, o.work ?? LS_WORK, o.back ?? LS_BACK);
-  // The meter is read head-on, like a meter. No rotation at all.
-  const pt = makeProj(0, (o.tilt ?? 0.04) * ex.c, cx, cx, R);
+  // Yaw only exists while the body does, and it oscillates rather than
+  // accumulating — so it is exactly zero whenever the mark is showing, with
+  // no whole-turn bookkeeping needed. Enough parallax to read as 3D, not
+  // enough to turn the waveform away from the viewer.
+  const pt = makeProj(
+    (o.yawAmp ?? 0.42) * Math.sin(t * (o.yawRate ?? 0.55)) * ex.c,
+    (o.tiltAmp ?? 0.26) * ex.c,
+    cx,
+    cx,
+    R
+  );
 
-  const bars = Math.max(2, Math.round(o.bars ?? 15));
-  const spread = o.spread ?? 0.92;
-  const barW = (2 * spread) / bars;
-  const rate = o.barRate ?? 3.4;
-  const floorH = o.barFloor ?? 0.22;
+  // Wider than tall: the shape of a waveform, and the shape that leaves the
+  // vertical pulse room to read.
+  const wide = o.wide ?? 1.12;
+  const tall = o.tall ?? 0.5;
+  const k1 = o.waveK ?? 3.1;
+  const k2 = o.waveK2 ?? 6.7;
+  const rate = o.waveRate ?? 1.9;
+  const swing = o.swing ?? 0.52;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const b = bar[i];
-    // Each bar breathes on its own frequency and phase. Shared timing reads
-    // as a graphic equaliser demo; independent timing reads as a signal.
-    const wob =
-      0.5 +
-      0.5 *
-        Math.sin(t * rate * (0.6 + hashD(b, 1.3) * 0.9) + hashD(b, 4.7) * 6.28) *
-        Math.sin(t * rate * 0.37 + hashD(b, 8.1) * 6.28);
-    const h = floorH + (1 - floorH) * wob;
+    const [fx, fy, fz] = fibDir(seats[i], n);
 
-    // Barely any jitter: the dots must line up into a column, because a
-    // scattered column reads as noise where a straight one reads as a bar.
-    const jx = (hashD(i, 2.1) - 0.5) * barW * (o.barFill ?? 0.14);
-    const bx = ((b + 0.5) / bars - 0.5) * 2 * spread + jx;
-    const by = (slot[i] - 0.5) * 2 * h * (o.barHeight ?? 0.85);
+    // Two harmonics so the profile never resolves into a clean sine — real
+    // audio does not, and a single frequency reads as a decorative ripple.
+    const w = Math.sin(fx * k1 - t * rate) * 0.62 + Math.sin(fx * k2 + t * rate * 0.55) * 0.38;
+    const amp = 1 + swing * w;
+    // A slow noise field on the radius keeps the body from reading as a
+    // perfect ellipsoid — it should look like a soft mass, not a primitive.
+    const lumpy = 1 + (o.lumps ?? 0.12) * (vnoise(fx * 2 + t * 0.35, fz * 2) - 0.5) * 2;
+
+    const bx = fx * wide * lumpy;
+    const by = fy * tall * lumpy * amp;
+    const bz = fz * wide * lumpy;
 
     const c = ex.c;
     const x = p[i * 3] + (bx - p[i * 3]) * c;
     const y = p[i * 3 + 1] + (by - p[i * 3 + 1]) * c;
-    const z3 = p[i * 3 + 2] * (1 - c);
+    const z3 = p[i * 3 + 2] + (bz - p[i * 3 + 2]) * c;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Loud columns read brighter, so the pulse is carried by ink as well as
+    // by shape — the same way depth is.
+    const loud = clamp01(w * 0.5 + 0.5);
     dots.push({
       x: px,
       y: py,
       z,
-      // The bar thickness scales LINEARLY with size, unlike every other
-      // radius here. `radiusScale` is sub-linear because separate dots need
-      // to stay legible as they shrink — but these dots have to TOUCH, and
-      // the gaps between them scale linearly, so a sub-linear radius makes
-      // the bars fall apart into dotted lines at small sizes. Taller bars
-      // also read louder.
-      r:
-        ((o.rBase ?? 0.52) + (o.rDepth ?? 1.2) * zx) * rs +
-        (o.barR ?? 3.2) * (size / 300) * c * (0.7 + 0.3 * h),
-      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.loudInk ?? 0.16) * h * c
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.loudR ?? 0.3) * loud * c) * rs,
+      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.loudInk ?? 0.14) * loud * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);

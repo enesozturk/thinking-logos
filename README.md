@@ -29,7 +29,7 @@ Eight distinct motions on the same mark — not one animation with eight labels.
 ```tsx
 <ThinkingLogo logo={art} state="thinking" />    {/* sphere ⇄ logo — the headline */}
 <ThinkingLogo logo={art} state="solving" />     {/* logo → cube → rubik solve → logo */}
-<ThinkingLogo logo={art} state="listening" />   {/* logo → level meter → logo */}
+<ThinkingLogo logo={art} state="listening" />   {/* logo → a floating body that pulses → logo */}
 <ThinkingLogo logo={art} state="connecting" />  {/* wires and packets run across the mark */}
 <ThinkingLogo logo={art} state="searching" />   {/* a scan sweeps across the mark */}
 <ThinkingLogo logo={art} state="working" />     {/* the mark simmering in place */}
@@ -39,7 +39,7 @@ Eight distinct motions on the same mark — not one animation with eight labels.
 
 `thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on.
 
-`solving` and `listening` share a shape: the mark becomes something else, that thing does the work, and the mark comes back. A cube gets solved; a level meter runs. In both, the logo is the state the animation RETURNS to — never a stage it passes through, and never itself the thing being deformed.
+`solving` and `listening` share a shape: the mark becomes something else, that thing does the work, and the mark comes back. A cube gets solved; a soft body pulses. In both, the logo is the state the animation RETURNS to — never a stage it passes through, and never itself the thing being deformed. While the mark is showing, a single highlight sweeps across it, timed to leave exactly as the next transformation begins.
 
 ### The rule every state obeys
 
@@ -47,7 +47,7 @@ Eight distinct motions on the same mark — not one animation with eight labels.
 
 - **`thinking` lands face-on, every cycle.** The spin's hold angle is pinned to a whole number of turns in closed form. Simply easing the rotation to a stop leaves it at whatever angle it reached — and that angle drifts each cycle, so the mark settles into a slightly different three-quarter view every time.
 - **`solving` scrambles a cube, not the logo.** A thin plate sliced and twisted becomes debris within two moves, and the reset then lands on nothing because the viewer stopped tracking a shape long ago. The rotation is confined to the cube — exactly one whole turn — so the mark itself never spins and is only ever shown square to the viewer.
-- **`listening` becomes a level meter.** Rolling a wave through the logo by displacing points in depth stamped the mark three or four times across the frame, because a depth offset projects to a screen offset under any camera tilt. Modulating only radius and ink fixed the ghosting but read as a shimmer — nothing about it said *audio*. Bar assignment is spatial, so the mark folds into the meter rather than shuffling into it.
+- **`listening` becomes one body, not a chart.** Three attempts, the last two failing in opposite directions. Rolling a wave through the logo by displacing points in depth ghosted the mark across the frame, because a depth offset projects to a screen offset under any camera tilt. Laying the dots out as separate meter bars fixed that but went too literal — a bar chart is a diagram, and the logo shattered into fifteen unrelated pieces. What belongs here is a single wide, slightly irregular volume whose vertical extent swells along its width: the waveform is legible in the silhouette, but it is the silhouette *of something*.
 - **`connecting` draws the mark at full strength** and puts the wiring on top. Held back as a ghost, the logo vanished and what remained was an abstract node graph sitting near it.
 - **`orbiting` uses the mark's own dots.** A third detach and leave real gaps, drifting within a bounded arc of where they started, then return to the exact seat they left. A shared orbit radius draws a ring, and a ring is a separate object circling the logo rather than the logo coming apart.
 
