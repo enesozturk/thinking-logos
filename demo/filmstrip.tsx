@@ -108,6 +108,9 @@ function App() {
   // pixel-identical across these, the spin is not landing face-on and the
   // logo is being shown at an angle it should never be shown at.
   const holds = [4.4, 10.9, 17.4, 23.9, 30.4];
+  // Dense sampling of the rise. Every frame in which the mark is legible
+  // at all must be square to the viewer — that is the whole test.
+  const rise = [2.1, 2.35, 2.6, 2.85, 3.0, 3.1, 3.2, 3.25, 3.6];
   const solve = [0, 1.2, 2.4, 3.6, 4.8, 5.6, 6.4, 7.4, 8.6];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
 
@@ -123,6 +126,13 @@ function App() {
         state="thinking"
         times={holds}
         note="HOLD, four cycles apart — must be identical"
+        tint={tint}
+      />
+      <Strip
+        points={points}
+        state="thinking"
+        times={rise}
+        note="THE RISE — camera must be square before the mark is legible"
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="sphere → cube → solve → mark" tint={tint} />

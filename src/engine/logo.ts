@@ -299,7 +299,7 @@ export function assembly(local: number): number {
  * churn's starting offset. Position is continuous across the boundary with
  * no accumulator and no state.
  */
-export function assembleYaw(local: number, spin: number): number {
+export function assembleYaw(local: number, spin: number, settle = 0.4): number {
   // Where the previous cycle's fall handed off — also this cycle's start.
   const churnStart = spin * FALL * 0.5;
   if (local < CHURN) return churnStart + spin * local;
@@ -309,12 +309,30 @@ export function assembleYaw(local: number, spin: number): number {
   // natural rather than as a snap to the nearest landmark.
   const target = TURN * Math.round((riseStart + spin * RISE * 0.5) / TURN);
   if (local < CHURN + RISE) {
-    return riseStart + (target - riseStart) * smoothE((local - CHURN) / RISE);
+    // Settle the camera in the FIRST fraction of the rise, not across all
+    // of it. Spreading the deceleration over the whole rise means the mark
+    // becomes recognisable — roughly two thirds through — while the camera
+    // is still turning, so the viewer's first clear look at the logo is a
+    // skewed one. Front-loading it means every frame in which the mark can
+    // be read at all is a frame shot dead-on.
+    return riseStart + (target - riseStart) * smoothE(clamp01((local - CHURN) / (RISE * settle)));
   }
   if (local < CHURN + RISE + HOLD) return target;
 
   const u = (local - CHURN - RISE - HOLD) / FALL;
   return target + spin * FALL * (u * u * u - (u * u * u * u) / 2);
+}
+
+/**
+ * How far the camera has settled, 0 while churning and 1 once the mark is
+ * being shown straight on. Tilt rides this rather than the assembly amount,
+ * for the same reason the yaw does.
+ */
+export function settleAt(local: number, settle = 0.4): number {
+  if (local < CHURN) return 0;
+  if (local < CHURN + RISE) return smoothE(clamp01((local - CHURN) / (RISE * settle)));
+  if (local < CHURN + RISE + HOLD) return 1;
+  return 1 - smoothE((local - CHURN - RISE - HOLD) / FALL);
 }
 
 /** Split absolute time into a cycle index, position within it, and assembly. */
@@ -344,10 +362,12 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
   const { local, m } = cycleAt(t);
-  const yaw = assembleYaw(local, o.spin ?? 2);
-  // The camera tilt settles with the assembly for the same reason the spin
-  // does: a mark read at an angle is a mark read wrong.
-  const tilt = (o.tiltAmp ?? 0.34) * (1 - m);
+  const settle = o.settle ?? 0.4;
+  const yaw = assembleYaw(local, o.spin ?? 2, settle);
+  // Tilt tracks the camera settle, not the assembly: a mark read at an
+  // angle is a mark read wrong, and it must already be square to the viewer
+  // by the time enough dots have arrived to make it legible.
+  const tilt = (o.tiltAmp ?? 0.34) * (1 - settleAt(local, settle));
   const pt = makeProj(yaw, tilt, cx, cx, R);
 
   const stagger = o.stagger ?? 0.75;
@@ -397,20 +417,22 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Orbit: dots leave the mark, circle it, and come back -------------
+// --- Orbit: a third of the mark wanders its own edges -----------------
 
 /**
  * Particles that are the logo's own dots, not extras added on top.
  *
- * Drawing separate particles around an intact mark is the easy version and
- * it reads as two unrelated things sharing a frame. Here a hashed subset of
- * the dots detaches, flies an inclined orbit, and returns to the exact seat
- * it left — so the mark visibly loses material while the work is happening
- * and is made whole again when it finishes. The gap is the point: it is
- * what makes the motion belong to the logo rather than decorate it.
+ * Two things make this read the way it should, and the first version had
+ * neither. A meaningful FRACTION has to be away at once — a handful of
+ * travellers around an otherwise intact mark reads as decoration, and the
+ * mark never visibly gives anything up. And they must not share a path: a
+ * common orbit radius draws a ring, and a ring is a separate object
+ * orbiting the logo rather than the logo coming apart.
  *
- * Each traveller keeps its own period and phase from its index hash, so
- * departures are staggered and the mark is never all there or all gone.
+ * So a third of the dots travel, each one drifting around the region of the
+ * silhouette it came from, at its own radius, on its own noise. The gaps
+ * they leave are spread across the whole mark instead of hollowing out one
+ * side, and every traveller returns to the exact seat it left.
  */
 export const frameLogoOrbit: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -419,29 +441,27 @@ export const frameLogoOrbit: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const pt = makeProj(
-    (o.yawAmp ?? 0.26) * Math.sin(t * (o.yawRate ?? 0.55)),
-    (o.tiltAmp ?? 0.12) * Math.sin(t * 0.4),
+    (o.yawAmp ?? 0.2) * Math.sin(t * (o.yawRate ?? 0.5)),
+    (o.tiltAmp ?? 0.1) * Math.sin(t * 0.38),
     cx,
     cx,
     R
   );
 
-  // Fraction of the mark that is allowed to be away at any one time. Past
-  // roughly a fifth the silhouette starts to break up, and a logo with
-  // holes in it stops being recognisable — which is the failure this whole
-  // library exists to avoid.
-  const share = o.travelShare ?? 0.16;
-  const orbitR = o.orbitR ?? 1.06;
-  const rate = o.travelRate ?? 0.34;
+  // The share that is allowed to be away. A third is about the ceiling: the
+  // silhouette survives losing a scattered third of its dots, and stops
+  // being recognisable somewhere past a half.
+  const share = o.travelShare ?? 0.3;
+  const rate = o.travelRate ?? 0.22;
+  const swing = o.travelSwing ?? 1.5;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const pick = hashD(i, 6.7);
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
     const lz = p[i * 3 + 2];
 
-    if (pick >= share) {
+    if (hashD(i, 6.7) >= share) {
       const [px, py, z] = pt(lx, ly, lz);
       const zx = clamp01((z + 1) / 2);
       dots.push({
@@ -454,37 +474,48 @@ export const frameLogoOrbit: ModeFrame = (size, t, o, logo) => {
       continue;
     }
 
-    // A traveller's cycle: leave, orbit, return, then rest at home for a
-    // while. `away` is the eased in-flight amount; at 0 the dot sits in the
-    // mark and is indistinguishable from a dot that never travels. The
-    // per-dot rate jitter stops the whole set pulsing in lockstep.
-    const phase = (t * rate * (0.7 + hashD(i, 1.9) * 0.6) + hashD(i, 8.3)) % 1;
-    const flight = clamp01((phase - 0.08) / 0.62);
-    const away = Math.sin(Math.PI * clamp01(flight)) ** 0.75;
+    // Continuous excursion rather than a discrete trip: `away` is never
+    // parked at zero for long, so the set is always in motion and the
+    // hashed phases keep every traveller at a different point in its own
+    // journey. The exponent below one biases toward being out.
+    const phase = (t * rate * (0.65 + hashD(i, 1.9) * 0.7) + hashD(i, 8.3)) % 1;
+    const away = Math.sin(Math.PI * phase) ** 0.9;
 
-    // Orbit plane from the dot's own hash, so travellers fan out over many
-    // inclinations instead of sharing one visible ring.
-    const inc = hashD(i, 4.1) * Math.PI;
-    const spin = t * (0.7 + hashD(i, 5.5) * 0.7) * (hashD(i, 2.2) < 0.5 ? 1 : -1) + hashD(i, 7.1) * 6.28;
-    const ox = Math.cos(spin) * orbitR;
-    const oy = Math.sin(spin) * orbitR * Math.cos(inc);
-    const oz = Math.sin(spin) * orbitR * Math.sin(inc);
+    // Drift is relative to where the dot already is, not toward a shared
+    // orbit. Sending a third of the mark out to a common radius empties the
+    // logo into a cloud — tried it, and the S was gone. Pushing each dot a
+    // short way past its OWN position instead means an interior dot barely
+    // leaves and an edge dot steps just outside the silhouette, so what the
+    // viewer sees is the mark with a live fringe rather than a swarm.
+    const homeR = Math.hypot(lx, ly);
+    // The angular drift OSCILLATES within a bounded arc rather than
+    // accumulating with time. An unbounded sweep — even a slow one — carries
+    // a dot all the way round the mark, so a dot that left the top of the S
+    // comes back down at the bottom and the silhouette dissolves into a
+    // uniform cloud. Bounded, each traveller only ever patrols its own
+    // stretch of the outline, and the shape reads through the whole cycle.
+    const wander = Math.sin(t * (0.5 + hashD(i, 5.5) * 0.7) + hashD(i, 7.1) * 6.28);
+    const ang = Math.atan2(ly, lx) + swing * away * wander;
+    const reach = (o.reach ?? 0.12) + (o.reachVary ?? 0.16) * hashD(i, 4.1);
+    const rad = homeR + reach * away + 0.04 * (vnoise(lx * 3 + t * 0.5, ly * 3) - 0.5);
+    const ox = Math.cos(ang) * rad;
+    const oy = Math.sin(ang) * rad;
+    const oz = lz + (vnoise(lx * 2 + t * 0.4, ly * 2 + 9.1) - 0.5) * (o.orbitZ ?? 0.35);
 
-    const x = lx + (ox - lx) * away;
-    const y = ly + (oy - ly) * away;
-    const z3 = lz + (oz - lz) * away;
-
-    const [px, py, z] = pt(x, y, z3);
+    const [px, py, z] = pt(
+      lx + (ox - lx) * away,
+      ly + (oy - ly) * away,
+      lz + (oz - lz) * away
+    );
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
       y: py,
       z,
-      // A dot in flight is doing the work, so it reads brighter and larger
-      // than the mark it came out of — and fades back as it re-seats.
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.partBoost ?? 0.5) * away) * rs,
-      white: inkOf(o, zx, e[i]) - (o.partInk ?? 0.22) * away,
-      a: 1 - 0.15 * away * (1 - away) * 4
+      // Travellers read brighter and larger — they are the ones doing the
+      // work — and fade back as they re-seat.
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.partBoost ?? 0.45) * away) * rs,
+      white: inkOf(o, zx, e[i]) - (o.partInk ?? 0.2) * away
     });
   }
   return finalizeFrame(dots, [], o.rMin);
