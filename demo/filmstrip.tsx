@@ -103,17 +103,17 @@ function App() {
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
-  const assemble = [0, 1.4, 2.3, 2.7, 3.0, 3.3, 4.4, 5.8, 6.2];
+  const assemble = [0, 1.5, 2.6, 3.1, 3.6, 4.0, 5.0, 6.0, 7.4];
   // The same instant of the hold, four cycles apart. If the mark is not
   // pixel-identical across these, the spin is not landing face-on and the
   // logo is being shown at an angle it should never be shown at.
-  const holds = [4.4, 10.9, 17.4, 23.9, 30.4];
+  const holds = [5.0, 13.2, 21.4, 29.6, 37.8];
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
-  const rise = [2.1, 2.35, 2.6, 2.85, 3.0, 3.1, 3.2, 3.25, 3.6];
-  const solve = [0, 1.4, 2.1, 2.8, 3.6, 4.4, 5.2, 5.6, 5.9];
+  const rise = [2.1, 2.5, 2.9, 3.2, 3.5, 3.7, 3.9, 4.0, 4.3];
+  const solve = [0, 0.9, 1.5, 2.4, 3.2, 4.0, 4.8, 5.6, 6.2];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
-  const meter = [0, 1.1, 1.6, 2.2, 2.8, 3.4, 4.0, 4.7, 5.3];
+  const meter = [0, 1.2, 2.2, 3.0, 3.8, 4.6, 5.4, 6.2, 7.0];
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>

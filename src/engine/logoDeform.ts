@@ -17,7 +17,7 @@ import type { Dot, Line, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, hashD, makeProj, radiusScale } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
-import { inkOf } from './logo';
+import { inkOf, shimmerAt } from './logo';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -50,16 +50,19 @@ interface Excursion {
   work: number;
   /** Progress across the whole away-span, for camera work. */
   away: number;
+  /** Time elapsed inside the logo-showing phase, negative once it is over. */
+  holdT: number;
 }
 
 function excursion(t: number, hold: number, out: number, work: number, back: number): Excursion {
   const cycle = hold + out + work + back;
   const local = t % cycle;
-  if (local < hold) return { c: 0, work: 0, away: 0 };
+  if (local < hold) return { c: 0, work: 0, away: 0, holdT: local };
   const away = clamp01((local - hold) / (out + work + back));
-  if (local < hold + out) return { c: smoothE((local - hold) / out), work: 0, away };
-  if (local < hold + out + work) return { c: 1, work: local - hold - out, away };
-  return { c: 1 - smoothE((local - hold - out - work) / back), work, away };
+  const holdT = -1;
+  if (local < hold + out) return { c: smoothE((local - hold) / out), work: 0, away, holdT };
+  if (local < hold + out + work) return { c: 1, work: local - hold - out, away, holdT };
+  return { c: 1 - smoothE((local - hold - out - work) / back), work, away, holdT };
 }
 
 /**
@@ -77,7 +80,7 @@ function excursionYaw(away: number, turns: number): number {
 
 // --- Solving: logo → cube → solve → logo -------------------------------
 
-const SV_HOLD = 1.3;
+const SV_HOLD = 2;
 const SV_OUT = 0.75;
 const SV_WORK = 3;
 const SV_BACK = 0.75;
@@ -132,7 +135,12 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const half = o.cubeHalf ?? 0.62;
 
-  const ex = excursion(t, o.hold ?? SV_HOLD, o.out ?? SV_OUT, o.work ?? SV_WORK, o.back ?? SV_BACK);
+  const hold = o.hold ?? SV_HOLD;
+  const ex = excursion(t, hold, o.out ?? SV_OUT, o.work ?? SV_WORK, o.back ?? SV_BACK);
+  // A single highlight crosses the mark while it is showing, so the logo
+  // gets a beat of its own between solves instead of just waiting.
+  const sweepP = clamp01((ex.holdT - hold * (o.shimmerFrom ?? 0.2)) / (hold * (o.shimmerSpan ?? 0.55)));
+  const sweeping = ex.holdT >= 0 && sweepP > 0 && sweepP < 1;
   const pt = makeProj(
     excursionYaw(ex.away, o.turns ?? 1),
     (o.tiltAmp ?? 0.36) * ex.c,
@@ -159,6 +167,8 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
     const y = p[i * 3 + 1] + (ty - p[i * 3 + 1]) * c;
     const z3 = p[i * 3 + 2] + (tz - p[i * 3 + 2]) * c;
 
+    const glint = sweeping ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.26) : 0;
+
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     dots.push({
@@ -167,8 +177,13 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
       z,
       // The slab under the wrench brightens, so the eye can follow which
       // face is turning instead of watching the whole solid shimmer.
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (inActive ? (o.rActive ?? 0.3) : 0) * c) * rs,
-      white: inkOf(o, zx, e[i] * (1 - c) + c)
+      r:
+        ((o.rBase ?? 0.55) +
+          (o.rDepth ?? 1.4) * zx +
+          (inActive ? (o.rActive ?? 0.3) : 0) * c +
+          (o.shimmerR ?? 0.5) * glint) *
+        rs,
+      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.shimmerInk ?? 0.3) * glint
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -176,10 +191,10 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
 
 // --- Listening: logo → level meter → logo ------------------------------
 
-const LS_HOLD = 1.2;
-const LS_OUT = 0.7;
-const LS_WORK = 2.8;
-const LS_BACK = 0.7;
+const LS_HOLD = 2;
+const LS_OUT = 0.8;
+const LS_WORK = 4;
+const LS_BACK = 0.8;
 
 /**
  * The mark folds into a row of bars, the bars move like a level meter, and
@@ -228,9 +243,9 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
         Math.sin(t * rate * 0.37 + hashD(b, 8.1) * 6.28);
     const h = floorH + (1 - floorH) * wob;
 
-    // Jitter inside the column so a bar reads as a bar with width, not as a
-    // one-dot-wide line.
-    const jx = (hashD(i, 2.1) - 0.5) * barW * (o.barFill ?? 0.62);
+    // Barely any jitter: the dots must line up into a column, because a
+    // scattered column reads as noise where a straight one reads as a bar.
+    const jx = (hashD(i, 2.1) - 0.5) * barW * (o.barFill ?? 0.14);
     const bx = ((b + 0.5) / bars - 0.5) * 2 * spread + jx;
     const by = (slot[i] - 0.5) * 2 * h * (o.barHeight ?? 0.85);
 
@@ -245,8 +260,15 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
       x: px,
       y: py,
       z,
-      // Taller bars read louder.
-      r: ((o.rBase ?? 0.52) + (o.rDepth ?? 1.2) * zx + (o.loudR ?? 0.35) * h * c) * rs,
+      // The bar thickness scales LINEARLY with size, unlike every other
+      // radius here. `radiusScale` is sub-linear because separate dots need
+      // to stay legible as they shrink — but these dots have to TOUCH, and
+      // the gaps between them scale linearly, so a sub-linear radius makes
+      // the bars fall apart into dotted lines at small sizes. Taller bars
+      // also read louder.
+      r:
+        ((o.rBase ?? 0.52) + (o.rDepth ?? 1.2) * zx) * rs +
+        (o.barR ?? 3.2) * (size / 300) * c * (0.7 + 0.3 * h),
       white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.loudInk ?? 0.16) * h * c
     });
   }

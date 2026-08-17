@@ -15,6 +15,32 @@ function smoothE(x: number): number {
   return x * x * (3 - 2 * x);
 }
 
+/**
+ * Smootherstep — zero first AND second derivative at both ends.
+ *
+ * Smoothstep stops with zero velocity but a sudden change in acceleration,
+ * which the eye reads as a small jolt at the end of a long move. Over a
+ * two-second morph that jolt is what makes the assembly feel like it halts
+ * rather than arrives.
+ */
+function smootherE(x: number): number {
+  return x * x * x * (x * (x * 6 - 15) + 10);
+}
+
+/**
+ * A highlight sweeping left to right. Returns a 0..1 boost for a dot at
+ * `x`, given how far the sweep has travelled.
+ *
+ * Head and tail start and finish outside the mark, so the sweep enters from
+ * off-frame and leaves the same way instead of materialising at the
+ * silhouette's edge.
+ */
+export function shimmerAt(x: number, progress: number, width: number): number {
+  if (progress <= 0 || progress >= 1) return 0;
+  const d = (x - (-1.3 + progress * 2.6)) / width;
+  return Math.exp(-d * d);
+}
+
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
 }
@@ -267,9 +293,9 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 
 // One cycle, in engine seconds before the preset's speed multiplier.
 export const CHURN = 2.1;
-export const RISE = 1.15;
-export const HOLD = 2.3;
-export const FALL = 0.95;
+export const RISE = 1.9;
+export const HOLD = 3.2;
+export const FALL = 1;
 export const CYCLE = CHURN + RISE + HOLD + FALL;
 
 const TURN = Math.PI * 2;
@@ -277,7 +303,7 @@ const TURN = Math.PI * 2;
 /** Assembly amount in [0, 1] at a point in the cycle: 0 sphere, 1 logo. */
 export function assembly(local: number): number {
   if (local < CHURN) return 0;
-  if (local < CHURN + RISE) return smoothE((local - CHURN) / RISE);
+  if (local < CHURN + RISE) return smootherE((local - CHURN) / RISE);
   if (local < CHURN + RISE + HOLD) return 1;
   return 1 - smoothE((local - CHURN - RISE - HOLD) / FALL);
 }
@@ -304,7 +330,7 @@ export function assembly(local: number): number {
  * churn's starting offset. Position is continuous across the boundary with
  * no accumulator and no state.
  */
-export function assembleYaw(local: number, spin: number, settle = 0.4): number {
+export function assembleYaw(local: number, spin: number, settle = 0.85): number {
   // Where the previous cycle's fall handed off — also this cycle's start.
   const churnStart = spin * FALL * 0.5;
   if (local < CHURN) return churnStart + spin * local;
@@ -314,13 +340,15 @@ export function assembleYaw(local: number, spin: number, settle = 0.4): number {
   // natural rather than as a snap to the nearest landmark.
   const target = TURN * Math.round((riseStart + spin * RISE * 0.5) / TURN);
   if (local < CHURN + RISE) {
-    // Settle the camera in the FIRST fraction of the rise, not across all
-    // of it. Spreading the deceleration over the whole rise means the mark
-    // becomes recognisable — roughly two thirds through — while the camera
-    // is still turning, so the viewer's first clear look at the logo is a
-    // skewed one. Front-loading it means every frame in which the mark can
-    // be read at all is a frame shot dead-on.
-    return riseStart + (target - riseStart) * smoothE(clamp01((local - CHURN) / (RISE * settle)));
+    // The rotation runs THROUGH most of the morph and comes to rest just as
+    // the mark completes, so the orb reads as still turning while it becomes
+    // the logo rather than halting first and transforming afterwards.
+    //
+    // This is only safe because the landing angle is pinned to a whole turn.
+    // An earlier version had to front-load the settle to hide the fact that
+    // the rotation stopped wherever it happened to be, and that shortcut is
+    // exactly what made the move feel like two separate events.
+    return riseStart + (target - riseStart) * smootherE(clamp01((local - CHURN) / (RISE * settle)));
   }
   if (local < CHURN + RISE + HOLD) return target;
 
@@ -333,9 +361,9 @@ export function assembleYaw(local: number, spin: number, settle = 0.4): number {
  * being shown straight on. Tilt rides this rather than the assembly amount,
  * for the same reason the yaw does.
  */
-export function settleAt(local: number, settle = 0.4): number {
+export function settleAt(local: number, settle = 0.85): number {
   if (local < CHURN) return 0;
-  if (local < CHURN + RISE) return smoothE(clamp01((local - CHURN) / (RISE * settle)));
+  if (local < CHURN + RISE) return smootherE(clamp01((local - CHURN) / (RISE * settle)));
   if (local < CHURN + RISE + HOLD) return 1;
   return 1 - smoothE((local - CHURN - RISE - HOLD) / FALL);
 }
@@ -367,11 +395,8 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
   const { local, m } = cycleAt(t);
-  const settle = o.settle ?? 0.4;
-  const yaw = assembleYaw(local, o.spin ?? 2, settle);
-  // Tilt tracks the camera settle, not the assembly: a mark read at an
-  // angle is a mark read wrong, and it must already be square to the viewer
-  // by the time enough dots have arrived to make it legible.
+  const settle = o.settle ?? 0.85;
+  const yaw = assembleYaw(local, o.spin ?? 1.7, settle);
   const tilt = (o.tiltAmp ?? 0.34) * (1 - settleAt(local, settle));
   const pt = makeProj(yaw, tilt, cx, cx, R);
 
@@ -379,6 +404,13 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const arc = o.arc ?? 0.22;
   const churn = o.churn ?? 0.09;
   const sphereR = o.sphereR ?? 0.92;
+  const share = o.haloShare ?? 0.12;
+
+  // One highlight sweep across the settled mark, placed inside the hold so
+  // it reads as a beat of its own rather than as part of the arrival.
+  const holdT = local - CHURN - RISE;
+  const sweepP = clamp01((holdT - HOLD * (o.shimmerFrom ?? 0.18)) / (HOLD * (o.shimmerSpan ?? 0.5)));
+  const sweeping = holdT > 0 && sweepP > 0 && sweepP < 1;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -390,9 +422,23 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     // rather than a frozen ball waiting for its cue.
     const wob = sphereR * (1 + churn * (vnoise(fx * 2 + t * 0.7, fz * 2) - 0.5) * 2);
 
-    const lx = p[i * 3];
-    const ly = p[i * 3 + 1];
-    const lz = p[i * 3 + 2];
+    let lx = p[i * 3];
+    let ly = p[i * 3 + 1];
+    let lz = p[i * 3 + 2];
+
+    // Halo: once the mark has settled, a scatter of its own dots drifts
+    // just outside the silhouette and swings through depth, so the held
+    // logo is alive rather than frozen. Weighted by the assembly amount, so
+    // it grows in with the mark and is gone before the dots disperse.
+    let halo = 0;
+    if (hashD(i, 6.7) < share) {
+      halo = m;
+      const osc = Math.sin(t * (o.haloRate ?? 0.9) + hashD(i, 8.3) * Math.PI * 2);
+      const out = 1 + (o.haloOut ?? 0.18) * (0.5 + 0.5 * osc) * halo;
+      lx *= out;
+      ly *= out;
+      lz += (o.haloZ ?? 0.8) * osc * halo;
+    }
 
     let x = fx * wob + (lx - fx * wob) * mi;
     let y = fy * wob + (ly - fy * wob) * mi;
@@ -405,6 +451,10 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     y *= bow;
     z3 *= bow;
 
+    // Keyed to the dot's HOME x, not its current one, so the sweep crosses
+    // the logo in the logo's own frame and stays a straight vertical front.
+    const glint = sweeping ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.26) * m : 0;
+
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     // In flight the dot is neither sphere nor mark; fading it slightly
@@ -414,8 +464,13 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx) * rs,
-      white: inkOf(o, zx, e[i] * mi + (1 - mi)),
+      r:
+        ((o.rBase ?? 0.55) +
+          (o.rDepth ?? 1.5) * zx +
+          (o.haloR ?? 0.22) * halo +
+          (o.shimmerR ?? 0.5) * glint) *
+        rs,
+      white: inkOf(o, zx, e[i] * mi + (1 - mi)) - (o.shimmerInk ?? 0.3) * glint,
       a: 1 - (o.flightFade ?? 0.25) * travel
     });
   }
