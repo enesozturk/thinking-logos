@@ -17,7 +17,7 @@ import type { Dot, Line, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
-import { bell, inkOf, logoWindow, shimmerAt, smootherE } from './logo';
+import { envAt, inkOf, logoWindow, shimmerAt, spunAt } from './logo';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -31,57 +31,7 @@ function empty(): OrbFrame {
   return { dots: [], lines: [] };
 }
 
-// --- shared: an excursion away from the mark and back ------------------
-
-/**
- * The shape both `solving` and `listening` follow: rest as the logo, become
- * something else, do work there, become the logo again.
- *
- * The mark is the state the animation RETURNS to, not one it passes
- * through. An earlier version cycled through a sphere on the way in and out
- * — sphere → cube → solve → mark — and the sphere was pure overhead: an
- * extra form the viewer had to parse, appearing between two forms that
- * already told the whole story.
- */
-interface Excursion {
-  /** 0 while the logo is showing, 1 while the other form is. */
-  c: number;
-  /** Time elapsed inside the working phase. */
-  work: number;
-  /** Progress across the whole away-span, for camera work. */
-  away: number;
-  /** Time elapsed inside the logo-showing phase, negative once it is over. */
-  holdT: number;
-}
-
-function excursion(t: number, hold: number, out: number, work: number, back: number): Excursion {
-  const cycle = hold + out + work + back;
-  const local = t % cycle;
-  if (local < hold) return { c: 0, work: 0, away: 0, holdT: local };
-  const away = clamp01((local - hold) / (out + work + back));
-  const holdT = -1;
-  if (local < hold + out) return { c: smoothE((local - hold) / out), work: 0, away, holdT };
-  if (local < hold + out + work) return { c: 1, work: local - hold - out, away, holdT };
-  return { c: 1 - smoothE((local - hold - out - work) / back), work, away, holdT };
-}
-
-/**
- * Camera yaw for an excursion: exactly `turns` whole revolutions across the
- * away-span, eased so velocity is zero at both ends.
- *
- * Whole turns are the point. The mark is only ever shown at yaw 0, because
- * the rotation both starts and finishes on a multiple of 2π — so the logo
- * never spins, while the form it becomes gets all the rotation it needs to
- * read as a solid.
- */
-function excursionYaw(away: number, turns: number): number {
-  return Math.PI * 2 * turns * smoothE(away);
-}
-
-// --- Solving: logo → cube → solve → logo -------------------------------
-
-/** One full cycle, in engine seconds before the preset's speed multiplier. */
-const SV_CYCLE = 6.6;
+// --- Solving: a cube being solved, interrupted by the mark -------------
 
 /**
  * A point on the surface of a cube, from a Fibonacci index.
@@ -118,12 +68,9 @@ function makeCubeMoves(count: number, half: number): Move[] {
  * leaves debris within two moves. The reset then lands on nothing, because
  * the viewer stopped tracking a shape long ago.
  *
- * Timing runs off the same continuous envelope as `thinking`, for the same
- * reason: discrete phases meant the logo sat still, the shimmer switched on
- * as a separate event, switched off, and only then did the cube begin to
- * form. Here the mark is at the envelope's floor and the cube at its crest,
- * so every transition is already in motion before the last one has
- * finished — the shimmer is still fading as the cube starts to gather.
+ * The solve runs across the dwell, and the palindrome is mapped onto it
+ * exactly — so the cube is always back to solved, with nothing caught
+ * mid-rotation, at the moment the mark arrives.
  */
 export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -134,38 +81,33 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const half = o.cubeHalf ?? 0.62;
 
-  const cycle = o.cycle ?? SV_CYCLE;
-  const u = (t % cycle) / cycle;
+  const dwell = o.dwell ?? 5;
+  const span = o.span ?? 3.2;
   const pow = o.bellPow ?? 2.2;
-  const level = o.cubeLevel ?? 0.5;
-  const env = bell(u, pow);
+  const level = o.logoLevel ?? 0.55;
+  const { env, local } = envAt(t, dwell, span, pow);
 
-  // Cube amount: 0 where the mark shows, saturating at 1 across the crest,
-  // which is the span the solve gets to run in.
-  const c = clamp01(env / level);
+  const m = clamp01(env / level);
+  const glow = clamp01((env - level) / (1 - level));
+  const c = 1 - m;
+
   const uLo = logoWindow(level, pow);
   const uHi = 1 - uLo;
+  const sweepP = clamp01((local - dwell - span * uLo) / (span * (uHi - uLo)));
 
-  // The palindrome is mapped onto the cube span exactly, so the solve is
-  // complete — and nothing is caught mid-rotation — precisely as the cube
-  // begins turning back into the mark.
-  const moveCount = o.moveCount ?? 5;
-  const span = uHi - uLo;
-  const solveProgress = clamp01((u - uLo) / span);
+  // One integer turn in and one out. Integer counts are the honest speed
+  // control here: an earlier version span the cube fast enough to be hard
+  // to read, and slowing it with a fractional multiplier would have landed
+  // the mark at an arbitrary angle.
+  const spun = spunAt(local, dwell, span, uLo, uHi, o.turnsIn ?? 1, o.turnsOut ?? 1);
+  const pt = makeProj(Math.PI * 2 * spun, (o.tiltAmp ?? 0.36) * c, cx, cx, R);
+
+  // The palindrome fills the dwell and is finished — solved — before the
+  // mark begins to gather.
+  const moveCount = o.moveCount ?? 6;
+  const solveProgress = clamp01(local / dwell);
   const sc = solveCycle(solveProgress * 2 * moveCount, moveCount, 1, 0);
   const moves = makeCubeMoves(moveCount, half);
-
-  // Rotation advances only while the cube exists, closing on a whole turn,
-  // so the mark is shown at yaw 0 and never spins.
-  const spun = u < uLo ? 0 : u > uHi ? 1 : smootherE((u - uLo) / span);
-  const pt = makeProj(Math.PI * 2 * (o.turns ?? 1) * spun, (o.tiltAmp ?? 0.36) * c, cx, cx, R);
-
-  // The mark's own beat. Its window straddles the cycle boundary — the logo
-  // is deepest at u = 0 — so the sweep is measured from a wrapped offset
-  // rather than from the raw cycle position.
-  const wrapped = u > 0.5 ? u - 1 : u;
-  const sweepP = clamp01((wrapped + uLo) / (2 * uLo));
-  const glow = clamp01((level - env) / level);
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -192,18 +134,13 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
           (inActive ? (o.rActive ?? 0.3) : 0) * c +
           (o.shimmerR ?? 0.55) * glint) *
         rs,
-      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.shimmerInk ?? 0.32) * glint
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.shimmerInk ?? 0.32) * glint
     });
   }
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Listening: logo → a floating body that bounces → logo -------------
-
-const LS_HOLD = 2;
-const LS_OUT = 0.8;
-const LS_WORK = 4;
-const LS_BACK = 0.8;
+// --- Listening: a floating body that pulses, interrupted by the mark ---
 
 /**
  * The mark becomes a single soft volume that pulses vertically, then comes
@@ -211,17 +148,17 @@ const LS_BACK = 0.8;
  *
  * Three attempts to get here, and the last two failed in opposite
  * directions. Rolling a wave through the logo by displacing points in depth
- * ghosted the mark across the frame. Laying the dots out as a row of
+ * ghosted the mark across the frame, because a depth offset projects to a
+ * screen offset under any camera tilt. Laying the dots out as a row of
  * separate meter bars fixed that but went too literal: a bar chart is a
  * diagram, not an object, and it shares nothing with the orbs it sits
  * beside — the logo shattered into fifteen unrelated pieces.
  *
- * What belongs here is one body. A wide, slightly irregular ellipsoid,
- * lit and z-sorted like every other form in this library, whose vertical
- * extent swells and contracts along its width as a travelling wave passes
- * through. The waveform is legible in the silhouette, but it is the
- * silhouette OF something — the dots stay a connected mass, so the state
- * still reads as the mark having become a thing rather than a chart.
+ * What belongs here is one body. A wide, slightly irregular ellipsoid, lit
+ * and z-sorted like every other form in this library, whose vertical extent
+ * swells and contracts along its width as a travelling wave passes through.
+ * The waveform is legible in the silhouette, but it is the silhouette OF
+ * something.
  */
 export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -231,14 +168,22 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const ex = excursion(t, o.hold ?? LS_HOLD, o.out ?? LS_OUT, o.work ?? LS_WORK, o.back ?? LS_BACK);
-  // Yaw only exists while the body does, and it oscillates rather than
-  // accumulating — so it is exactly zero whenever the mark is showing, with
-  // no whole-turn bookkeeping needed. Enough parallax to read as 3D, not
+  const dwell = o.dwell ?? 4;
+  const span = o.span ?? 3.4;
+  const pow = o.bellPow ?? 2.2;
+  const level = o.logoLevel ?? 0.55;
+  const { env } = envAt(t, dwell, span, pow);
+
+  const m = clamp01(env / level);
+  const c = 1 - m;
+
+  // Yaw oscillates rather than accumulating and is scaled by the body
+  // amount, so it is exactly zero whenever the mark is showing, with no
+  // whole-turn bookkeeping needed. Enough parallax to read as 3D, not
   // enough to turn the waveform away from the viewer.
   const pt = makeProj(
-    (o.yawAmp ?? 0.42) * Math.sin(t * (o.yawRate ?? 0.55)) * ex.c,
-    (o.tiltAmp ?? 0.26) * ex.c,
+    (o.yawAmp ?? 0.42) * Math.sin(t * (o.yawRate ?? 0.55)) * c,
+    (o.tiltAmp ?? 0.26) * c,
     cx,
     cx,
     R
@@ -269,7 +214,6 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
     const by = fy * tall * lumpy * amp;
     const bz = fz * wide * lumpy;
 
-    const c = ex.c;
     const x = p[i * 3] + (bx - p[i * 3]) * c;
     const y = p[i * 3 + 1] + (by - p[i * 3 + 1]) * c;
     const z3 = p[i * 3 + 2] + (bz - p[i * 3 + 2]) * c;
@@ -284,7 +228,7 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
       y: py,
       z,
       r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.loudR ?? 0.3) * loud * c) * rs,
-      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.loudInk ?? 0.14) * loud * c
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);

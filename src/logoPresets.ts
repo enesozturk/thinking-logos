@@ -11,6 +11,7 @@ import type { LogoPointSet } from './engine/cloud';
 import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
+  buildGlobe,
   buildGraph,
   frameLogoAssemble,
   frameLogoOrbit,
@@ -84,10 +85,12 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   assemble: {
     speed: 1,
     opts: {
-      cycle: 7.6,
+      dwell: 4,
+      span: 3.6,
       bellPow: 2.2,
-      logoLevel: 0.52,
-      turns: 2,
+      logoLevel: 0.55,
+      turnsIn: 2,
+      turnsOut: 1,
       tiltAmp: 0.34,
       stagger: 0.75,
       arc: 0.22,
@@ -112,20 +115,30 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
     }
   },
   scan: {
-    speed: 1.35,
+    speed: 1,
     opts: {
-      yawAmp: 0.34,
-      yawRate: 0.7,
-      tiltAmp: 0.1,
-      scanRate: 1.6,
-      scanWidth: 0.26,
-      dimBase: 0.45,
+      dwell: 4,
+      span: 3.4,
+      bellPow: 2.2,
+      logoLevel: 0.55,
+      turnsIn: 1,
+      turnsOut: 1,
+      tiltAmp: 0.34,
+      sphereR: 0.94,
+      meridians: 6,
+      parallels: 5,
+      scanRate: 2.1,
+      scanWidth: 0.5,
+      dimBase: 0.55,
+      rBoost: 1,
+      shimmerWidth: 0.3,
+      shimmerR: 0.55,
+      shimmerInk: 0.32,
       rBase: 0.5,
-      rDepth: 1.3,
-      rBoost: 1.1,
+      rDepth: 1.4,
       inkFar: 0.6,
       inkSpan: 0.5,
-      inkRim: 0.12,
+      inkRim: 0.16,
       rsPow: 0.6,
       rMin: 0.3
     }
@@ -172,13 +185,17 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   solve: {
     speed: 1,
     opts: {
-      cycle: 6.6,
+      // The solve needs more room than a plain dwell: the palindrome has to
+      // scramble and unscramble inside it and still be legible.
+      dwell: 5.5,
+      span: 3.2,
       bellPow: 2.2,
-      cubeLevel: 0.5,
-      turns: 1,
+      logoLevel: 0.55,
+      turnsIn: 1,
+      turnsOut: 1,
       tiltAmp: 0.36,
       cubeHalf: 0.62,
-      moveCount: 5,
+      moveCount: 6,
       rActive: 0.3,
       shimmerWidth: 0.3,
       shimmerR: 0.55,
@@ -195,10 +212,10 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   wave: {
     speed: 1,
     opts: {
-      hold: 2,
-      out: 0.8,
-      work: 4,
-      back: 0.8,
+      dwell: 4,
+      span: 3.4,
+      bellPow: 2.2,
+      logoLevel: 0.55,
       yawAmp: 0.42,
       yawRate: 0.55,
       tiltAmp: 0.26,
@@ -302,11 +319,13 @@ export function resolveLogo(
   // edge test, so it is only built for the one state that reads it.
   const graph =
     mode === 'connect' ? buildGraph(points, opts.nodeCount ?? 58, opts.reach ?? 1.35) : undefined;
+  const globe =
+    mode === 'scan' ? buildGlobe(points, opts.meridians ?? 6, opts.parallels ?? 5) : undefined;
   return {
     mode,
     frame: LOGO_MODE_FRAMES[mode],
     speed: preset.speed,
     opts,
-    binding: { points, seats: seatMap(points), nodes: graph?.nodes, edges: graph?.edges }
+    binding: { points, seats: seatMap(points), nodes: graph?.nodes, edges: graph?.edges, globe }
   };
 }

@@ -9,7 +9,9 @@
 
 import type { Dot, LogoBinding, ModeFrame, OrbFrame } from './types';
 import type { LogoPointSet, SeatMap } from './cloud';
-import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
+import { angleDelta, fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
+
+const TURN = Math.PI * 2;
 
 function smoothE(x: number): number {
   return x * x * (3 - 2 * x);
@@ -155,6 +157,102 @@ export function buildGraph(
 }
 
 /**
+ * Lay the mark's dots out as a wireframe globe — meridians and parallels.
+ *
+ * Deliberately a different solid from the one `thinking` uses. That state's
+ * orb is a Fibonacci lattice: an even scatter with no structure, which is
+ * right for a mark dissolving into raw material. Search is not raw material
+ * — it is a place being looked at — and the visual shorthand for that,
+ * everywhere on the web, is a globe with lines of longitude and latitude.
+ * Putting the dots ON those lines rather than over the whole surface is
+ * what makes the difference read at a glance.
+ *
+ * Dots are allocated to each curve in proportion to its arc length, so the
+ * spacing along a short polar parallel matches the spacing along the
+ * equator instead of bunching at the poles.
+ */
+export function buildGlobe(points: LogoPointSet, meridians: number, parallels: number): Float32Array {
+  const n = points.n;
+  const M = Math.max(2, meridians);
+  const P = Math.max(1, parallels);
+
+  const lens: number[] = [];
+  for (let m = 0; m < M; m++) lens.push(2 * Math.PI);
+  const lats: number[] = [];
+  for (let q = 0; q < P; q++) {
+    const lat = -Math.PI / 2 + ((q + 1) * Math.PI) / (P + 1);
+    lats.push(lat);
+    lens.push(2 * Math.PI * Math.cos(lat));
+  }
+  const total = lens.reduce((a, b) => a + b, 0);
+
+  const counts = lens.map((l) => Math.max(3, Math.round((n * l) / total)));
+  // Rounding never lands on exactly n; push the slack onto the longest
+  // curve, where a dot more or less is invisible.
+  let sum = counts.reduce((a, b) => a + b, 0);
+  let biggest = 0;
+  for (let i = 1; i < counts.length; i++) if (counts[i] > counts[biggest]) biggest = i;
+  counts[biggest] += n - sum;
+  if (counts[biggest] < 3) counts[biggest] = 3;
+
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const zs: number[] = [];
+  for (let m = 0; m < M; m++) {
+    // A great circle through both poles — a full meridian ring.
+    const lon = (m * Math.PI) / M;
+    const cl = Math.cos(lon);
+    const sl = Math.sin(lon);
+    for (let k = 0; k < counts[m]; k++) {
+      const a = (k / counts[m]) * 2 * Math.PI;
+      xs.push(Math.cos(a) * cl);
+      ys.push(Math.sin(a));
+      zs.push(Math.cos(a) * sl);
+    }
+  }
+  for (let q = 0; q < P; q++) {
+    const lat = lats[q];
+    const cl = Math.cos(lat);
+    const sy = Math.sin(lat);
+    for (let k = 0; k < counts[M + q]; k++) {
+      const a = (k / counts[M + q]) * 2 * Math.PI;
+      xs.push(cl * Math.cos(a));
+      ys.push(sy);
+      zs.push(cl * Math.sin(a));
+    }
+  }
+
+  // Pair by angle about the centre, the same way `seatMap` does, so dots
+  // travel roughly radially and the mark folds into the globe rather than
+  // scattering into it.
+  const count = Math.min(n, xs.length);
+  const byLogo = new Uint32Array(n);
+  const bySeat = new Uint32Array(xs.length);
+  const logoAng = new Float32Array(n);
+  const seatAng = new Float32Array(xs.length);
+  for (let i = 0; i < n; i++) {
+    byLogo[i] = i;
+    logoAng[i] = Math.atan2(points.p[i * 3 + 1], points.p[i * 3]);
+  }
+  for (let i = 0; i < xs.length; i++) {
+    bySeat[i] = i;
+    seatAng[i] = Math.atan2(ys[i], xs[i]);
+  }
+  byLogo.sort((a, b) => logoAng[a] - logoAng[b]);
+  bySeat.sort((a, b) => seatAng[a] - seatAng[b]);
+
+  const out = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) {
+    const src = bySeat[k % count];
+    const dst = byLogo[k];
+    out[dst * 3] = xs[src];
+    out[dst * 3 + 1] = ys[src];
+    out[dst * 3 + 2] = zs[src];
+  }
+  return out;
+}
+
+/**
  * What a logo mode renders before its artwork is baked. A fresh object each
  * time: a shared one would be handed to a caller that is free to mutate it.
  */
@@ -181,37 +279,82 @@ export function inkOf(o: Record<string, number | undefined>, zx: number, edge: n
   return far - span * zx - rim * (1 - edge);
 }
 
-// --- Scan: a plane sweeps the mark — searching, in your brand ----------
+// --- Scan: a wireframe globe, scanned, interrupted by the mark ---------
 
+/**
+ * The mark becomes a globe, a meridian sweeps it, and the mark returns.
+ *
+ * Before this, `searching` swept a highlight across the stationary logo —
+ * which next to the other states reads as nothing more than a shimmer
+ * applied to a mark, with no idea of *searching* anywhere in it. A state
+ * earns its name by becoming something, and what search should become is
+ * obvious once said out loud: a globe with a scan running round it.
+ *
+ * The globe is built from meridians and parallels rather than an even
+ * scatter, precisely so it does NOT look like the orb in `thinking`. Two
+ * states that both dissolve into the same ball are one state with two
+ * labels.
+ */
 export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
-  if (!logo) return empty();
+  if (!logo || !logo.globe) return empty();
   const { p, e, n } = logo.points;
+  const g3 = logo.globe;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
-  const yaw = (o.yawAmp ?? 0.34) * Math.sin(t * (o.yawRate ?? 0.7));
-  const pt = makeProj(yaw, (o.tiltAmp ?? 0.1) * Math.sin(t * 0.5), cx, cx, R);
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const dimBase = o.dimBase ?? 0.45;
-  // The sweep runs in the mark's own x, from left edge to right and back,
-  // so it reads as a scanner crossing the artwork rather than as a
-  // highlight orbiting a sphere the viewer cannot see.
-  const scanX = Math.sin(t * (o.scanRate ?? 1.6));
-  const width = o.scanWidth ?? 0.26;
+
+  const dwell = o.dwell ?? 4;
+  const span = o.span ?? 3.4;
+  const pow = o.bellPow ?? 2.2;
+  const level = o.logoLevel ?? 0.55;
+  const { env, local } = envAt(t, dwell, span, pow);
+
+  const m = clamp01(env / level);
+  const glow = clamp01((env - level) / (1 - level));
+  const g = 1 - m;
+
+  const uLo = logoWindow(level, pow);
+  const uHi = 1 - uLo;
+  const sweepP = clamp01((local - dwell - span * uLo) / (span * (uHi - uLo)));
+
+  const spun = spunAt(local, dwell, span, uLo, uHi, o.turnsIn ?? 1, o.turnsOut ?? 1);
+  const pt = makeProj(TURN * spun, (o.tiltAmp ?? 0.34) * g, cx, cx, R);
+
+  const sphereR = o.sphereR ?? 0.94;
+  const width = o.scanWidth ?? 0.5;
+  // The scan runs in the globe's own longitude, so it stays a meridian
+  // however far the globe has turned — a sweep fixed to the screen would
+  // slide off the surface as soon as the camera moved.
+  const scan = t * (o.scanRate ?? 2.1);
+  const dimBase = o.dimBase ?? 0.55;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const lx = p[i * 3];
-    const d = (lx - scanX) / width;
-    const boost = Math.exp(-d * d);
-    const [px, py, z] = pt(lx, p[i * 3 + 1], p[i * 3 + 2]);
+    const gx = g3[i * 3] * sphereR;
+    const gy = g3[i * 3 + 1] * sphereR;
+    const gz = g3[i * 3 + 2] * sphereR;
+
+    const x = p[i * 3] + (gx - p[i * 3]) * g;
+    const y = p[i * 3 + 1] + (gy - p[i * 3 + 1]) * g;
+    const z3 = p[i * 3 + 2] + (gz - p[i * 3 + 2]) * g;
+
+    const d = angleDelta(Math.atan2(gz, gx), scan);
+    const boost = Math.exp(-(d * d) / width) * g;
+    const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
+
+    const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx + (o.rBoost ?? 1.1) * boost) * rs,
-      white: inkOf(o, zx, e[i]),
-      a: dimBase + (1 - dimBase) * Math.min(1, boost)
+      r:
+        ((o.rBase ?? 0.5) + (o.rDepth ?? 1.4) * zx + (o.rBoost ?? 1) * boost + (o.shimmerR ?? 0.55) * glint) *
+        rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.shimmerInk ?? 0.32) * glint,
+      // Un-scanned dots dim only once the globe has formed, so the mark
+      // itself is never shown at partial opacity.
+      a: 1 - (1 - dimBase) * g * (1 - Math.min(1, boost))
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -257,11 +400,9 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 /** One full cycle, in engine seconds before the preset's speed multiplier. */
 export const CYCLE = 7.6;
 
-const TURN = Math.PI * 2;
-
 /**
- * The cycle envelope: one continuous bell, orb at the floor, shimmer at the
- * crest.
+ * The excursion envelope: one continuous bell, working form at the floor,
+ * shimmer at the crest.
  *
  * This replaced four hard-edged phases — churn, rise, hold, fall — and the
  * difference is the whole feel of the animation. Discrete phases give flat
@@ -306,6 +447,63 @@ export function dotAssembly(i: number, m: number, stagger: number): number {
   return smoothE(clamp01(m * (1 + stagger) - hashD(i, 3.1) * stagger));
 }
 
+/**
+ * Split absolute time into a dwell in the working form and one excursion to
+ * the mark and back.
+ *
+ * Every logo state has the same shape: it spends most of the cycle being
+ * something else — an orb, a cube, a globe, a body — and the logo appears
+ * briefly at the crest of a single smooth arc. That is the reverse of how
+ * these started out, and it is the right way round: the mark is a
+ * punctuation mark, not a resting state. A logo that sits on screen for
+ * three seconds every cycle stops reading as an event.
+ *
+ * `dwell` is the knob that matters and is deliberately per-state: it is how
+ * long the working form gets to actually do its work — solve, scan, pulse —
+ * before the mark interrupts.
+ */
+export function envAt(
+  t: number,
+  dwell: number,
+  span: number,
+  pow: number
+): { env: number; local: number; cycle: number } {
+  const cycle = dwell + span;
+  const local = t % cycle;
+  if (local < dwell) return { env: 0, local, cycle };
+  return { env: bell((local - dwell) / span, pow), local, cycle };
+}
+
+/**
+ * Whole turns completed at a point in the cycle.
+ *
+ * Rotation advances only while the mark is NOT showing, and is split into
+ * an integer count before the mark and another after. Two consequences fall
+ * out for free: the logo is always displayed at a whole revolution — dead
+ * face-on, every cycle, with no closed-form integral to maintain — and the
+ * cycle closes on a whole revolution too, so it loops seamlessly.
+ *
+ * Integer counts are also the honest speed control. Wanting a slower spin
+ * means wanting fewer turns, not a smaller multiplier that lands the mark
+ * somewhere arbitrary.
+ */
+export function spunAt(
+  local: number,
+  dwell: number,
+  span: number,
+  uLo: number,
+  uHi: number,
+  turnsIn: number,
+  turnsOut: number
+): number {
+  const approach = dwell + span * uLo;
+  const showing = span * (uHi - uLo);
+  const leave = span * (1 - uHi);
+  if (local < approach) return turnsIn * smootherE(local / approach);
+  if (local < approach + showing) return turnsIn;
+  return turnsIn + turnsOut * smootherE((local - approach - showing) / leave);
+}
+
 export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
@@ -314,11 +512,11 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const cycle = o.cycle ?? CYCLE;
-  const u = (t % cycle) / cycle;
+  const dwell = o.dwell ?? 4;
+  const span = o.span ?? 3.6;
   const pow = o.bellPow ?? 2.2;
-  const level = o.logoLevel ?? 0.52;
-  const env = bell(u, pow);
+  const level = o.logoLevel ?? 0.55;
+  const { env, local } = envAt(t, dwell, span, pow);
 
   // Assembly saturates at the logo level; the crest above it is the glint.
   const m = clamp01(env / level);
@@ -326,23 +524,10 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
 
   const uLo = logoWindow(level, pow);
   const uHi = 1 - uLo;
-  const sweepP = clamp01((u - uLo) / (uHi - uLo));
+  const sweepP = clamp01((local - dwell - span * uLo) / (span * (uHi - uLo)));
 
-  /**
-   * Rotation advances only while the mark is not assembled, so the logo
-   * itself never turns, and it is split evenly either side of the window.
-   * `turns` must therefore be EVEN: half of it lands the hold on a whole
-   * revolution, which is what puts the mark dead face-on, and the full
-   * count closes the cycle seamlessly.
-   */
-  const turns = o.turns ?? 2;
-  const spun =
-    u < uLo
-      ? 0.5 * smootherE(u / uLo)
-      : u > uHi
-        ? 0.5 + 0.5 * smootherE((u - uHi) / (1 - uHi))
-        : 0.5;
-  const pt = makeProj(TURN * turns * spun, (o.tiltAmp ?? 0.34) * (1 - m), cx, cx, R);
+  const spun = spunAt(local, dwell, span, uLo, uHi, o.turnsIn ?? 2, o.turnsOut ?? 1);
+  const pt = makeProj(TURN * spun, (o.tiltAmp ?? 0.34) * (1 - m), cx, cx, R);
 
   const stagger = o.stagger ?? 0.75;
   const arc = o.arc ?? 0.22;
@@ -357,17 +542,14 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     const seat = seats[i];
     const [fx, fy, fz] = fibDir(seat, n);
     // Sphere seats breathe on their own so the dispersed state is alive
-    // rather than a frozen ball waiting for its cue.
+    // rather than a frozen ball waiting for its cue — which matters far
+    // more now that the orb is where most of the cycle is spent.
     const wob = sphereR * (1 + churn * (vnoise(fx * 2 + t * 0.7, fz * 2) - 0.5) * 2);
 
     let lx = p[i * 3];
     let ly = p[i * 3 + 1];
     let lz = p[i * 3 + 2];
 
-    // Halo: a scatter of the mark's own dots drifts just outside the
-    // silhouette and swings through depth, so the assembled logo is alive
-    // rather than frozen. Weighted by the assembly, so it grows in with the
-    // mark and is gone again before the dots disperse.
     let halo = 0;
     if (hashD(i, 6.7) < share) {
       halo = m;
@@ -391,14 +573,10 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
 
     // Keyed to the dot's HOME x, so the sweep stays a straight vertical
     // front in the logo's own frame rather than smearing with the camera.
-    // Its brightness rides the envelope's crest, so the highlight fades in
-    // and out instead of switching.
     const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // In flight the dot is neither sphere nor mark; fading it slightly
-    // keeps the two resolved states as the things the eye locks onto.
     const travel = Math.sin(Math.PI * mi);
     dots.push({
       x: px,

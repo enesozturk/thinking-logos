@@ -46,6 +46,8 @@ export function LogoLab() {
   const [shell, setShell] = useState<ShellMode>('dome');
   const [tinted, setTinted] = useState(true);
   const [count, setCount] = useState(300);
+  // Per-state default, since the solve needs more room than a plain dwell.
+  const [dwell, setDwell] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const [baked, setBaked] = useState<LogoPointSet | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -61,6 +63,10 @@ export function LogoLab() {
   // Identity matters: `useBakedLogo` re-bakes when the option VALUES change,
   // and a fresh object here every render would be harmless but noisy.
   const bakeOpts = useMemo(() => ({ style, shell, count }), [style, shell, count]);
+  // `dwell` is how long the working form — orb, cube, globe, body — gets
+  // before the mark interrupts it. Null means "leave the state's default".
+  const tune = useMemo(() => (dwell === null ? undefined : { dwell }), [dwell]);
+  const dwells = state === 'solving' ? 5.5 : 4;
 
   const accept = useCallback(async (file: File) => {
     setError(null);
@@ -80,6 +86,7 @@ export function LogoLab() {
     `  size={64}`,
     tint ? `  tint="${tint}"` : null,
     `  bake={{ style: '${style}', shell: '${shell}', count: ${count} }}`,
+    dwell === null ? null : `  tune={{ dwell: ${dwell} }}`,
     `/>`
   ]
     .filter((l) => l !== null)
@@ -117,6 +124,7 @@ export function LogoLab() {
                 size={140}
                 tint={tint}
                 bake={bakeOpts}
+                tune={tune}
                 onBake={(p, e) => {
                   setBaked(p);
                   setError(e);
@@ -126,7 +134,7 @@ export function LogoLab() {
             <div className="flex items-end gap-5">
               {SHIP_SIZES.map((s) => (
                 <div key={s} className="flex flex-col items-center gap-1.5">
-                  <ThinkingLogo logo={source} state={state} size={s} tint={tint} bake={bakeOpts} />
+                  <ThinkingLogo logo={source} state={state} size={s} tint={tint} bake={bakeOpts} tune={tune} />
                   <span className="text-[11px] text-(--footer-muted)">{s}px</span>
                 </div>
               ))}
@@ -225,6 +233,26 @@ export function LogoLab() {
               <span className="text-[13px] text-(--footer-muted) tabular-nums">
                 {count} asked · {baked ? baked.n : '—'} placed
               </span>
+            </Row>
+
+            <Row label="Dwell">
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={0.5}
+                value={dwell ?? dwells}
+                onChange={(e) => setDwell(Number(e.target.value))}
+                className="w-48 accent-(--tab-active-color)"
+              />
+              <span className="text-[13px] text-(--footer-muted) tabular-nums">
+                {(dwell ?? dwells).toFixed(1)}s in the working form
+              </span>
+              {dwell !== null && (
+                <button type="button" className={tabBase} onClick={() => setDwell(null)}>
+                  reset
+                </button>
+              )}
             </Row>
 
             <Row label="Colour">

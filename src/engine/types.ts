@@ -25,6 +25,8 @@ export interface LogoBinding {
   readonly nodes?: Uint32Array;
   /** Node-index pairs forming the constellation's edges. */
   readonly edges?: Uint32Array;
+  /** Wireframe-globe seats, xyz per dot; only the `searching` state needs them. */
+  readonly globe?: Float32Array;
 }
 
 /**

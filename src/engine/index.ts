@@ -30,7 +30,10 @@ export {
   frameLogoScan,
   frameLogoUnrest,
   seatMap,
-  buildGraph
+  buildGraph,
+  buildGlobe,
+  envAt,
+  spunAt
 } from './logo';
 export { frameLogoBreathe, frameLogoConnect, frameLogoSolve, frameLogoWave } from './logoDeform';
 export { resolveLogo, LOGO_PRESETS, LOGO_MODE_FRAMES, LOGO_STATE_TO_MODE } from '../logoPresets';

@@ -103,17 +103,18 @@ function App() {
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
-  const assemble = [0, 1.4, 2.2, 2.8, 3.2, 3.8, 4.4, 5.0, 6.2];
+  const assemble = [0, 1.6, 3.2, 4.4, 5.0, 5.6, 6.2, 6.8, 7.4];
   // The same instant of the hold, four cycles apart. If the mark is not
   // pixel-identical across these, the spin is not landing face-on and the
   // logo is being shown at an angle it should never be shown at.
-  const holds = [3.8, 11.4, 19.0, 26.6, 34.2];
+  const holds = [5.8, 13.4, 21.0, 28.6, 36.2];
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
-  const rise = [1.6, 1.9, 2.2, 2.5, 2.8, 3.1, 3.4, 3.7, 4.0];
-  const solve = [0, 0.5, 1.0, 1.6, 2.3, 3.0, 3.7, 4.4, 5.4];
+  const rise = [4.2, 4.6, 5.0, 5.3, 5.6, 5.9, 6.2, 6.6, 7.0];
+  const solve = [0, 1.2, 2.4, 3.6, 4.8, 5.5, 6.4, 7.0, 7.8];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
-  const meter = [0, 1.2, 2.2, 3.0, 3.8, 4.6, 5.4, 6.2, 7.0];
+  const globe = [0, 1.2, 2.4, 3.6, 4.4, 5.0, 5.6, 6.2, 7.0];
+  const meter = [0, 1.2, 2.4, 3.6, 4.4, 5.2, 5.8, 6.4, 7.2];
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>
@@ -140,7 +141,7 @@ function App() {
       <Strip points={points} state="orbiting" times={even} note="dots leave the mark and return" tint={tint} />
       <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
-      <Strip points={points} state="searching" times={even} note="scan sweeps across" tint={tint} />
+      <Strip points={points} state="searching" times={globe} note="logo → wireframe globe, scanned → logo" tint={tint} />
       <Strip points={cube} state="solving" times={solve} note="Notion — the 3D-looking hard case" />
       <Strip points={points} state="breathing" times={even} note="pulse + halo drifting in depth" tint={tint} />
       <Strip points={cube} state="connecting" times={even} note="Notion — mark must stay readable" />
