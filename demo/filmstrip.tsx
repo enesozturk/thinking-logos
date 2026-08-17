@@ -103,15 +103,15 @@ function App() {
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
-  const assemble = [0, 1.5, 2.6, 3.1, 3.6, 4.1, 4.8, 5.6, 6.9];
+  const assemble = [0, 1.4, 2.2, 2.8, 3.2, 3.8, 4.4, 5.0, 6.2];
   // The same instant of the hold, four cycles apart. If the mark is not
   // pixel-identical across these, the spin is not landing face-on and the
   // logo is being shown at an angle it should never be shown at.
-  const holds = [4.6, 12.2, 19.8, 27.4, 35.0];
+  const holds = [3.8, 11.4, 19.0, 26.6, 34.2];
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
-  const rise = [2.1, 2.5, 2.9, 3.2, 3.5, 3.7, 3.9, 4.0, 4.3];
-  const solve = [0, 0.9, 1.5, 2.4, 3.2, 4.0, 4.8, 5.6, 6.2];
+  const rise = [1.6, 1.9, 2.2, 2.5, 2.8, 3.1, 3.4, 3.7, 4.0];
+  const solve = [0, 0.5, 1.0, 1.6, 2.3, 3.0, 3.7, 4.4, 5.4];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
   const meter = [0, 1.2, 2.2, 3.0, 3.8, 4.6, 5.4, 6.2, 7.0];
 
@@ -133,7 +133,7 @@ function App() {
         points={points}
         state="thinking"
         times={rise}
-        note="THE RISE — camera must be square before the mark is legible"
+        note="THE RISE — one continuous curve, no plateaus"
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />

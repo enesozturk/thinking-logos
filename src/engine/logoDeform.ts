@@ -17,7 +17,7 @@ import type { Dot, Line, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
 import type { Move } from './lattice';
 import { applyMoves, solveCycle } from './lattice';
-import { inkOf, shimmerAt } from './logo';
+import { bell, inkOf, logoWindow, shimmerAt, smootherE } from './logo';
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -80,10 +80,8 @@ function excursionYaw(away: number, turns: number): number {
 
 // --- Solving: logo → cube → solve → logo -------------------------------
 
-const SV_HOLD = 2;
-const SV_OUT = 0.75;
-const SV_WORK = 3;
-const SV_BACK = 0.75;
+/** One full cycle, in engine seconds before the preset's speed multiplier. */
+const SV_CYCLE = 6.6;
 
 /**
  * A point on the surface of a cube, from a Fibonacci index.
@@ -120,11 +118,12 @@ function makeCubeMoves(count: number, half: number): Move[] {
  * leaves debris within two moves. The reset then lands on nothing, because
  * the viewer stopped tracking a shape long ago.
  *
- * So the logo becomes a cube — an object that survives being twisted,
- * because that is what a cube is for — the cube is solved, and the logo
- * comes back. The rotation is confined to the cube: it is exactly one whole
- * turn across the away-span, so the mark itself is only ever shown square
- * to the viewer and never spins.
+ * Timing runs off the same continuous envelope as `thinking`, for the same
+ * reason: discrete phases meant the logo sat still, the shimmer switched on
+ * as a separate event, switched off, and only then did the cube begin to
+ * form. Here the mark is at the envelope's floor and the cube at its crest,
+ * so every transition is already in motion before the last one has
+ * finished — the shimmer is still fading as the cube starts to gather.
  */
 export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -135,44 +134,49 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const half = o.cubeHalf ?? 0.62;
 
-  const hold = o.hold ?? SV_HOLD;
-  const ex = excursion(t, hold, o.out ?? SV_OUT, o.work ?? SV_WORK, o.back ?? SV_BACK);
-  // A single highlight crosses the mark while it is showing, so the logo
-  // gets a beat of its own between solves instead of just waiting.
-  // The sweep is scaled to finish exactly as the hold does, so the cube
-  // transition starts the instant the highlight leaves the mark. Giving it a
-  // fixed duration left a half-second of the logo just sitting there, and a
-  // pause that short does not read as a beat — it reads as a stall.
-  const from = o.shimmerFrom ?? 0.08;
-  const sweepP = clamp01((ex.holdT - hold * from) / (hold * (1 - from)));
-  const sweeping = ex.holdT >= 0 && sweepP > 0 && sweepP < 1;
-  const pt = makeProj(
-    excursionYaw(ex.away, o.turns ?? 1),
-    (o.tiltAmp ?? 0.36) * ex.c,
-    cx,
-    cx,
-    R
-  );
+  const cycle = o.cycle ?? SV_CYCLE;
+  const u = (t % cycle) / cycle;
+  const pow = o.bellPow ?? 2.2;
+  const level = o.cubeLevel ?? 0.5;
+  const env = bell(u, pow);
 
-  // Five moves scrambling and unscrambling inside the working phase, so the
-  // palindrome completes exactly as the cube starts turning back into the
-  // mark — nothing is ever caught mid-rotation when the logo lands.
+  // Cube amount: 0 where the mark shows, saturating at 1 across the crest,
+  // which is the span the solve gets to run in.
+  const c = clamp01(env / level);
+  const uLo = logoWindow(level, pow);
+  const uHi = 1 - uLo;
+
+  // The palindrome is mapped onto the cube span exactly, so the solve is
+  // complete — and nothing is caught mid-rotation — precisely as the cube
+  // begins turning back into the mark.
   const moveCount = o.moveCount ?? 5;
+  const span = uHi - uLo;
+  const solveProgress = clamp01((u - uLo) / span);
+  const sc = solveCycle(solveProgress * 2 * moveCount, moveCount, 1, 0);
   const moves = makeCubeMoves(moveCount, half);
-  const slot = (o.work ?? SV_WORK) / (2 * moveCount);
-  const sc = solveCycle(ex.work, moveCount, slot, 0);
+
+  // Rotation advances only while the cube exists, closing on a whole turn,
+  // so the mark is shown at yaw 0 and never spins.
+  const spun = u < uLo ? 0 : u > uHi ? 1 : smootherE((u - uLo) / span);
+  const pt = makeProj(Math.PI * 2 * (o.turns ?? 1) * spun, (o.tiltAmp ?? 0.36) * c, cx, cx, R);
+
+  // The mark's own beat. Its window straddles the cycle boundary — the logo
+  // is deepest at u = 0 — so the sweep is measured from a wrapped offset
+  // rather than from the raw cycle position.
+  const wrapped = u > 0.5 ? u - 1 : u;
+  const sweepP = clamp01((wrapped + uLo) / (2 * uLo));
+  const glow = clamp01((level - env) / level);
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const [qx, qy, qz] = cubeSeat(seats[i], n, half);
     const [tx, ty, tz, inActive] = applyMoves([qx, qy, qz], moves, sc);
 
-    const c = ex.c;
     const x = p[i * 3] + (tx - p[i * 3]) * c;
     const y = p[i * 3 + 1] + (ty - p[i * 3 + 1]) * c;
     const z3 = p[i * 3 + 2] + (tz - p[i * 3 + 2]) * c;
 
-    const glint = sweeping ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.26) : 0;
+    const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
@@ -186,9 +190,9 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.4) * zx +
           (inActive ? (o.rActive ?? 0.3) : 0) * c +
-          (o.shimmerR ?? 0.5) * glint) *
+          (o.shimmerR ?? 0.55) * glint) *
         rs,
-      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.shimmerInk ?? 0.3) * glint
+      white: inkOf(o, zx, e[i] * (1 - c) + c) - (o.shimmerInk ?? 0.32) * glint
     });
   }
   return finalizeFrame(dots, [], o.rMin);

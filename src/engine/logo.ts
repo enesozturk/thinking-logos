@@ -23,7 +23,7 @@ function smoothE(x: number): number {
  * two-second morph that jolt is what makes the assembly feel like it halts
  * rather than arrives.
  */
-function smootherE(x: number): number {
+export function smootherE(x: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10);
 }
 
@@ -254,96 +254,53 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 
 // --- Assemble: sphere ⇄ logo — the whole point of the library ----------
 
-// One cycle, in engine seconds before the preset's speed multiplier.
-export const CHURN = 2.1;
-export const RISE = 1.9;
-export const HOLD = 2.6;
-export const FALL = 1;
-export const CYCLE = CHURN + RISE + HOLD + FALL;
+/** One full cycle, in engine seconds before the preset's speed multiplier. */
+export const CYCLE = 7.6;
 
 const TURN = Math.PI * 2;
 
-/** Assembly amount in [0, 1] at a point in the cycle: 0 sphere, 1 logo. */
-export function assembly(local: number): number {
-  if (local < CHURN) return 0;
-  if (local < CHURN + RISE) return smootherE((local - CHURN) / RISE);
-  if (local < CHURN + RISE + HOLD) return 1;
-  return 1 - smoothE((local - CHURN - RISE - HOLD) / FALL);
+/**
+ * The cycle envelope: one continuous bell, orb at the floor, shimmer at the
+ * crest.
+ *
+ * This replaced four hard-edged phases — churn, rise, hold, fall — and the
+ * difference is the whole feel of the animation. Discrete phases give flat
+ * plateaus joined by steps: the orb sat still, snapped into assembling,
+ * sat still again as a logo, the shimmer switched on as a separate event,
+ * switched off, and only then did the dots disperse. Every one of those
+ * joins is a moment where the motion visibly stops and something else
+ * starts.
+ *
+ * A raised cosine has zero derivative at both ends and a rounded crest, so
+ * nothing in the cycle ever holds still or changes abruptly. Raising it to
+ * a power above one flattens the tails without flattening the peak — which
+ * matters more than it sounds: at an exponent of 1 the orb is only briefly
+ * an orb before the mark starts gathering again, and the state stops
+ * reading as "working" at all. The exponent buys the floor back without
+ * reintroducing a plateau anywhere.
+ */
+export function bell(u: number, pow: number): number {
+  return (0.5 - 0.5 * Math.cos(TURN * u)) ** pow;
 }
 
 /**
- * Spin angle through the cycle, landing the mark exactly face-on.
+ * Where on the envelope the mark finishes assembling.
  *
- * The obvious version — integrate `spin · (1 − assembly)` so the rotation
- * eases to a stop — stops at whatever angle it happened to reach, and that
- * angle advances every cycle. The logo then settles at a slightly
- * different three-quarter view each time it assembles, which is the one
- * thing a logo must never do: a mark viewed off-axis is a mark shown wrong.
- *
- * So the hold angle is pinned to a whole number of turns instead. Each
- * phase is a closed-form ease between known endpoints:
- *
- *   churn → spins freely from where the previous cycle's fall left off
- *   rise  → eases to TARGET, the whole turn nearest its natural landing
- *   hold  → TARGET, which is 0 mod 2π: dead face-on, every single cycle
- *   fall  → accelerates back out by exactly the offset the churn expects
- *
- * That last line is what keeps it seamless: the fall ends at TARGET +
- * spin·FALL/2, and since TARGET is a whole turn, that is congruent to the
- * churn's starting offset. Position is continuous across the boundary with
- * no accumulator and no state.
+ * Below this the bell drives the assembly; above it, the shimmer. One
+ * variable, read at two heights — which is what keeps the logo arriving and
+ * the highlight beginning as a single continuous gesture rather than two
+ * cued events.
  */
-export function assembleYaw(local: number, spin: number, settle = 0.85): number {
-  // Where the previous cycle's fall handed off — also this cycle's start.
-  const churnStart = spin * FALL * 0.5;
-  if (local < CHURN) return churnStart + spin * local;
-
-  const riseStart = churnStart + spin * CHURN;
-  // Round the angle it WOULD have coasted to, so the deceleration reads as
-  // natural rather than as a snap to the nearest landmark.
-  const target = TURN * Math.round((riseStart + spin * RISE * 0.5) / TURN);
-  if (local < CHURN + RISE) {
-    // The rotation runs THROUGH most of the morph and comes to rest just as
-    // the mark completes, so the orb reads as still turning while it becomes
-    // the logo rather than halting first and transforming afterwards.
-    //
-    // This is only safe because the landing angle is pinned to a whole turn.
-    // An earlier version had to front-load the settle to hide the fact that
-    // the rotation stopped wherever it happened to be, and that shortcut is
-    // exactly what made the move feel like two separate events.
-    return riseStart + (target - riseStart) * smootherE(clamp01((local - CHURN) / (RISE * settle)));
-  }
-  if (local < CHURN + RISE + HOLD) return target;
-
-  const u = (local - CHURN - RISE - HOLD) / FALL;
-  return target + spin * FALL * (u * u * u - (u * u * u * u) / 2);
-}
-
-/**
- * How far the camera has settled, 0 while churning and 1 once the mark is
- * being shown straight on. Tilt rides this rather than the assembly amount,
- * for the same reason the yaw does.
- */
-export function settleAt(local: number, settle = 0.85): number {
-  if (local < CHURN) return 0;
-  if (local < CHURN + RISE) return smootherE(clamp01((local - CHURN) / (RISE * settle)));
-  if (local < CHURN + RISE + HOLD) return 1;
-  return 1 - smoothE((local - CHURN - RISE - HOLD) / FALL);
-}
-
-/** Split absolute time into a cycle index, position within it, and assembly. */
-export function cycleAt(t: number): { cycles: number; local: number; m: number } {
-  const cycles = Math.floor(t / CYCLE);
-  const local = t - cycles * CYCLE;
-  return { cycles, local, m: assembly(local) };
+export function logoWindow(level: number, pow: number): number {
+  return Math.acos(1 - 2 * level ** (1 / pow)) / TURN;
 }
 
 /**
  * Per-dot assembly, hashed rather than indexed.
  *
- * An index-ordered stagger sweeps the assembly across the mark like a
- * wipe, which reads as a progress bar. Hashed, the mark condenses out of
- * the cloud all at once.
+ * An index-ordered stagger sweeps the assembly across the mark like a wipe,
+ * which reads as a progress bar. Hashed, the mark condenses out of the
+ * cloud all at once.
  */
 export function dotAssembly(i: number, m: number, stagger: number): number {
   return smoothE(clamp01(m * (1 + stagger) - hashD(i, 3.1) * stagger));
@@ -357,27 +314,41 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const { local, m } = cycleAt(t);
-  const settle = o.settle ?? 0.85;
-  const yaw = assembleYaw(local, o.spin ?? 1.7, settle);
-  const tilt = (o.tiltAmp ?? 0.34) * (1 - settleAt(local, settle));
-  const pt = makeProj(yaw, tilt, cx, cx, R);
+  const cycle = o.cycle ?? CYCLE;
+  const u = (t % cycle) / cycle;
+  const pow = o.bellPow ?? 2.2;
+  const level = o.logoLevel ?? 0.52;
+  const env = bell(u, pow);
+
+  // Assembly saturates at the logo level; the crest above it is the glint.
+  const m = clamp01(env / level);
+  const glow = clamp01((env - level) / (1 - level));
+
+  const uLo = logoWindow(level, pow);
+  const uHi = 1 - uLo;
+  const sweepP = clamp01((u - uLo) / (uHi - uLo));
+
+  /**
+   * Rotation advances only while the mark is not assembled, so the logo
+   * itself never turns, and it is split evenly either side of the window.
+   * `turns` must therefore be EVEN: half of it lands the hold on a whole
+   * revolution, which is what puts the mark dead face-on, and the full
+   * count closes the cycle seamlessly.
+   */
+  const turns = o.turns ?? 2;
+  const spun =
+    u < uLo
+      ? 0.5 * smootherE(u / uLo)
+      : u > uHi
+        ? 0.5 + 0.5 * smootherE((u - uHi) / (1 - uHi))
+        : 0.5;
+  const pt = makeProj(TURN * turns * spun, (o.tiltAmp ?? 0.34) * (1 - m), cx, cx, R);
 
   const stagger = o.stagger ?? 0.75;
   const arc = o.arc ?? 0.22;
   const churn = o.churn ?? 0.09;
   const sphereR = o.sphereR ?? 0.92;
   const share = o.haloShare ?? 0.12;
-
-  // One highlight crossing the settled mark, spanning the hold end to end:
-  // it starts as the logo completes and leaves as the dots begin to
-  // disperse. Sized to the hold rather than given a fixed duration, so
-  // there is never a stretch of the mark simply waiting — a pause that
-  // short does not read as a beat, it reads as a stall.
-  const holdT = local - CHURN - RISE;
-  const from = o.shimmerFrom ?? 0.04;
-  const sweepP = clamp01((holdT - HOLD * from) / (HOLD * (1 - from)));
-  const sweeping = holdT > 0 && sweepP > 0 && sweepP < 1;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -393,14 +364,14 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     let ly = p[i * 3 + 1];
     let lz = p[i * 3 + 2];
 
-    // Halo: once the mark has settled, a scatter of its own dots drifts
-    // just outside the silhouette and swings through depth, so the held
-    // logo is alive rather than frozen. Weighted by the assembly amount, so
-    // it grows in with the mark and is gone before the dots disperse.
+    // Halo: a scatter of the mark's own dots drifts just outside the
+    // silhouette and swings through depth, so the assembled logo is alive
+    // rather than frozen. Weighted by the assembly, so it grows in with the
+    // mark and is gone again before the dots disperse.
     let halo = 0;
     if (hashD(i, 6.7) < share) {
       halo = m;
-      const osc = Math.sin(t * (o.haloRate ?? 0.9) + hashD(i, 8.3) * Math.PI * 2);
+      const osc = Math.sin(t * (o.haloRate ?? 0.9) + hashD(i, 8.3) * TURN);
       const out = 1 + (o.haloOut ?? 0.18) * (0.5 + 0.5 * osc) * halo;
       lx *= out;
       ly *= out;
@@ -418,9 +389,11 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     y *= bow;
     z3 *= bow;
 
-    // Keyed to the dot's HOME x, not its current one, so the sweep crosses
-    // the logo in the logo's own frame and stays a straight vertical front.
-    const glint = sweeping ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.26) * m : 0;
+    // Keyed to the dot's HOME x, so the sweep stays a straight vertical
+    // front in the logo's own frame rather than smearing with the camera.
+    // Its brightness rides the envelope's crest, so the highlight fades in
+    // and out instead of switching.
+    const glint = glow > 0 ? shimmerAt(p[i * 3], sweepP, o.shimmerWidth ?? 0.3) * glow : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
@@ -435,9 +408,9 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.5) * zx +
           (o.haloR ?? 0.22) * halo +
-          (o.shimmerR ?? 0.5) * glint) *
+          (o.shimmerR ?? 0.55) * glint) *
         rs,
-      white: inkOf(o, zx, e[i] * mi + (1 - mi)) - (o.shimmerInk ?? 0.3) * glint,
+      white: inkOf(o, zx, e[i] * mi + (1 - mi)) - (o.shimmerInk ?? 0.32) * glint,
       a: 1 - (o.flightFade ?? 0.25) * travel
     });
   }
