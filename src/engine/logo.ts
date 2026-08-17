@@ -269,24 +269,47 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: logo → tilted orbit rings, with couriers → logo -----------
+// --- Unrest: logo → an armillary of rings, with couriers → logo --------
 
 /**
- * The mark becomes a set of tilted rings turning about a common centre,
- * with a few bright couriers breaking away to carry something across and
- * burning out where they land.
+ * The ring a dot rides, as a plane basis.
  *
- * Rings are the one form left that none of the other states use — not a
- * solid like the orb, the cube or the breathing body, not a surface like
- * the globe, but open paths. That reads as machinery in a way a ball never
- * does, which is what `working` should say.
+ * Every ring is a great circle of the SAME sphere, and their axes come from
+ * the Fibonacci lattice rather than from a hash. Both choices exist to make
+ * the rings read as one object. Randomised inclinations at differing radii
+ * — which is what this was first — give a scatter of unrelated ellipses;
+ * evenly spread axes on a common radius give an armillary sphere, a thing
+ * with a centre and a surface that the eye immediately reads as solid.
+ */
+function ringBasis(ring: number, rings: number): [number, number, number, number, number, number] {
+  const [nx, ny, nz] = fibDir(ring, rings);
+  let ux = -ny;
+  let uy = nx;
+  const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy));
+  ux /= ul;
+  uy /= ul;
+  // v = n × u, completing an orthonormal basis for the ring's plane.
+  return [ux, uy, ny * 0 - nz * uy, nz * ux - nx * 0, nx * uy - ny * ux, 0];
+}
+
+/**
+ * The mark becomes an armillary of turning rings, with a few bright
+ * couriers breaking away in sequence to cross the sphere and burn out.
  *
- * The couriers are the point of the state, and they only work because they
- * have somewhere to be. Earlier versions had them arriving from off-frame,
- * or hopping between seats of a stationary logo; both spent most of the
- * motion in dead space. A courier that leaves one ring, crosses, and fades
- * out on another is legible for its whole life, because every part of that
- * journey happens against something.
+ * Rings are the one form none of the other states use — not a solid like
+ * the orb, the cube or the breathing body, not a surface like the globe,
+ * but open paths. That reads as machinery in a way a ball never does, which
+ * is what `working` should say.
+ *
+ * The couriers only work because they have somewhere to be. Earlier
+ * versions had them arriving from off-frame, or hopping between seats of a
+ * stationary logo; both spent most of their motion in dead space. Crossing
+ * from one ring of a visible solid to another, a courier is legible for its
+ * whole life.
+ *
+ * They also launch in order rather than at random. Independent phases look
+ * like interference; a wave travelling around the rings looks like a
+ * mechanism, and a mechanism is the thing being depicted.
  */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -302,8 +325,8 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   const pt = makeProj(
-    (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.35)) * c,
-    (o.tiltAmp ?? 0.24) * c,
+    (o.yawAmp ?? 0.32) * Math.sin(t * (o.yawRate ?? 0.32)) * c,
+    (o.tiltAmp ?? 0.26) * c,
     cx,
     cx,
     R
@@ -311,80 +334,54 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 
   const rings = Math.max(2, Math.round(o.rings ?? 7));
   const perRing = Math.ceil(n / rings);
-  const spin = o.ringSpin ?? 0.5;
+  const ro = o.ringR ?? 0.92;
+  // One shared rate and one shared direction. Per-ring speeds were tried
+  // and they fight: the rings drift out of phase and the solid comes apart
+  // into loose hoops.
+  const spin = t * (o.ringSpin ?? 0.42);
   const share = o.courierShare ?? 0.16;
-  const rate = o.courierRate ?? 0.3;
+  const rate = o.courierRate ?? 0.26;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
     const ring = seat % rings;
-    const h1 = hashD(ring, 1.7);
-    const h2 = hashD(ring, 5.2);
-    const h3 = hashD(ring, 8.9);
+    const [ux, uy, vx, vy, vz] = ringBasis(ring, rings);
 
-    // Orbit plane basis, built from the ring's own hash so no two rings
-    // share an inclination.
-    const th = h1 * TURN;
-    const phi = Math.acos(2 * h2 - 1);
-    const nx = Math.sin(phi) * Math.cos(th);
-    const ny = Math.cos(phi);
-    const nz = Math.sin(phi) * Math.sin(th);
-    let ux = -ny;
-    let uy = nx;
-    const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy));
-    ux /= ul;
-    uy /= ul;
-    const vx = ny * 0 - nz * uy;
-    const vy = nz * ux - nx * 0;
-    const vz = nx * uy - ny * ux;
-
-    const ro = (o.ringR ?? 0.55) + (o.ringSpread ?? 0.48) * h1;
-    const dir = h3 > 0.5 ? 1 : -1;
     // Evenly spaced along the ring rather than hashed: a hashed angle
     // clumps, and a clumped ring stops looking like a path.
     const slot = Math.floor(seat / rings) / perRing;
-    const ang = slot * TURN + t * spin * dir * (0.6 + 0.7 * h2);
+    const ang = slot * TURN + spin;
+    const ca = Math.cos(ang);
+    const sa = Math.sin(ang);
 
-    let bx = (ux * Math.cos(ang) + vx * Math.sin(ang)) * ro;
-    let by = (uy * Math.cos(ang) + vy * Math.sin(ang)) * ro;
-    let bz = (0 * Math.cos(ang) + vz * Math.sin(ang)) * ro;
+    let bx = (ux * ca + vx * sa) * ro;
+    let by = (uy * ca + vy * sa) * ro;
+    let bz = vz * sa * ro;
 
-    // A courier leaves its place on the ring, crosses to another, and burns
-    // out there before reappearing where it started.
+    // A courier leaves its ring, crosses the sphere to another, and burns
+    // out there before reappearing where it started. The launch order runs
+    // ring by ring and then around each ring, so departures travel across
+    // the object as a wave.
     let courier = 0;
     let fade = 1;
     if (hashD(i, 6.7) < share) {
-      const phase = (t * rate * (0.7 + hashD(i, 1.9) * 0.6) + hashD(i, 8.3)) % 1;
-      const fly = clamp01(phase / 0.62);
+      const order = ring / rings + slot * (o.wave ?? 0.35);
+      const phase = (t * rate + order) % 1;
+      const fly = clamp01(phase / 0.6);
       courier = smoothE(fly);
-      // Burn out on arrival, stay dark, then reappear at the start.
-      fade = phase < 0.62 ? 1 : 1 - clamp01((phase - 0.62) / 0.22);
+      fade = phase < 0.6 ? 1 : 1 - clamp01((phase - 0.6) / 0.24);
 
-      const j = (i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n;
-      const tSeat = seats[j];
+      const tSeat = seats[(i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n];
       const tRing = tSeat % rings;
-      const t1 = hashD(tRing, 1.7);
-      const t2 = hashD(tRing, 5.2);
-      const tTh = t1 * TURN;
-      const tPhi = Math.acos(2 * t2 - 1);
-      const tnx = Math.sin(tPhi) * Math.cos(tTh);
-      const tny = Math.cos(tPhi);
-      const tnz = Math.sin(tPhi) * Math.sin(tTh);
-      let tux = -tny;
-      let tuy = tnx;
-      const tul = Math.max(1e-6, Math.sqrt(tux * tux + tuy * tuy));
-      tux /= tul;
-      tuy /= tul;
-      const tvx = tny * 0 - tnz * tuy;
-      const tvy = tnz * tux - tnx * 0;
-      const tvz = tnx * tuy - tny * tux;
-      const tro = (o.ringR ?? 0.55) + (o.ringSpread ?? 0.48) * t1;
-      const tAng = (Math.floor(tSeat / rings) / perRing) * TURN + t * spin;
+      const [tux, tuy, tvx, tvy, tvz] = ringBasis(tRing, rings);
+      const tAng = (Math.floor(tSeat / rings) / perRing) * TURN + spin;
+      const tca = Math.cos(tAng);
+      const tsa = Math.sin(tAng);
 
-      const gx = (tux * Math.cos(tAng) + tvx * Math.sin(tAng)) * tro;
-      const gy = (tuy * Math.cos(tAng) + tvy * Math.sin(tAng)) * tro;
-      const gz = tvz * Math.sin(tAng) * tro;
+      const gx = (tux * tca + tvx * tsa) * ro;
+      const gy = (tuy * tca + tvy * tsa) * ro;
+      const gz = tvz * tsa * ro;
 
       bx += (gx - bx) * courier;
       by += (gy - by) * courier;

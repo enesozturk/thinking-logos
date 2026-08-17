@@ -42,7 +42,7 @@ export function App() {
   return (
     <main className="flex flex-col items-center max-w-[883px] mx-auto w-full px-6 pb-16 max-sm:px-4 max-sm:pb-12">
       <Header theme={theme} onToggleTheme={toggleTheme} />
-      <BrandGrid tinted={tinted} speed={1} onToggleTint={() => setTinted((v) => !v)} />
+      <BrandGrid tinted={tinted} onToggleTint={() => setTinted((v) => !v)} />
       <LogoLab />
       <CodeBlock title="Installation" code={INSTALL} />
       <CodeBlock title="Usage" code={USAGE} />
