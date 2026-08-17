@@ -92,14 +92,14 @@ function App() {
   const [points, setPoints] = React.useState<LogoPointSet | null>(null);
   const [cube, setCube] = React.useState<LogoPointSet | null>(null);
   useEffect(() => {
-    void bakeLogo({ path: BRAND_BY_KEY.stripe.path }, { count: 300, shell: 'dome' }).then(setPoints);
+    void bakeLogo({ path: BRAND_BY_KEY.linear.path }, { count: 300, shell: 'dome' }).then(setPoints);
     // Shopify's bag is the hard case: a busy mark where any motion that
     // mangles the silhouette is immediately obvious.
     void bakeLogo({ path: BRAND_BY_KEY.shopify.path }, { count: 300, shell: 'dome' }).then(setCube);
   }, []);
   if (!points || !cube) return <div style={{ color: '#888', padding: 40 }}>baking…</div>;
 
-  const tint = `#${BRAND_BY_KEY.stripe.hex}`;
+  const tint = `#${BRAND_BY_KEY.linear.hex}`;
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
@@ -118,7 +118,7 @@ function App() {
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>
-      <h1 style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>Cycle filmstrip — Stripe mark</h1>
+      <h1 style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>Cycle filmstrip — Linear mark</h1>
       <p style={{ fontSize: 13, color: 'rgba(251,251,251,0.45)', marginBottom: 24 }}>
         Engine driven at fixed times, not off a clock. Same t, same picture, every reload.
       </p>

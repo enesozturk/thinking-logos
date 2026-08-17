@@ -56,7 +56,11 @@ export function LogoLab() {
   const brand = BRANDS.find((b) => b.key === brandKey) ?? BRANDS[0];
   // A dropped SVG wins over the brand picker until it is cleared, so the
   // control that was touched last is the one that is obviously in effect.
-  const source: LogoSource = custom ? { svg: custom.svg } : { path: brand.path };
+  const source: LogoSource = custom
+    ? { svg: custom.svg }
+    : brand.svg
+      ? { svg: brand.svg }
+      : { path: brand.path };
   const tint = tinted && !custom ? `#${brand.hex}` : undefined;
   const label = custom ? custom.name : brand.title;
 

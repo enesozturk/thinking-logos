@@ -34,7 +34,7 @@ export function Header({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: 
           sphere and reassembles, which is the one thing a static image of
           this library can never show. */}
       <div className="mb-6" aria-hidden="true">
-        <ThinkingLogo logo={{ path: BRAND_BY_KEY.stripe.path }} state="thinking" size={112} />
+        <ThinkingLogo logo={{ path: BRAND_BY_KEY.anthropic.path }} state="thinking" size={112} />
       </div>
 
       <h1 className="text-[22px] font-medium leading-[30px] text-(--title-color)">thinking-logo</h1>

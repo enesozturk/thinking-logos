@@ -10,6 +10,7 @@
 // is also why the set spans the full difficulty range rather than only the
 // logos that happen to bake well.
 
+import stripeWordmark from './marks/stripe-wordmark.svg?raw';
 import {
   siAnthropic,
   siGithub,
@@ -25,6 +26,12 @@ export interface Brand {
   title: string;
   /** Path `d` on a 24×24 viewBox — simple-icons' universal format. */
   path: string;
+  /**
+   * Full SVG markup, when the mark is not a single glyph. Takes precedence
+   * over `path`: a wordmark is several paths on its own viewBox, and there
+   * is no honest way to squeeze that into simple-icons' one-path format.
+   */
+  svg?: string;
   /** Brand colour, without the leading `#`. */
   hex: string;
   /** The verb this card shows, so the grid reads as a set of real states. */
@@ -54,7 +61,11 @@ function brand(
 export const BRANDS: Brand[] = [
   brand(siAnthropic, 'anthropic', 'Thinking', 'simple'),
   brand(siSupabase, 'supabase', 'Solving', 'simple'),
-  brand(siStripe, 'stripe', 'Orbiting', 'medium'),
+  // A wordmark, and the hardest thing this library is asked to do: it is
+  // wide, thin and made of letterforms, so at chip size there is simply not
+  // enough ink for the shapes to resolve. Kept in the set on purpose —
+  // pretending otherwise would only move the disappointment downstream.
+  { ...brand(siStripe, 'stripe', 'Orbiting', 'busy'), svg: stripeWordmark, hex: '533AFD' },
   brand(siLinear, 'linear', 'Listening', 'medium'),
   brand(siSpotify, 'spotify', 'Searching', 'medium'),
   brand(siGithub, 'github', 'Breathing', 'busy'),
