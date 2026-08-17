@@ -226,143 +226,21 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Connecting: the mark, fully lit, with wires across it ------------
+// --- Breathing: logo → a round body that bulges and settles → logo -----
 
 /**
- * The logo stays the subject; the wiring is an overlay.
+ * The mark becomes a sphere that swells unevenly — round throughout, but
+ * never quite the same shape twice.
  *
- * The first version drew a sparse constellation over the mark held back at
- * a third of its ink, and the mark simply vanished — what you saw was an
- * abstract node graph that happened to sit near a logo. The lesson is the
- * general one for this whole file: the mark is never the thing that gets
- * sacrificed.
+ * Two earlier versions failed at opposite ends. Pulsing the logo a few
+ * percent in place was invisible at icon size. A flat ring of radial dashes
+ * was visible but read as line art, out of place beside the solids every
+ * other state becomes.
  *
- * So the logo now renders at full strength, exactly as `idle` would draw
- * it, and the graph is drawn on top: a handful of hub dots and thin edges
- * that light up in a travelling wave, with packets running them. The mark
- * is readable in every single frame, and the wiring is legible as something
- * happening TO it.
- */
-export const frameLogoConnect: ModeFrame = (size, t, o, logo) => {
-  if (!logo || !logo.nodes || !logo.edges) return empty();
-  const { p, e, n } = logo.points;
-  const nodes = logo.nodes;
-  const edges = logo.edges;
-  const cx = size / 2;
-  const R = (size / 2) * 0.82;
-  const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj(
-    (o.yawAmp ?? 0.18) * Math.sin(t * (o.yawRate ?? 0.5)),
-    (o.tiltAmp ?? 0.08) * Math.sin(t * 0.38),
-    cx,
-    cx,
-    R
-  );
-
-  const dots: Dot[] = [];
-  const lines: Line[] = [];
-
-  // The mark, at full presence.
-  for (let i = 0; i < n; i++) {
-    const [px, py, z] = pt(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
-    const zx = clamp01((z + 1) / 2);
-    dots.push({
-      x: px,
-      y: py,
-      z,
-      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx) * rs,
-      white: inkOf(o, zx, e[i])
-    });
-  }
-
-  const nn = nodes.length;
-  const nx = new Float64Array(nn);
-  const ny = new Float64Array(nn);
-  const nz = new Float64Array(nn);
-  for (let a = 0; a < nn; a++) {
-    const i = nodes[a];
-    const [x, y, z] = pt(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
-    nx[a] = x;
-    ny[a] = y;
-    nz[a] = z;
-  }
-
-  // Edges arrive in a rolling wave so the graph reads as assembling itself
-  // continuously rather than blinking.
-  const period = o.wirePeriod ?? 3.6;
-  const phase = (t % period) / period;
-  const edgeCount = edges.length / 2;
-  for (let k = 0; k < edgeCount; k++) {
-    const a = edges[k * 2];
-    const b = edges[k * 2 + 1];
-    const own = hashD(k, 2.7);
-    const live = clamp01(1 - Math.abs(((phase - own + 1.5) % 1) - 0.5) * (o.wireSharp ?? 3.2));
-    if (live <= 0.02) continue;
-    lines.push({
-      x1: nx[a],
-      y1: ny[a],
-      x2: nx[b],
-      y2: ny[b],
-      white: o.lineInk ?? 0.3,
-      a: live * (o.lineA ?? 0.8),
-      // Floored at just over half a pixel. `rs` scales dot radii
-      // sub-linearly, which is right for filled circles but wrong for a
-      // stroke: below about 0.5px a line stops being drawn as a line and
-      // dissolves into a faint antialiased haze. At 44px the wires had
-      // vanished entirely while the numbers still said they were there.
-      w: Math.max(0.55, (o.lineW ?? 0.9) * rs)
-    });
-  }
-
-  // Hubs, sitting proud of the mark.
-  for (let a = 0; a < nn; a++) {
-    const zx = clamp01((nz[a] + 1) / 2);
-    dots.push({
-      x: nx[a],
-      y: ny[a],
-      z: nz[a] + 0.001,
-      r: ((o.nodeR ?? 1.15) + (o.nodeRDepth ?? 1.2) * zx) * rs,
-      white: 0.22 - 0.16 * zx
-    });
-  }
-
-  // Packets.
-  const signals = o.signals ?? 6;
-  for (let s = 0; s < signals; s++) {
-    if (!edgeCount) break;
-    const k = Math.floor(hashD(s, 9.1) * edgeCount) % edgeCount;
-    const a = edges[k * 2];
-    const b = edges[k * 2 + 1];
-    const f = (t * (o.signalRate ?? 0.6) + hashD(s, 3.3)) % 1;
-    const z = nz[a] + (nz[b] - nz[a]) * f;
-    const zx = clamp01((z + 1) / 2);
-    dots.push({
-      x: nx[a] + (nx[b] - nx[a]) * f,
-      y: ny[a] + (ny[b] - ny[a]) * f,
-      z: z + 0.002,
-      r: ((o.partR ?? 1.05) + (o.partRDepth ?? 1.1) * zx) * rs,
-      white: 0.12 - 0.1 * zx
-    });
-  }
-
-  return finalizeFrame(dots, lines, o.rMin);
-};
-
-// --- Breathing: logo → a spoked ring that swells → logo ---------------
-
-/**
- * The mark becomes a ring of radial dashes whose radius swells and settles
- * around its circumference.
- *
- * The previous version pulsed the logo in place with a scatter of drifting
- * dots. At 140px that is a pleasant, subtle thing; at 24px — which is where
- * this actually ships — a five-percent scale change is invisible and the
- * state reads as a static logo. Subtlety does not survive being made small.
- *
- * A ring does. It is the one silhouette that stays completely legible at
- * any size, it is unmistakably different from the orb, the cube and the
- * globe, and its radius can move by a third without ever stopping looking
- * like a ring — so the breathing is finally something you can see.
+ * A deformed sphere is both: unmistakable at any size because the
+ * silhouette itself moves, and made of the same material as the orb, the
+ * cube and the globe. It is distinguished from `thinking`'s orb by being
+ * alive — that one is an even, static ball, this one is always mid-breath.
  */
 export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -377,35 +255,36 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   const c = 1 - m;
   const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
-  // Face-on, always. A ring seen at an angle is an ellipse, and an ellipse
-  // is a different shape.
-  const pt = makeProj(0, 0, cx, cx, R);
+  const pt = makeProj(
+    (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.4)) * c,
+    (o.tiltAmp ?? 0.18) * c,
+    cx,
+    cx,
+    R
+  );
 
-  const spokes = Math.max(8, Math.round(o.spokes ?? 34));
-  const step = (Math.PI * 2) / spokes;
-  const ringR = o.ringR ?? 0.78;
-  const thick = o.thick ?? 0.3;
-  const swell = o.swell ?? 0.22;
-  const rate = o.swellRate ?? 1.3;
+  const ballR = o.ballR ?? 0.86;
+  const swell = o.swell ?? 0.26;
+  const rate = o.swellRate ?? 0.9;
+  const pulse = 1 + (o.pulse ?? 0.09) * Math.sin(t * (o.pulseRate ?? 1.1));
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const [fx, fy, fz] = fibDir(seats[i], n);
-    // Quantised angle: dots that share a spoke line up radially, which is
-    // what turns a scatter of points into a ring of dashes.
-    const k = Math.round(Math.atan2(fy, fx) / step);
-    const ang = k * step;
-    const along = (fz + 1) / 2;
 
-    // Two harmonics around the circumference, drifting at different rates,
-    // so the swelling wanders instead of pulsing in place.
+    // Radius varies with DIRECTION, so the ball bulges in places rather
+    // than scaling as a whole — which is the difference between a shape
+    // that is breathing and one that is merely resizing. Three drifting
+    // terms, none of them commensurate, so the bulges wander.
     const w =
-      Math.sin(ang * 3 + t * rate) * 0.6 + Math.sin(ang * 5 - t * rate * 0.63 + 1.7) * 0.4;
-    const rad = ringR * (1 + swell * w) + (along - 0.5) * thick;
+      Math.sin(fy * 2.3 + t * rate) * 0.42 +
+      Math.sin(fx * 1.9 - t * rate * 0.71 + 1.3) * 0.33 +
+      (vnoise(fx * 1.6 + t * 0.31, fz * 1.6) - 0.5) * 0.5;
+    const rad = ballR * pulse * (1 + swell * w);
 
-    const bx = Math.cos(ang) * rad;
-    const by = Math.sin(ang) * rad;
-    const bz = fz * (o.ringZ ?? 0.12);
+    const bx = fx * rad;
+    const by = fy * rad;
+    const bz = fz * rad;
 
     const lx = p[i * 3] * puff;
     const ly = p[i * 3 + 1] * puff;
@@ -416,14 +295,14 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // Swollen arcs read brighter, so the motion is carried by ink as well
-    // as by shape.
+    // Swollen regions read brighter, so the motion is carried by ink as
+    // well as by silhouette.
     const loud = clamp01(w * 0.5 + 0.5);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.6) + (o.rDepth ?? 1.2) * zx + (o.loudR ?? 0.35) * loud * c) * rs,
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.loudR ?? 0.3) * loud * c) * rs,
       white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c
     });
   }

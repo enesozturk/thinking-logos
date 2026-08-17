@@ -14,7 +14,6 @@ import {
   siAnthropic,
   siGithub,
   siLinear,
-  siNotion,
   siShopify,
   siSpotify,
   siStripe,
@@ -44,7 +43,8 @@ function brand(
 }
 
 /**
- * Eight marks, eight different states — no verb appears twice.
+ * One mark per state — no verb appears twice, and the set is exactly as
+ * long as the list of states.
  *
  * The grid's job is to show that these are distinct MOTIONS, and a set with
  * three cards all saying "thinking" spends its slots proving the opposite.
@@ -56,7 +56,6 @@ export const BRANDS: Brand[] = [
   brand(siSupabase, 'supabase', 'Solving', 'simple'),
   brand(siStripe, 'stripe', 'Orbiting', 'medium'),
   brand(siLinear, 'linear', 'Listening', 'medium'),
-  brand(siNotion, 'notion', 'Connecting', 'medium'),
   brand(siSpotify, 'spotify', 'Searching', 'medium'),
   brand(siGithub, 'github', 'Breathing', 'busy'),
   brand(siShopify, 'shopify', 'Working', 'busy')

@@ -27,7 +27,6 @@ const LABELS: Record<LogoState, string> = {
   orbiting: 'Working…',
   solving: 'Solving…',
   listening: 'Listening…',
-  connecting: 'Connecting…',
   breathing: 'Thinking…'
 };
 

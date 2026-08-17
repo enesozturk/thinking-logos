@@ -21,10 +21,6 @@ import type { OrbFrame } from './core';
 export interface LogoBinding {
   readonly points: LogoPointSet;
   readonly seats: SeatMap;
-  /** Indices of the constellation nodes; only the `connecting` state needs them. */
-  readonly nodes?: Uint32Array;
-  /** Node-index pairs forming the constellation's edges. */
-  readonly edges?: Uint32Array;
   /** Wireframe-globe seats, xyz per dot; only the `searching` state needs them. */
   readonly globe?: Float32Array;
 }

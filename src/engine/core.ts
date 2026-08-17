@@ -12,6 +12,17 @@ export interface Dot {
   /** Ink value: 0 = darkest ink on paper. Mirrored on dark themes. */
   white: number;
   a?: number;
+  /**
+   * How much of the brand tint this dot carries, 0 = neutral grey, 1 = full
+   * colour. Defaults to 1, so every mode that ignores it is unaffected.
+   *
+   * It exists so a state can say something with colour that it cannot say
+   * with position: in `working`, a carrier in transit is grey cargo and
+   * gains the brand's colour as it seats into the mark. Untinted renders
+   * ignore it entirely — greyscale blended toward greyscale is greyscale —
+   * which keeps the geometry identical either way.
+   */
+  k?: number;
 }
 
 /** A stroked edge between two projected points (the `connecting` web). */

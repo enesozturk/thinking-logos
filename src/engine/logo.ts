@@ -66,83 +66,6 @@ export function seatMap(points: LogoPointSet): SeatMap {
 }
 
 /**
- * Pick well-spread nodes and wire the near ones together.
- *
- * Nodes come from farthest-point sampling rather than every k-th index: a
- * strided pick inherits whatever order the Poisson sampler happened to
- * place dots in, which clumps. Farthest-point spreads them over the mark's
- * actual extent, so the constellation covers the whole silhouette instead
- * of crowding wherever the fill started.
- *
- * The edge threshold is derived from the marks's own nearest-neighbour
- * spacing, not fixed, because a wide logo and a thin one have completely
- * different scales — a constant would over-connect one into a solid mesh
- * and leave the other as unconnected dust.
- *
- * Quadratic in the node count (a few dozen), so this is resolve-time work.
- */
-export function buildGraph(
-  points: LogoPointSet,
-  nodeCount: number,
-  reach: number
-): { nodes: Uint32Array; edges: Uint32Array } {
-  const { p, n } = points;
-  const k = Math.max(2, Math.min(nodeCount, n));
-  const nodes = new Uint32Array(k);
-  const best = new Float64Array(n).fill(Number.POSITIVE_INFINITY);
-
-  let current = 0;
-  nodes[0] = current;
-  for (let c = 1; c < k; c++) {
-    let far = -1;
-    let farD = -1;
-    const cx = p[current * 3];
-    const cy = p[current * 3 + 1];
-    const cz = p[current * 3 + 2];
-    for (let i = 0; i < n; i++) {
-      const dx = p[i * 3] - cx;
-      const dy = p[i * 3 + 1] - cy;
-      const dz = p[i * 3 + 2] - cz;
-      const d = dx * dx + dy * dy + dz * dz;
-      if (d < best[i]) best[i] = d;
-      if (best[i] > farD) {
-        farD = best[i];
-        far = i;
-      }
-    }
-    current = far;
-    nodes[c] = current;
-  }
-
-  // Mean nearest-neighbour distance across the chosen nodes sets the scale.
-  let sum = 0;
-  for (let a = 0; a < k; a++) {
-    let near = Number.POSITIVE_INFINITY;
-    for (let b = 0; b < k; b++) {
-      if (a === b) continue;
-      const dx = p[nodes[a] * 3] - p[nodes[b] * 3];
-      const dy = p[nodes[a] * 3 + 1] - p[nodes[b] * 3 + 1];
-      const dz = p[nodes[a] * 3 + 2] - p[nodes[b] * 3 + 2];
-      const d = dx * dx + dy * dy + dz * dz;
-      if (d < near) near = d;
-    }
-    sum += Math.sqrt(near);
-  }
-  const thr = (sum / k) * reach;
-
-  const edges: number[] = [];
-  for (let a = 0; a < k; a++) {
-    for (let b = a + 1; b < k; b++) {
-      const dx = p[nodes[a] * 3] - p[nodes[b] * 3];
-      const dy = p[nodes[a] * 3 + 1] - p[nodes[b] * 3 + 1];
-      const dz = p[nodes[a] * 3 + 2] - p[nodes[b] * 3 + 2];
-      if (Math.sqrt(dx * dx + dy * dy + dz * dz) <= thr) edges.push(a, b);
-    }
-  }
-  return { nodes, edges: Uint32Array.from(edges) };
-}
-
-/**
  * Lay the mark's dots out as a wireframe globe — meridians and parallels.
  *
  * Deliberately a different solid from the one `thinking` uses. That state's
@@ -346,22 +269,28 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: carriers fly in and build the mark, then strip it ---------
+// --- Unrest: carriers orbit between seats, gaining colour as they land --
 
 /**
- * Most of the logo sits held back; bright carriers fly in from outside,
- * land in their seats and complete it, then peel away and it empties again.
+ * Most of the mark sits held back while a share of its dots lift out of
+ * their seats, arc around the logo, and settle into a different one.
  *
- * The previous version jittered every dot on a noise field. Like the old
- * `breathing`, it was legible at 140px and invisible at 24 — a few percent
- * of wobble is nothing once a dot is a pixel across. What survives being
- * made small is not subtle motion but CONTRAST: a dim mark and a handful of
- * bright things moving against it read at any size, because the eye is
- * tracking a brightness difference rather than a displacement.
+ * Three things were wrong with the version before this, and they were all
+ * the same mistake — treating the carriers as arriving from somewhere else.
+ * They flew in from far outside the frame, which meant most of their
+ * journey happened where there was nothing to relate them to; they had to
+ * move fast to cover that distance; and the whole cycle had to loop
+ * quickly to keep the mark from standing empty.
  *
- * It also gives the state a meaning it did not have. Work is something
- * arriving from elsewhere and being assembled — so that is what it looks
- * like, rather than a logo shivering.
+ * Travelling between two points of the LOGO fixes all three at once. The
+ * path is short, so it can be slow. It bows outward, so it reads as an
+ * orbit rather than a jump. And every dot is always somewhere meaningful:
+ * leaving the mark, over it, or part of it.
+ *
+ * Colour carries the state. A dot in transit is neutral grey cargo and
+ * takes on the brand tint as it seats — so what the eye follows is material
+ * being loaded, which is legible at any size because it is a brightness and
+ * hue difference rather than a displacement.
  */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -370,23 +299,17 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
   const pt = makeProj(
-    (o.yawAmp ?? 0.16) * Math.sin(t * (o.yawRate ?? 0.4)),
-    (o.tiltAmp ?? 0.08) * Math.sin(t * 0.3),
+    (o.yawAmp ?? 0.16) * Math.sin(t * (o.yawRate ?? 0.35)),
+    (o.tiltAmp ?? 0.08) * Math.sin(t * 0.27),
     cx,
     cx,
     R
   );
 
-  // The build wave. It climbs from nothing to a complete mark and falls
-  // back, so the logo is repeatedly finished and taken apart rather than
-  // simply flickering.
-  const period = o.buildPeriod ?? 4.4;
-  const phase = (t % period) / period;
-  const build = phase < 0.5 ? smoothE(phase * 2) : smoothE((1 - phase) * 2);
-
-  const share = o.carrierShare ?? 0.42;
-  const ghostInk = o.ghostInk ?? 0.34;
-  const width = o.arriveWidth ?? 0.34;
+  const share = o.carrierShare ?? 0.3;
+  const ghostInk = o.ghostInk ?? 0.14;
+  const rate = o.travelRate ?? 0.17;
+  const arc = o.arc ?? 0.5;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -402,44 +325,45 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
         x: px,
         y: py,
         z,
-        r: ((o.ghostR ?? 0.45) + (o.ghostRDepth ?? 0.8) * zx) * rs,
+        r: ((o.ghostR ?? 0.5) + (o.ghostRDepth ?? 1.05) * zx) * rs,
         white: inkOf(o, zx, e[i]) + ghostInk
       });
       continue;
     }
 
-    // Each carrier has its own place in the queue, so the mark fills in and
-    // empties as a spreading front rather than all at once.
-    const slot = hashD(i, 3.1);
-    const arrived = clamp01((build - slot) / width + 0.5);
-    const home = smoothE(arrived);
+    // Its destination is another dot's seat, picked deterministically. Out
+    // and back, so a carrier always ends where a carrier belongs.
+    const j = (i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n;
+    const phase = (t * rate * (0.75 + hashD(i, 1.9) * 0.5) + hashD(i, 8.3)) % 1;
+    const leg = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+    const f = smoothE(leg);
 
-    // It comes in from outside the frame along its own radial line, with a
-    // little sideways drift so the streams are not perfectly straight.
-    const ang = Math.atan2(ly, lx) + (hashD(i, 5.5) - 0.5) * 0.9;
-    const far = (o.farR ?? 1.55) + hashD(i, 4.1) * 0.5;
-    const ox = Math.cos(ang) * far;
-    const oy = Math.sin(ang) * far;
-    const oz = (hashD(i, 7.3) - 0.5) * 1.2;
+    let x = lx + (p[j * 3] - lx) * f;
+    let y = ly + (p[j * 3 + 1] - ly) * f;
+    let z3 = lz + (p[j * 3 + 2] - lz) * f;
 
-    const x = ox + (lx - ox) * home;
-    const y = oy + (ly - oy) * home;
-    const z3 = oz + (lz - oz) * home;
+    // Bow the path outward at mid-flight. A straight line between two
+    // points of a mark passes through the mark, and the carrier is lost in
+    // it; an arc lifts clear and reads as an orbit.
+    const lift = Math.sin(Math.PI * f);
+    const bow = 1 + arc * lift;
+    x *= bow;
+    y *= bow;
+    z3 = z3 * bow + (hashD(i, 7.3) - 0.5) * (o.arcZ ?? 0.7) * lift;
+
+    // 1 when seated at either end, 0 at the top of the arc.
+    const seated = 1 - lift;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // Brightest in flight, settling to the mark's own weight on arrival —
-    // the carrier stops being cargo once it is part of the logo.
-    const flight = 1 - home;
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx + (o.cargoR ?? 0.7) * flight) * rs,
-      white: inkOf(o, zx, e[i]) - (o.cargoInk ?? 0.3) * flight,
-      // Fade the very start of the run so carriers arrive out of nothing
-      // instead of popping in at the frame edge.
-      a: Math.min(1, home * 6 + 0.25)
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.cargoR ?? 0.5) * lift) * rs,
+      white: inkOf(o, zx, e[i]) - (o.cargoInk ?? 0.28) * lift,
+      // Grey in the air, the brand's colour once it is part of the mark.
+      k: seated
     });
   }
   return finalizeFrame(dots, [], o.rMin);

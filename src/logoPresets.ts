@@ -12,19 +12,13 @@ import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
   buildGlobe,
-  buildGraph,
   frameLogoAssemble,
   frameLogoOrbit,
   frameLogoScan,
   frameLogoUnrest,
   seatMap
 } from './engine/logo';
-import {
-  frameLogoBreathe,
-  frameLogoConnect,
-  frameLogoSolve,
-  frameLogoWave
-} from './engine/logoDeform';
+import { frameLogoBreathe, frameLogoSolve, frameLogoWave } from './engine/logoDeform';
 
 export type LogoMode =
   | 'assemble'
@@ -33,7 +27,6 @@ export type LogoMode =
   | 'orbit'
   | 'solve'
   | 'wave'
-  | 'connect'
   | 'breathe';
 
 /**
@@ -51,7 +44,6 @@ export type LogoState =
   | 'orbiting'
   | 'solving'
   | 'listening'
-  | 'connecting'
   | 'breathing';
 
 export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
@@ -61,7 +53,6 @@ export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   orbiting: 'orbit',
   solving: 'solve',
   listening: 'wave',
-  connecting: 'connect',
   breathing: 'breathe'
 };
 
@@ -72,7 +63,6 @@ export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   orbit: frameLogoOrbit,
   solve: frameLogoSolve,
   wave: frameLogoWave,
-  connect: frameLogoConnect,
   breathe: frameLogoBreathe
 };
 
@@ -147,19 +137,17 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
     speed: 1,
     opts: {
       yawAmp: 0.16,
-      yawRate: 0.4,
+      yawRate: 0.35,
       tiltAmp: 0.08,
-      buildPeriod: 4.4,
-      carrierShare: 0.42,
-      arriveWidth: 0.34,
-      farR: 1.55,
-      // Held back, not erased. Too faint and the state reads as a broken
-      // logo rather than one being built.
-      ghostInk: 0.15,
+      carrierShare: 0.3,
+      travelRate: 0.17,
+      arc: 0.5,
+      arcZ: 0.7,
+      ghostInk: 0.05,
       ghostR: 0.5,
       ghostRDepth: 1.05,
-      cargoR: 0.85,
-      cargoInk: 0.34,
+      cargoR: 0.5,
+      cargoInk: 0.28,
       rBase: 0.55,
       rDepth: 1.4,
       inkFar: 0.6,
@@ -251,39 +239,6 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rMin: 0.3
     }
   },
-  connect: {
-    speed: 1,
-    opts: {
-      yawAmp: 0.18,
-      yawRate: 0.5,
-      tiltAmp: 0.08,
-      // Far fewer, far bolder. A 58-node mesh is beautiful at 140px and
-      // completely gone at 24, where a hairline is sub-pixel and a node is
-      // indistinguishable from the mark's own dots. Twenty heavy nodes with
-      // thick links read at both.
-      nodeCount: 20,
-      reach: 1.45,
-      wirePeriod: 3.6,
-      wireSharp: 2.6,
-      signals: 8,
-      signalRate: 0.6,
-      nodeR: 1.7,
-      nodeRDepth: 1.6,
-      lineW: 1.5,
-      lineA: 0.95,
-      lineInk: 0.18,
-      partR: 1.5,
-      partRDepth: 1.3,
-      ghostInk: 0.1,
-      rBase: 0.45,
-      rDepth: 1.1,
-      inkFar: 0.6,
-      inkSpan: 0.5,
-      inkRim: 0.16,
-      rsPow: 0.6,
-      rMin: 0.3
-    }
-  },
   breathe: {
     speed: 1,
     opts: {
@@ -293,16 +248,18 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       expo: 0.3,
       settle: 0.45,
       breathe: 0.07,
-      spokes: 34,
-      ringR: 0.78,
-      thick: 0.3,
-      ringZ: 0.12,
-      swell: 0.22,
-      swellRate: 1.3,
-      loudR: 0.35,
+      yawAmp: 0.3,
+      yawRate: 0.4,
+      tiltAmp: 0.18,
+      ballR: 0.86,
+      swell: 0.34,
+      swellRate: 0.9,
+      pulse: 0.09,
+      pulseRate: 1.1,
+      loudR: 0.3,
       loudInk: 0.14,
-      rBase: 0.6,
-      rDepth: 1.2,
+      rBase: 0.55,
+      rDepth: 1.5,
       inkFar: 0.6,
       inkSpan: 0.5,
       inkRim: 0.16,
@@ -339,8 +296,6 @@ export function resolveLogo(
   const opts = { ...preset.opts, ...overrides };
   // The constellation graph costs a farthest-point pass and a quadratic
   // edge test, so it is only built for the one state that reads it.
-  const graph =
-    mode === 'connect' ? buildGraph(points, opts.nodeCount ?? 58, opts.reach ?? 1.35) : undefined;
   const globe =
     mode === 'scan' ? buildGlobe(points, opts.meridians ?? 6, opts.parallels ?? 5) : undefined;
   return {
@@ -348,6 +303,6 @@ export function resolveLogo(
     frame: LOGO_MODE_FRAMES[mode],
     speed: preset.speed,
     opts,
-    binding: { points, seats: seatMap(points), nodes: graph?.nodes, edges: graph?.edges, globe }
+    binding: { points, seats: seatMap(points), globe }
   };
 }

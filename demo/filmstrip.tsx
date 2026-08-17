@@ -93,9 +93,9 @@ function App() {
   const [cube, setCube] = React.useState<LogoPointSet | null>(null);
   useEffect(() => {
     void bakeLogo({ path: BRAND_BY_KEY.stripe.path }, { count: 300, shell: 'dome' }).then(setPoints);
-    // Notion's mark is the hard case for solving: it already reads as a 3D
-    // box, so any motion that mangles it is immediately obvious.
-    void bakeLogo({ path: BRAND_BY_KEY.notion.path }, { count: 300, shell: 'dome' }).then(setCube);
+    // Shopify's bag is the hard case: a busy mark where any motion that
+    // mangles the silhouette is immediately obvious.
+    void bakeLogo({ path: BRAND_BY_KEY.shopify.path }, { count: 300, shell: 'dome' }).then(setCube);
   }, []);
   if (!points || !cube) return <div style={{ color: '#888', padding: 40 }}>baking…</div>;
 
@@ -138,13 +138,11 @@ function App() {
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
-      <Strip points={points} state="working" times={even} note="carriers fly in and build the mark" tint={tint} />
-      <Strip points={points} state="connecting" times={even} note="wires itself, packets on edges" tint={tint} />
+      <Strip points={points} state="working" times={even} note="carriers orbit between seats, colour on arrival" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip points={points} state="searching" times={globe} note="logo → wireframe globe, scanned → logo" tint={tint} />
-      <Strip points={cube} state="solving" times={solve} note="Notion — the 3D-looking hard case" />
-      <Strip points={points} state="breathing" times={globe} note="logo → spoked ring that swells → logo" tint={tint} />
-      <Strip points={cube} state="connecting" times={even} note="Notion — mark must stay readable" />
+      <Strip points={cube} state="solving" times={solve} note="Shopify — the busy-mark hard case" />
+      <Strip points={points} state="breathing" times={globe} note="logo → a round body that bulges → logo" tint={tint} />
     </main>
   );
 }

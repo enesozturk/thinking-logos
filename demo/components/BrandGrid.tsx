@@ -9,7 +9,6 @@ import { BRANDS } from '../brands';
 const VERB_TO_STATE: Record<string, LogoState> = {
   Thinking: 'thinking',
   Solving: 'solving',
-  Connecting: 'connecting',
   Listening: 'listening',
   Searching: 'searching',
   Working: 'working',
@@ -59,7 +58,7 @@ export function BrandGrid({
     <section className="w-full mb-10" aria-label="Brand examples">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-normal leading-[34px] text-(--section-title-color)">
-          Eight marks, eight states
+          Seven marks, seven states
         </h2>
         <button
           type="button"

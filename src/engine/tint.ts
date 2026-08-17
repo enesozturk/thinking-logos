@@ -85,12 +85,16 @@ export function adaptTint(tint: Rgb, dark: boolean): Rgb {
  * one, washing it out toward white. Same ramp, mirrored — the identical
  * relationship the greyscale painter has.
  */
-function ramp(tint: Rgb, v: number, dark: boolean): string {
-  if (dark) {
-    return `${Math.round(tint.r * v)},${Math.round(tint.g * v)},${Math.round(tint.b * v)}`;
-  }
-  const f = 1 - v;
-  return `${Math.round(255 + (tint.r - 255) * f)},${Math.round(255 + (tint.g - 255) * f)},${Math.round(255 + (tint.b - 255) * f)}`;
+function ramp(tint: Rgb, v: number, dark: boolean, k = 1): string {
+  // The neutral end of the blend is the greyscale painter's own output, so
+  // k = 0 renders exactly what an untinted page would show.
+  const g = 255 * v;
+  const mix = (c: number) => {
+    const col = dark ? c * v : 255 + (c - 255) * (1 - v);
+    const grey = dark ? g : 255 - (255 - g);
+    return Math.round(grey + (col - grey) * k);
+  };
+  return `${mix(tint.r)},${mix(tint.g)},${mix(tint.b)}`;
 }
 
 /** Paint a finished frame in a brand colour. Lines first, as usual. */
@@ -111,7 +115,7 @@ export function paintFrameTinted(
   }
   for (const d of frame.dots) {
     const w = Math.min(1, Math.max(0, d.white));
-    ctx.fillStyle = `rgba(${ramp(tint, dark ? 1 - w : w, dark)},${d.a ?? 1})`;
+    ctx.fillStyle = `rgba(${ramp(tint, dark ? 1 - w : w, dark, d.k ?? 1)},${d.a ?? 1})`;
     ctx.beginPath();
     ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
     ctx.fill();
