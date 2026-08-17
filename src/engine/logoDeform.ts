@@ -82,7 +82,7 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const half = o.cubeHalf ?? 0.62;
 
   const dwell = o.dwell ?? 5.5;
-  const b = beatAt(t, dwell, o.morph ?? 0.62, o.breathDur ?? 0.5, o.turns ?? 1, o.settle ?? 0.45);
+  const b = beatAt(t, dwell, o.morph ?? 1.9, o.breathDur ?? 0.35, o.turns ?? 1, o.settle ?? 0.45, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
   const puff = 1 + (o.breathe ?? 0.07) * b.breath;
@@ -156,7 +156,7 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 0.62, o.breathDur ?? 0.5, 0, o.settle ?? 0.45);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.breathDur ?? 0.35, 0, o.settle ?? 0.45, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
   const puff = 1 + (o.breathe ?? 0.07) * b.breath;

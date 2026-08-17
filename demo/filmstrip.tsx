@@ -103,18 +103,18 @@ function App() {
   // The assemble cycle is 6.5s: churn to 2.1, rise to 3.25, hold to 5.55,
   // fall out. Sampled unevenly on purpose — the transitions deserve more
   // frames than the holds do.
-  const assemble = [0, 1.6, 3.2, 4.0, 4.3, 4.7, 5.0, 5.3, 5.6];
+  const assemble = [0, 2.0, 4.0, 4.8, 5.4, 5.9, 6.4, 7.0, 7.8];
   // The same instant of the hold, four cycles apart. If the mark is not
   // pixel-identical across these, the spin is not landing face-on and the
   // logo is being shown at an angle it should never be shown at.
-  const holds = [4.85, 10.59, 16.33, 22.07, 27.81];
+  const holds = [6.05, 14.2, 22.35, 30.5, 38.65];
   // Dense sampling of the rise. Every frame in which the mark is legible
   // at all must be square to the viewer — that is the whole test.
-  const rise = [3.9, 4.1, 4.25, 4.4, 4.55, 4.7, 4.9, 5.1, 5.4];
-  const solve = [0, 1.4, 2.8, 4.2, 5.2, 5.7, 6.0, 6.4, 6.9];
+  const rise = [4.0, 4.5, 5.0, 5.4, 5.7, 6.0, 6.3, 6.7, 7.2];
+  const solve = [0, 1.8, 3.6, 5.2, 6.2, 6.9, 7.5, 8.2, 9.0];
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
-  const globe = [0, 1.2, 2.4, 3.6, 4.1, 4.4, 4.8, 5.1, 5.5];
-  const meter = [0, 1.2, 2.4, 3.6, 4.1, 4.4, 4.8, 5.1, 5.5];
+  const globe = [0, 2.0, 4.0, 4.9, 5.5, 6.0, 6.5, 7.1, 7.8];
+  const meter = [0, 2.0, 4.0, 4.9, 5.5, 6.0, 6.5, 7.1, 7.8];
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>
@@ -134,7 +134,7 @@ function App() {
         points={points}
         state="thinking"
         times={rise}
-        note="THE MORPH — easeInOutExpo, then one breath"
+        note="THE MORPH — 1.9s each way, continuous throughout"
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />

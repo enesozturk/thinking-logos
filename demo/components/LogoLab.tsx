@@ -48,6 +48,7 @@ export function LogoLab() {
   const [count, setCount] = useState(300);
   // Per-state default, since the solve needs more room than a plain dwell.
   const [dwell, setDwell] = useState<number | null>(null);
+  const [morph, setMorph] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const [baked, setBaked] = useState<LogoPointSet | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -65,7 +66,13 @@ export function LogoLab() {
   const bakeOpts = useMemo(() => ({ style, shell, count }), [style, shell, count]);
   // `dwell` is how long the working form — orb, cube, globe, body — gets
   // before the mark interrupts it. Null means "leave the state's default".
-  const tune = useMemo(() => (dwell === null ? undefined : { dwell }), [dwell]);
+  const tune = useMemo(() => {
+    if (dwell === null && morph === null) return undefined;
+    const t: { dwell?: number; morph?: number } = {};
+    if (dwell !== null) t.dwell = dwell;
+    if (morph !== null) t.morph = morph;
+    return t;
+  }, [dwell, morph]);
   const dwells = state === 'solving' ? 5.5 : 4;
 
   const accept = useCallback(async (file: File) => {
@@ -86,7 +93,11 @@ export function LogoLab() {
     `  size={64}`,
     tint ? `  tint="${tint}"` : null,
     `  bake={{ style: '${style}', shell: '${shell}', count: ${count} }}`,
-    dwell === null ? null : `  tune={{ dwell: ${dwell} }}`,
+    dwell === null && morph === null
+      ? null
+      : `  tune={{ ${[dwell === null ? null : `dwell: ${dwell}`, morph === null ? null : `morph: ${morph}`]
+          .filter(Boolean)
+          .join(', ')} }}`,
     `/>`
   ]
     .filter((l) => l !== null)
@@ -250,6 +261,26 @@ export function LogoLab() {
               </span>
               {dwell !== null && (
                 <button type="button" className={tabBase} onClick={() => setDwell(null)}>
+                  reset
+                </button>
+              )}
+            </Row>
+
+            <Row label="Morph">
+              <input
+                type="range"
+                min={0.4}
+                max={4}
+                step={0.1}
+                value={morph ?? 1.9}
+                onChange={(e) => setMorph(Number(e.target.value))}
+                className="w-48 accent-(--tab-active-color)"
+              />
+              <span className="text-[13px] text-(--footer-muted) tabular-nums">
+                {(morph ?? 1.9).toFixed(1)}s each way, into and out of the mark
+              </span>
+              {morph !== null && (
+                <button type="button" className={tabBase} onClick={() => setMorph(null)}>
                   reset
                 </button>
               )}

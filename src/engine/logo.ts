@@ -292,10 +292,11 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   const b = beatAt(
     t,
     o.dwell ?? 4,
-    o.morph ?? 0.62,
-    o.breathDur ?? 0.5,
+    o.morph ?? 1.9,
+    o.breathDur ?? 0.35,
     o.turns ?? 1,
-    o.settle ?? 0.45
+    o.settle ?? 0.45,
+    o.expo ?? 0.3
   );
   const m = b.m;
   const g = 1 - m;
@@ -386,17 +387,34 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 export const CYCLE = 7.6;
 
 /**
- * easeInOutExpo — near-still at both ends, very fast through the middle.
+ * easeInOutExpo — the CSS `cubic-bezier(0.87, 0, 0.13, 1)` curve.
  *
- * The CSS equivalent of `cubic-bezier(0.87, 0, 0.13, 1)`. Smoothstep and
- * smootherstep spread their motion evenly enough that a morph reads as a
- * slow continuous drift; an exponential ease holds, snaps, and settles,
- * which is what makes a transformation feel deliberate rather than gradual.
+ * Near-still at both ends, very fast through the middle.
  */
 export function expoInOut(x: number): number {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
   return x < 0.5 ? 2 ** (20 * x - 10) / 2 : (2 - 2 ** (-20 * x + 10)) / 2;
+}
+
+/**
+ * The morph curve: smootherstep with a measured amount of expo mixed in.
+ *
+ * Pure expo was tried and works against what this transition needs. Its
+ * flat tails mean the morph barely moves for the first and last third,
+ * which reads as the mark pausing at each end — the exact pause being
+ * designed out — while its violent middle covers most of the distance in a
+ * few frames and reads as a snap. Slow AND stalled, which is the worst of
+ * both.
+ *
+ * The blend keeps expo's character — a deliberate ease in, a confident
+ * middle — without the dead zones. Duration does the rest: 300 dots
+ * travelling across the frame need several times the 0.6s a CSS transform
+ * on a single block would.
+ */
+function morphEase(x: number, expo: number): number {
+  const smooth = x * x * x * (x * (x * 6 - 15) + 10);
+  return smooth + (expoInOut(x) - smooth) * expo;
 }
 
 /**
@@ -450,8 +468,12 @@ export interface Beat {
  * Rotation belongs to the working form. It runs across the dwell and eases
  * out partway through the morph in, so the orb is still turning as it
  * begins to become the mark, then settles. On the way back there is none at
- * all: a whole turn crammed into a half-second exit is the spin that reads
- * as frantic, and it buys nothing — the form is dissolving anyway.
+ * all: a whole turn crammed into a short exit is the spin that reads as
+ * frantic, and it buys nothing — the form is dissolving anyway.
+ *
+ * `breathDur` is deliberately small. It is not a pause: the mark is still
+ * moving through it, and it exists only so the arrival has somewhere to
+ * land before the departure begins.
  *
  * Because the count of turns is a whole number, the mark is always shown at
  * a whole revolution — dead face-on, every cycle — and the cycle closes
@@ -463,7 +485,8 @@ export function beatAt(
   morph: number,
   breathDur: number,
   turns: number,
-  settle: number
+  settle: number,
+  expo = 0.3
 ): Beat {
   const cycle = dwell + morph * 2 + breathDur;
   const local = t % cycle;
@@ -477,7 +500,7 @@ export function beatAt(
   }
   const intoMorph = local - dwell;
   if (intoMorph < morph) {
-    return { m: expoInOut(intoMorph / morph), breath: 0, turns: spun, workT: -1, local, cycle };
+    return { m: morphEase(intoMorph / morph, expo), breath: 0, turns: spun, workT: -1, local, cycle };
   }
   const intoBreath = intoMorph - morph;
   if (intoBreath < breathDur) {
@@ -491,7 +514,7 @@ export function beatAt(
     };
   }
   const out = (intoBreath - breathDur) / morph;
-  return { m: expoInOut(1 - out), breath: 0, turns: spun, workT: -1, local, cycle };
+  return { m: morphEase(1 - out, expo), breath: 0, turns: spun, workT: -1, local, cycle };
 }
 
 /**
@@ -516,10 +539,11 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const b = beatAt(
     t,
     o.dwell ?? 4,
-    o.morph ?? 0.62,
-    o.breathDur ?? 0.5,
+    o.morph ?? 1.9,
+    o.breathDur ?? 0.35,
     o.turns ?? 1,
-    o.settle ?? 0.45
+    o.settle ?? 0.45,
+    o.expo ?? 0.3
   );
   const m = b.m;
 
