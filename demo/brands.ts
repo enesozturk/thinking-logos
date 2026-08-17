@@ -12,17 +12,13 @@
 
 import {
   siAnthropic,
-  siFigma,
-  siFramer,
   siGithub,
   siLinear,
-  siNike,
   siNotion,
   siShopify,
   siSpotify,
   siStripe,
-  siSupabase,
-  siVercel
+  siSupabase
 } from 'simple-icons';
 
 export interface Brand {
@@ -48,23 +44,22 @@ function brand(
 }
 
 /**
- * Ordered so the first row is the easy case and the last is the hard one.
- * A demo that only shows Vercel's triangle is lying by omission — Shopify's
- * bag and Figma's five-shape stack are what most real logos look like.
+ * Eight marks, eight different states — no verb appears twice.
+ *
+ * The grid's job is to show that these are distinct MOTIONS, and a set with
+ * three cards all saying "thinking" spends its slots proving the opposite.
+ * Ordered easy to hard as well: a demo made only of simple marks is lying
+ * by omission, since Shopify's bag is what most real logos look like.
  */
 export const BRANDS: Brand[] = [
-  brand(siVercel, 'vercel', 'Thinking', 'simple'),
-  brand(siFramer, 'framer', 'Solving', 'simple'),
-  brand(siAnthropic, 'anthropic', 'Connecting', 'simple'),
-  brand(siSupabase, 'supabase', 'Listening', 'simple'),
-  brand(siStripe, 'stripe', 'Solving', 'medium'),
-  brand(siLinear, 'linear', 'Thinking', 'medium'),
-  brand(siNike, 'nike', 'Weaving', 'medium'),
+  brand(siAnthropic, 'anthropic', 'Thinking', 'simple'),
+  brand(siSupabase, 'supabase', 'Solving', 'simple'),
+  brand(siStripe, 'stripe', 'Orbiting', 'medium'),
+  brand(siLinear, 'linear', 'Listening', 'medium'),
   brand(siNotion, 'notion', 'Connecting', 'medium'),
-  brand(siSpotify, 'spotify', 'Listening', 'medium'),
-  brand(siGithub, 'github', 'Searching', 'busy'),
-  brand(siShopify, 'shopify', 'Working', 'busy'),
-  brand(siFigma, 'figma', 'Breathing', 'busy')
+  brand(siSpotify, 'spotify', 'Searching', 'medium'),
+  brand(siGithub, 'github', 'Breathing', 'busy'),
+  brand(siShopify, 'shopify', 'Working', 'busy')
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

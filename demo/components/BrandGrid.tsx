@@ -61,7 +61,7 @@ export function BrandGrid({
     <section className="w-full mb-10" aria-label="Brand examples">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-normal leading-[34px] text-(--section-title-color)">
-          Twelve real marks, baked
+          Eight marks, eight states
         </h2>
         <button
           type="button"
@@ -81,8 +81,8 @@ export function BrandGrid({
           rescue a mark that has more detail than the pixels can hold, and a
           demo that hides that sets everyone up for disappointment. */}
       <p className="mt-3 text-[13px] leading-5 text-(--footer-muted)">
-        Bottom row is the honest part — the busier a mark, the fewer of its details survive at 44px.
-        Bake at the size you ship and judge it there.
+        The last two are the honest part — the busier a mark, the fewer of its details survive at
+        44px. Bake at the size you ship and judge it there.
       </p>
     </section>
   );

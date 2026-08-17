@@ -42,7 +42,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function LogoLab() {
   const [custom, setCustom] = useState<{ name: string; svg: string } | null>(null);
-  const [brandKey, setBrandKey] = useState(BRANDS[4].key);
+  const [brandKey, setBrandKey] = useState('stripe');
   const [state, setState] = useState<LogoState>('thinking');
   const [style, setStyle] = useState<LogoStyle>('fill');
   const [shell, setShell] = useState<ShellMode>('dome');
