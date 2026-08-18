@@ -115,6 +115,8 @@ function App() {
   const even = [0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8];
   const globe = [0, 2.0, 4.0, 4.9, 5.5, 6.0, 6.5, 7.1, 7.8];
   const meter = [0, 2.0, 4.0, 4.9, 5.5, 6.0, 6.5, 7.1, 7.8];
+  // Dense sampling inside the dwell, where the scan band is travelling.
+  const sweep = [0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2];
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px' }}>
@@ -138,7 +140,7 @@ function App() {
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
-      <Strip points={points} state="working" times={globe} note="logo → a turning helix, with couriers → logo" tint={tint} />
+      <Strip points={points} state="working" times={globe} note="logo → a toothed orb that turns → logo" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip
         points={points}
@@ -147,7 +149,14 @@ function App() {
         note="THE MORPH — the reference to match"
         tint={tint}
       />
-      <Strip points={points} state="searching" times={globe} note="logo → an even sphere, swept by a meridian → logo" tint={tint} />
+      <Strip points={points} state="searching" times={globe} note="logo → an even sphere, swept → logo" tint={tint} />
+      <Strip
+        points={points}
+        state="searching"
+        times={sweep}
+        note="THE SWEEP — the band must never leave the near side"
+        tint={tint}
+      />
       <Strip points={cube} state="solving" times={solve} note="Shopify — the busy-mark hard case" />
       <Strip points={points} state="orbiting" times={globe} note="logo → a ringed planet → logo" tint={tint} />
       <Strip points={points} state="breathing" times={globe} note="logo → a bellows of stacked rings → logo" tint={tint} />

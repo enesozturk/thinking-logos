@@ -9,7 +9,7 @@
 
 import type { Dot, LogoBinding, ModeFrame, OrbFrame } from './types';
 import type { LogoPointSet, SeatMap } from './cloud';
-import { angleDelta, fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
+import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
 
 const TURN = Math.PI * 2;
 
@@ -141,10 +141,18 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
 
   const sphereR = o.sphereR ?? 0.94;
   const width = o.scanWidth ?? 0.22;
-  // The sweep runs in the sphere's own longitude, so it stays a meridian
-  // however far the sphere has turned — a band fixed to the screen would
-  // slide off the surface as soon as the camera moved.
-  const scan = t * (o.scanRate ?? 1.9);
+  // The sweep is measured in SCREEN space and gated to the near side, so it
+  // is always somewhere the viewer can see it.
+  //
+  // Running it in the sphere's own longitude was the obvious thing and it
+  // spends half of every pass behind the object: the band disappears, comes
+  // back on the other side, and the state stops reading as a scan at all.
+  // A screen-space band cannot hide. It travels left to right on a sawtooth
+  // — always the same direction, restarting off-frame where the jump is
+  // invisible — and fades out at the silhouette, which is what a beam
+  // crossing a curved surface actually does.
+  const span = o.scanSpan ?? 2.6;
+  const scanX = ((t * (o.scanRate ?? 0.42)) % 1) * span - span / 2;
   const dimBase = o.dimBase ?? 0.4;
 
   const dots: Dot[] = [];
@@ -161,11 +169,13 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
     // A meridian, not a spot: distance is measured in longitude alone, so
     // the lit band runs pole to pole and the whole sphere is swept rather
     // than a patch of it.
-    const d = angleDelta(Math.atan2(fz, fx), scan);
-    const boost = Math.exp(-(d * d) / width) * g;
-
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Near side only: at the silhouette this is zero, so the band never
+    // lights a dot that is facing away.
+    const front = clamp01(z / (sphereR * 0.9));
+    const d = ((px - cx) / R - scanX) / width;
+    const boost = Math.exp(-d * d) * front * g;
     dots.push({
       x: px,
       y: py,
@@ -184,24 +194,25 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: logo → a turning helix, with couriers → logo --------------
+// --- Unrest: logo → a toothed orb that turns → logo --------------------
 
 /**
- * The mark becomes a bundle of strands twisting about a common axis, with a
- * few bright couriers crossing between them and burning out on arrival.
+ * The mark becomes a sphere cut with teeth around its equator, turning
+ * steadily, with a few bright couriers crossing it and burning out.
  *
- * Two forms were tried and set aside. Seven great circles of a sphere never
- * settled into one object — Fibonacci-spread inclinations each look right
- * alone and read as a tangle together. A torus fixed the stability but
- * joined a crowded family: by then the orb, the scanned sphere, the planet
- * and the bulging body were all round, and one more curved surface said
- * nothing new.
+ * Three forms came before this one and each failed differently. Seven great
+ * circles of a sphere never cohered — Fibonacci-spread inclinations look
+ * right alone and read as a tangle together. A torus was stable but joined
+ * a crowded family of round things and said nothing new. A helix said
+ * plenty but read as its own object rather than as a member of the set.
  *
- * A helix is the first form here with an AXIS. It is long where everything
- * else is round, it turns about that axis with complete stability, and the
- * twist is legible as mechanism rather than as decoration. The couriers
- * finally have a job that suits the shape too: crossing from strand to
- * strand, which is what the strands are there for.
+ * A cog is the right idea and a literal cog would be the wrong execution:
+ * a flat toothed disc has no volume, and every other state here is a solid.
+ * So the geometry stays a sphere and only its RADIUS is modulated — a
+ * near-square wave around the azimuth, strongest at the equator and fading
+ * to nothing at the poles. What you get is unmistakably machined without
+ * ever stopping being an orb, which is the difference between borrowing an
+ * idea and copying a picture.
  */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -215,44 +226,51 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   const m = b.m;
   const c = 1 - m;
 
-  // Leaned rather than upright, so the axis is visible as an axis. Dead
-  // vertical and the strands overlap into a single column.
+  // A held tilt: the teeth are cut around the equator, so the equator has
+  // to be visible as a band rather than as a silhouette edge.
   const pt = makeProj(
-    (o.lean ?? 0.34) + (o.yawAmp ?? 0.12) * Math.sin(t * (o.yawRate ?? 0.3)) * c,
-    (o.tilt ?? 0.26) * c,
+    (o.yawAmp ?? 0.14) * Math.sin(t * (o.yawRate ?? 0.28)) * c,
+    (o.tilt ?? 0.34) * c,
     cx,
     cx,
     R
   );
 
-  const strands = Math.max(2, Math.round(o.strands ?? 3));
-  const perStrand = Math.ceil(n / strands);
-  const height = o.height ?? 1.7;
-  const rad = o.helixR ?? 0.5;
-  const twist = (o.twist ?? 2) * TURN;
-  const spin = t * (o.spin ?? 0.55);
-  const share = o.courierShare ?? 0.14;
+  const teeth = Math.max(3, Math.round(o.teeth ?? 9));
+  const depth = o.toothDepth ?? 0.26;
+  // Above about 2 the crests flatten into teeth; at 1 it is a ripple, and a
+  // ripple reads as a wobble rather than as something machined.
+  const sharp = o.toothSharp ?? 2.8;
+  const base = o.cogR ?? 0.78;
+  const spin = t * (o.spin ?? 0.5);
+  const share = o.courierShare ?? 0.13;
   const rate = o.courierRate ?? 0.3;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
-    const strand = seat % strands;
-    const u = Math.floor(seat / strands) / perStrand;
+    const [fx, fy, fz] = fibDir(seat, n);
 
-    // Strands are evenly offset around the axis, so the bundle is balanced
-    // however far it has turned.
-    const ang = u * twist + (strand / strands) * TURN + spin;
-    // Ends taper in, which stops the helix reading as a cut length of rope.
-    const taper = Math.sin(Math.PI * u) ** 0.35;
-    let bx = Math.cos(ang) * rad * taper;
-    let by = (u - 0.5) * height;
-    let bz = Math.sin(ang) * rad * taper;
+    // Turn the point first, then cut the teeth from where it now is, so the
+    // teeth belong to the body and rotate with it.
+    const ca = Math.cos(spin);
+    const sa = Math.sin(spin);
+    const rx = fx * ca + fz * sa;
+    const rz = -fx * sa + fz * ca;
 
-    // A courier lifts off its strand, crosses to a point on another, and
+    const tooth = clamp01(Math.cos(Math.atan2(rz, rx) * teeth) * sharp * 0.5 + 0.5);
+    // Fade to a smooth sphere at the poles: a gear has a rim, and teeth
+    // running over the top would read as a sea urchin.
+    const rim = 1 - fy * fy;
+    const rad = base * (1 + depth * tooth * rim);
+
+    let bx = rx * rad;
+    let by = fy * rad;
+    let bz = rz * rad;
+
+    // A courier lifts off the rim, crosses to another point on it, and
     // burns out there before reappearing where it started. Launch order
-    // follows the seat index, so departures run along the bundle as a wave
-    // rather than popping at random.
+    // follows the seat index, so departures run round the body as a wave.
     let courier = 0;
     let fade = 1;
     if (hashD(i, 6.7) < share) {
@@ -261,17 +279,18 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
       fade = phase < 0.6 ? 1 : 1 - clamp01((phase - 0.6) / 0.24);
 
       const tSeat = seats[(i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n];
-      const tu = Math.floor(tSeat / strands) / perStrand;
-      const tAng = tu * twist + ((tSeat % strands) / strands) * TURN + spin;
-      const tTaper = Math.sin(Math.PI * tu) ** 0.35;
-      bx += (Math.cos(tAng) * rad * tTaper - bx) * courier;
-      by += ((tu - 0.5) * height - by) * courier;
-      bz += (Math.sin(tAng) * rad * tTaper - bz) * courier;
+      const [gx, gy, gz] = fibDir(tSeat, n);
+      const tx = (gx * ca + gz * sa) * base;
+      const tz = (-gx * sa + gz * ca) * base;
+      bx += (tx - bx) * courier;
+      by += (gy * base - by) * courier;
+      bz += (tz - bz) * courier;
 
-      // Bow the path clear of the bundle; a chord between two strands runs
-      // straight through the middle of it.
-      const lift = 1 + (o.arc ?? 0.5) * Math.sin(Math.PI * courier);
+      // Bow the path clear of the body; a chord across a sphere runs
+      // straight through it and the courier is lost inside.
+      const lift = 1 + (o.arc ?? 0.42) * Math.sin(Math.PI * courier);
       bx *= lift;
+      by *= lift;
       bz *= lift;
     }
 
@@ -284,15 +303,25 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // Couriers are bright and, in flight, neutral grey — they take the
-    // brand's colour back on only once they have delivered.
+    // Crests read brighter than roots, so the teeth are carried by ink as
+    // well as by silhouette — which is what keeps them legible once the
+    // whole thing is 24 pixels across.
+    const crest = tooth * rim * c;
     const live = courier > 0 ? Math.sin(Math.PI * courier) : 0;
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.3) * zx + (o.cargoR ?? 0.85) * live * c) * rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.cargoInk ?? 0.32) * live * c,
+      r:
+        ((o.rBase ?? 0.5) +
+          (o.rDepth ?? 1.3) * zx +
+          (o.crestR ?? 0.3) * crest +
+          (o.cargoR ?? 0.85) * live * c) *
+        rs,
+      white:
+        inkOf(o, zx, e[i] * m + (1 - m)) -
+        (o.crestInk ?? 0.14) * crest -
+        (o.cargoInk ?? 0.32) * live * c,
       a: 1 - (1 - fade) * c,
       k: 1 - live * c
     });
