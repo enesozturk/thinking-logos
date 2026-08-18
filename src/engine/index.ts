@@ -30,7 +30,6 @@ export {
   frameLogoScan,
   frameLogoUnrest,
   seatMap,
-  buildGlobe,
   beatAt,
   expoInOut
 } from './logo';

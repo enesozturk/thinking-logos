@@ -147,7 +147,7 @@ function App() {
         note="THE MORPH — the reference to match"
         tint={tint}
       />
-      <Strip points={points} state="searching" times={globe} note="logo → wireframe globe, scanned → logo" tint={tint} />
+      <Strip points={points} state="searching" times={globe} note="logo → an even sphere, swept by a meridian → logo" tint={tint} />
       <Strip points={cube} state="solving" times={solve} note="Shopify — the busy-mark hard case" />
       <Strip points={points} state="breathing" times={globe} note="logo → a round body that bulges → logo" tint={tint} />
     </main>

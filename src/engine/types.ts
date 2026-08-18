@@ -21,8 +21,6 @@ import type { OrbFrame } from './core';
 export interface LogoBinding {
   readonly points: LogoPointSet;
   readonly seats: SeatMap;
-  /** Wireframe-globe seats, xyz per dot; only the `searching` state needs them. */
-  readonly globe?: Float32Array;
 }
 
 /**

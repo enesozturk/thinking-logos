@@ -66,102 +66,6 @@ export function seatMap(points: LogoPointSet): SeatMap {
 }
 
 /**
- * Lay the mark's dots out as a wireframe globe — meridians and parallels.
- *
- * Deliberately a different solid from the one `thinking` uses. That state's
- * orb is a Fibonacci lattice: an even scatter with no structure, which is
- * right for a mark dissolving into raw material. Search is not raw material
- * — it is a place being looked at — and the visual shorthand for that,
- * everywhere on the web, is a globe with lines of longitude and latitude.
- * Putting the dots ON those lines rather than over the whole surface is
- * what makes the difference read at a glance.
- *
- * Dots are allocated to each curve in proportion to its arc length, so the
- * spacing along a short polar parallel matches the spacing along the
- * equator instead of bunching at the poles.
- */
-export function buildGlobe(points: LogoPointSet, meridians: number, parallels: number): Float32Array {
-  const n = points.n;
-  const M = Math.max(2, meridians);
-  const P = Math.max(1, parallels);
-
-  const lens: number[] = [];
-  for (let m = 0; m < M; m++) lens.push(2 * Math.PI);
-  const lats: number[] = [];
-  for (let q = 0; q < P; q++) {
-    const lat = -Math.PI / 2 + ((q + 1) * Math.PI) / (P + 1);
-    lats.push(lat);
-    lens.push(2 * Math.PI * Math.cos(lat));
-  }
-  const total = lens.reduce((a, b) => a + b, 0);
-
-  const counts = lens.map((l) => Math.max(3, Math.round((n * l) / total)));
-  // Rounding never lands on exactly n; push the slack onto the longest
-  // curve, where a dot more or less is invisible.
-  let sum = counts.reduce((a, b) => a + b, 0);
-  let biggest = 0;
-  for (let i = 1; i < counts.length; i++) if (counts[i] > counts[biggest]) biggest = i;
-  counts[biggest] += n - sum;
-  if (counts[biggest] < 3) counts[biggest] = 3;
-
-  const xs: number[] = [];
-  const ys: number[] = [];
-  const zs: number[] = [];
-  for (let m = 0; m < M; m++) {
-    // A great circle through both poles — a full meridian ring.
-    const lon = (m * Math.PI) / M;
-    const cl = Math.cos(lon);
-    const sl = Math.sin(lon);
-    for (let k = 0; k < counts[m]; k++) {
-      const a = (k / counts[m]) * 2 * Math.PI;
-      xs.push(Math.cos(a) * cl);
-      ys.push(Math.sin(a));
-      zs.push(Math.cos(a) * sl);
-    }
-  }
-  for (let q = 0; q < P; q++) {
-    const lat = lats[q];
-    const cl = Math.cos(lat);
-    const sy = Math.sin(lat);
-    for (let k = 0; k < counts[M + q]; k++) {
-      const a = (k / counts[M + q]) * 2 * Math.PI;
-      xs.push(cl * Math.cos(a));
-      ys.push(sy);
-      zs.push(cl * Math.sin(a));
-    }
-  }
-
-  // Pair by angle about the centre, the same way `seatMap` does, so dots
-  // travel roughly radially and the mark folds into the globe rather than
-  // scattering into it.
-  const count = Math.min(n, xs.length);
-  const byLogo = new Uint32Array(n);
-  const bySeat = new Uint32Array(xs.length);
-  const logoAng = new Float32Array(n);
-  const seatAng = new Float32Array(xs.length);
-  for (let i = 0; i < n; i++) {
-    byLogo[i] = i;
-    logoAng[i] = Math.atan2(points.p[i * 3 + 1], points.p[i * 3]);
-  }
-  for (let i = 0; i < xs.length; i++) {
-    bySeat[i] = i;
-    seatAng[i] = Math.atan2(ys[i], xs[i]);
-  }
-  byLogo.sort((a, b) => logoAng[a] - logoAng[b]);
-  bySeat.sort((a, b) => seatAng[a] - seatAng[b]);
-
-  const out = new Float32Array(n * 3);
-  for (let k = 0; k < n; k++) {
-    const src = bySeat[k % count];
-    const dst = byLogo[k];
-    out[dst * 3] = xs[src];
-    out[dst * 3 + 1] = ys[src];
-    out[dst * 3 + 2] = zs[src];
-  }
-  return out;
-}
-
-/**
  * What a logo mode renders before its artwork is baked. A fresh object each
  * time: a shared one would be handed to a caller that is free to mutate it.
  */
@@ -188,26 +92,36 @@ export function inkOf(o: Record<string, number | undefined>, zx: number, edge: n
   return far - span * zx - rim * (1 - edge);
 }
 
-// --- Scan: a wireframe globe, scanned, interrupted by the mark ---------
+// --- Scan: an evenly packed sphere, swept by a meridian ----------------
 
 /**
- * The mark becomes a globe, a meridian sweeps it, and the mark returns.
+ * The mark becomes a sphere with a bright meridian sweeping round it, and
+ * the mark returns.
  *
- * Before this, `searching` swept a highlight across the stationary logo —
- * which next to the other states reads as nothing more than a shimmer
- * applied to a mark, with no idea of *searching* anywhere in it. A state
- * earns its name by becoming something, and what search should become is
- * obvious once said out loud: a globe with a scan running round it.
+ * Two wrong turns got here. First it was a highlight crossing the
+ * stationary logo, which next to the other states read as a shimmer applied
+ * to a mark, with no idea of *searching* anywhere in it. Then it was a
+ * wireframe of meridians and parallels — which said globe, but said it the
+ * way every stock icon says it, and packed the dots into lines that bunch
+ * at the poles and thin at the equator.
  *
- * The globe is built from meridians and parallels rather than an even
- * scatter, precisely so it does NOT look like the orb in `thinking`. Two
- * states that both dissolve into the same ball are one state with two
- * labels.
+ * The dots are now spread by the Fibonacci lattice, which is the closest
+ * thing there is to equal spacing on a sphere: no seams, no poles, no
+ * clumping, and no borrowed iconography. What makes it read as searching is
+ * not the construction but the SWEEP — a meridian of longitude travelling
+ * round the surface with everything behind it held back. An even field lit
+ * by a moving line reads as something being scanned; a drawn grid just
+ * reads as a picture of a globe.
+ *
+ * It shares its lattice with `thinking`'s orb and stays completely distinct
+ * from it, because the difference between those two states was never the
+ * geometry — one is an inert ball dissolving, the other is a surface being
+ * examined.
  */
 export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
-  if (!logo || !logo.globe) return empty();
+  if (!logo) return empty();
   const { p, e, n } = logo.points;
-  const g3 = logo.globe;
+  const seats = logo.seats;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
@@ -218,7 +132,7 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
     o.morph ?? 1.9,
     o.breathDur ?? 0.35,
     o.turns ?? 1,
-    o.settle ?? 0.45,
+    o.settle ?? 0.1,
     o.expo ?? 0.3
   );
   const m = b.m;
@@ -227,25 +141,28 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   const pt = makeProj(TURN * b.turns, (o.tiltAmp ?? 0.34) * g, cx, cx, R);
 
   const sphereR = o.sphereR ?? 0.94;
-  const width = o.scanWidth ?? 0.5;
-  // The scan runs in the globe's own longitude, so it stays a meridian
-  // however far the globe has turned — a sweep fixed to the screen would
+  const width = o.scanWidth ?? 0.22;
+  // The sweep runs in the sphere's own longitude, so it stays a meridian
+  // however far the sphere has turned — a band fixed to the screen would
   // slide off the surface as soon as the camera moved.
-  const scan = t * (o.scanRate ?? 2.1);
-  const dimBase = o.dimBase ?? 0.55;
-  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
+  const scan = t * (o.scanRate ?? 1.9);
+  const dimBase = o.dimBase ?? 0.4;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const gx = g3[i * 3] * sphereR;
-    const gy = g3[i * 3 + 1] * sphereR;
-    const gz = g3[i * 3 + 2] * sphereR;
+    const [fx, fy, fz] = fibDir(seats[i], n);
+    const gx = fx * sphereR;
+    const gy = fy * sphereR;
+    const gz = fz * sphereR;
 
-    const x = p[i * 3] * puff + (gx - p[i * 3] * puff) * g;
-    const y = p[i * 3 + 1] * puff + (gy - p[i * 3 + 1] * puff) * g;
-    const z3 = p[i * 3 + 2] * puff + (gz - p[i * 3 + 2] * puff) * g;
+    const x = p[i * 3] + (gx - p[i * 3]) * g;
+    const y = p[i * 3 + 1] + (gy - p[i * 3 + 1]) * g;
+    const z3 = p[i * 3 + 2] + (gz - p[i * 3 + 2]) * g;
 
-    const d = angleDelta(Math.atan2(gz, gx), scan);
+    // A meridian, not a spot: distance is measured in longitude alone, so
+    // the lit band runs pole to pole and the whole sphere is swept rather
+    // than a patch of it.
+    const d = angleDelta(Math.atan2(fz, fx), scan);
     const boost = Math.exp(-(d * d) / width) * g;
 
     const [px, py, z] = pt(x, y, z3);
@@ -257,11 +174,11 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
       r:
         ((o.rBase ?? 0.5) +
           (o.rDepth ?? 1.4) * zx +
-          (o.rBoost ?? 1) * boost +
+          (o.rBoost ?? 1.3) * boost +
           (o.breatheR ?? 0.22) * b.breath) *
         rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.breatheInk ?? 0.14) * b.breath,
-      // Un-scanned dots dim only once the globe has formed, so the mark
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.breatheInk ?? 0.14) * b.breath - (o.scanInk ?? 0.3) * boost,
+      // Un-swept dots dim only once the sphere has formed, so the mark
       // itself is never shown at partial opacity.
       a: 1 - (1 - dimBase) * g * (1 - Math.min(1, boost))
     });

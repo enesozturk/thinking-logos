@@ -11,7 +11,6 @@ import type { LogoPointSet } from './engine/cloud';
 import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
-  buildGlobe,
   frameLogoAssemble,
   frameLogoOrbit,
   frameLogoScan,
@@ -118,12 +117,11 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       breatheInk: 0.14,
       tiltAmp: 0.34,
       sphereR: 0.94,
-      meridians: 6,
-      parallels: 5,
-      scanRate: 2.1,
-      scanWidth: 0.5,
-      dimBase: 0.55,
-      rBoost: 1,
+      scanRate: 1.9,
+      scanWidth: 0.22,
+      dimBase: 0.4,
+      rBoost: 1.3,
+      scanInk: 0.3,
       rBase: 0.5,
       rDepth: 1.4,
       inkFar: 0.6,
@@ -301,13 +299,11 @@ export function resolveLogo(
   const opts = { ...preset.opts, ...overrides };
   // The constellation graph costs a farthest-point pass and a quadratic
   // edge test, so it is only built for the one state that reads it.
-  const globe =
-    mode === 'scan' ? buildGlobe(points, opts.meridians ?? 6, opts.parallels ?? 5) : undefined;
   return {
     mode,
     frame: LOGO_MODE_FRAMES[mode],
     speed: preset.speed,
     opts,
-    binding: { points, seats: seatMap(points), globe }
+    binding: { points, seats: seatMap(points) }
   };
 }
