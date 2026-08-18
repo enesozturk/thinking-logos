@@ -2,6 +2,7 @@ import React from 'react';
 import { ThinkingLogo } from '../../src/ThinkingLogo';
 import type { LogoState } from '../../src/logoPresets';
 import { BRANDS } from '../brands';
+import { Card } from '@/components/ui/card';
 
 // The grid's real job: show that these are seven distinct MOTIONS on the
 // same kind of object, not one animation with seven labels.
@@ -39,7 +40,7 @@ const LAYOUT: Record<string, { h: number; sm?: boolean }> = {
 
 export function BrandGrid() {
   return (
-    <section className="w-full mb-10" aria-label="Brand examples">
+    <section className="mb-10 w-full" aria-label="Brand examples">
       {/* CSS multi-column rather than a grid: it is the one layout primitive
           that packs items of differing heights without measuring them, so
           the cards can be any size and the columns still balance. */}
@@ -49,10 +50,10 @@ export function BrandGrid() {
           const size = l.sm ? SMALL : BIG;
           const source = b.svg ? { svg: b.svg } : { path: b.path };
           return (
-            <div
+            <Card
               key={b.key}
               style={{ height: l.h }}
-              className="mb-3 break-inside-avoid flex flex-col items-center justify-center gap-3 rounded-2xl bg-(--surface) max-sm:!h-[200px]"
+              className="mb-3 flex break-inside-avoid items-center justify-center gap-3 max-sm:!h-[200px]"
             >
               <ThinkingLogo
                 logo={source}
@@ -60,10 +61,10 @@ export function BrandGrid() {
                 size={size}
                 tint={`#${b.hex}`}
               />
-              <span className="text-[13px] leading-none text-(--chip-color)">
-                {b.title} <span className="opacity-50">{b.verb.toLowerCase()}…</span>
+              <span className="text-[13px] leading-none text-muted-foreground">
+                <span className="text-foreground">{b.title}</span> {b.verb.toLowerCase()}…
               </span>
-            </div>
+            </Card>
           );
         })}
       </div>

@@ -6,6 +6,18 @@ import type { LogoState } from '../../src/logoPresets';
 import type { LogoSource } from '../../src/bake/bake';
 import { BRANDS } from '../brands';
 import { CopyButton } from './CopyButton';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const STATES: LogoState[] = [
   'thinking',
@@ -24,16 +36,47 @@ const SHELLS: ShellMode[] = ['dome', 'flat', 'slab'];
 // way to catch a bake that only works when it is big.
 const SHIP_SIZES = [64, 44, 20];
 
-const tabBase =
-  'h-8 px-3 rounded-full text-[13px] leading-none transition-colors cursor-pointer bg-(--tab-bg) text-(--tab-color) hover:bg-(--tab-hover-bg) hover:text-(--tab-hover-color)';
-const tabOn = 'bg-(--tab-active-bg) text-(--tab-active-color) shadow-(--tab-active-shadow)';
-
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <span className="w-16 shrink-0 text-[13px] text-(--footer-muted)">{label}</span>
-      <div className="flex items-center gap-1.5 flex-wrap">{children}</div>
+    <div className="flex flex-wrap items-center gap-3">
+      <Label className="w-16 shrink-0 text-muted-foreground">{label}</Label>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
     </div>
+  );
+}
+
+/**
+ * A single-select toggle group.
+ *
+ * Base UI's group is already single-select, but it still reports an array.
+ * Wrapping it once keeps that shape out of the four places this is used,
+ * and ignoring the empty array means clicking the active option cannot
+ * leave the control with nothing selected.
+ */
+function Picker<T extends string>({
+  value,
+  onChange,
+  options
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: readonly T[];
+}) {
+  return (
+    <ToggleGroup
+      value={[value]}
+      onValueChange={(v) => {
+        if (v.length) onChange(v[v.length - 1] as T);
+      }}
+      size="sm"
+      spacing={1}
+    >
+      {options.map((o) => (
+        <ToggleGroupItem key={o} value={o} className="px-3">
+          {o}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }
 
@@ -67,7 +110,7 @@ export function LogoLab() {
   // Identity matters: `useBakedLogo` re-bakes when the option VALUES change,
   // and a fresh object here every render would be harmless but noisy.
   const bakeOpts = useMemo(() => ({ style, shell, count }), [style, shell, count]);
-  // `dwell` is how long the working form — orb, cube, globe, body — gets
+  // `dwell` is how long the working form — orb, cube, sphere, body — gets
   // before the mark interrupts it. Null means "leave the state's default".
   const tune = useMemo(() => {
     if (dwell === null && morph === null) return undefined;
@@ -107,12 +150,10 @@ export function LogoLab() {
     .join('\n');
 
   return (
-    <section className="w-full mb-10" aria-label="Playground">
-      <h2 className="text-base font-normal leading-[34px] text-(--section-title-color) mb-3">
-        Playground
-      </h2>
+    <section className="mb-10 w-full" aria-label="Playground">
+      <h2 className="mb-3 text-base leading-[34px]">Playground</h2>
 
-      <div
+      <Card
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -124,14 +165,12 @@ export function LogoLab() {
           const file = e.dataTransfer.files[0];
           if (file) void accept(file);
         }}
-        className={`rounded-2xl bg-(--panel-bg) p-6 transition-shadow ${
-          dragging ? 'shadow-[inset_0_0_0_2px_var(--tab-active-color)]' : ''
-        }`}
+        className={`p-6 transition-shadow ${dragging ? 'ring-2 ring-ring' : ''}`}
       >
         <div className="flex items-start gap-8 max-md:flex-col">
           {/* preview */}
-          <div className="flex flex-col items-center gap-5 shrink-0">
-            <div className="flex items-center justify-center size-[180px] rounded-2xl bg-(--surface)">
+          <div className="flex shrink-0 flex-col items-center gap-5">
+            <div className="flex size-[180px] items-center justify-center rounded-xl bg-muted">
               <ThinkingLogo
                 logo={source}
                 state={state}
@@ -149,40 +188,39 @@ export function LogoLab() {
               {SHIP_SIZES.map((s) => (
                 <div key={s} className="flex flex-col items-center gap-1.5">
                   <ThinkingLogo logo={source} state={state} size={s} tint={tint} bake={bakeOpts} tune={tune} />
-                  <span className="text-[11px] text-(--footer-muted)">{s}px</span>
+                  <span className="text-[11px] text-muted-foreground">{s}px</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* controls */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
             <Row label="Mark">
               {custom ? (
                 <>
-                  <span className="h-8 px-3 rounded-full text-[13px] leading-8 bg-(--tab-active-bg) text-(--tab-active-color)">
-                    {custom.name}
-                  </span>
-                  <button type="button" className={tabBase} onClick={() => setCustom(null)}>
+                  <span className="text-[13px]">{custom.name}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setCustom(null)}>
                     clear
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <select
-                  value={brandKey}
-                  onChange={(e) => setBrandKey(e.target.value)}
-                  className="h-8 px-3 rounded-full text-[13px] bg-(--tab-bg) text-(--tab-active-color) cursor-pointer"
-                >
-                  {BRANDS.map((b) => (
-                    <option key={b.key} value={b.key}>
-                      {b.title}
-                    </option>
-                  ))}
-                </select>
+                <Select value={brandKey} onValueChange={(v) => setBrandKey(v as string)}>
+                  <SelectTrigger size="sm" className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BRANDS.map((b) => (
+                      <SelectItem key={b.key} value={b.key}>
+                        {b.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-              <button type="button" className={tabBase} onClick={() => fileRef.current?.click()}>
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
                 drop or pick an SVG…
-              </button>
+              </Button>
               <input
                 ref={fileRef}
                 type="file"
@@ -196,146 +234,113 @@ export function LogoLab() {
             </Row>
 
             <Row label="State">
-              {STATES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`${tabBase} ${state === s ? tabOn : ''}`}
-                  onClick={() => setState(s)}
-                >
-                  {s}
-                </button>
-              ))}
+              <Picker value={state} onChange={setState} options={STATES} />
             </Row>
 
             <Row label="Style">
-              {STYLES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`${tabBase} ${style === s ? tabOn : ''}`}
-                  onClick={() => setStyle(s)}
-                >
-                  {s}
-                </button>
-              ))}
+              <Picker value={style} onChange={setStyle} options={STYLES} />
             </Row>
 
             <Row label="Shell">
-              {SHELLS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`${tabBase} ${shell === s ? tabOn : ''}`}
-                  onClick={() => setShell(s)}
-                >
-                  {s}
-                </button>
-              ))}
+              <Picker value={shell} onChange={setShell} options={SHELLS} />
             </Row>
 
             <Row label="Dots">
-              <input
-                type="range"
+              <Slider
+                className="w-48"
                 min={40}
                 max={900}
                 step={10}
                 value={count}
-                onChange={(e) => setCount(Number(e.target.value))}
-                className="w-48 accent-(--tab-active-color)"
+                onValueChange={(v) => setCount(Array.isArray(v) ? v[0] : v)}
               />
-              <span className="text-[13px] text-(--footer-muted) tabular-nums">
+              <span className="text-[13px] tabular-nums text-muted-foreground">
                 {count} asked · {baked ? baked.n : '—'} placed
               </span>
             </Row>
 
             <Row label="Dwell">
-              <input
-                type="range"
+              <Slider
+                className="w-48"
                 min={1}
                 max={10}
                 step={0.5}
                 value={dwell ?? dwells}
-                onChange={(e) => setDwell(Number(e.target.value))}
-                className="w-48 accent-(--tab-active-color)"
+                onValueChange={(v) => setDwell(Array.isArray(v) ? v[0] : v)}
               />
-              <span className="text-[13px] text-(--footer-muted) tabular-nums">
+              <span className="text-[13px] tabular-nums text-muted-foreground">
                 {(dwell ?? dwells).toFixed(1)}s in the working form
               </span>
               {dwell !== null && (
-                <button type="button" className={tabBase} onClick={() => setDwell(null)}>
+                <Button variant="ghost" size="sm" onClick={() => setDwell(null)}>
                   reset
-                </button>
+                </Button>
               )}
             </Row>
 
             <Row label="Morph">
-              <input
-                type="range"
+              <Slider
+                className="w-48"
                 min={0.4}
                 max={4}
                 step={0.1}
                 value={morph ?? 1.9}
-                onChange={(e) => setMorph(Number(e.target.value))}
-                className="w-48 accent-(--tab-active-color)"
+                onValueChange={(v) => setMorph(Array.isArray(v) ? v[0] : v)}
               />
-              <span className="text-[13px] text-(--footer-muted) tabular-nums">
+              <span className="text-[13px] tabular-nums text-muted-foreground">
                 {(morph ?? 1.9).toFixed(1)}s each way, into and out of the mark
               </span>
               {morph !== null && (
-                <button type="button" className={tabBase} onClick={() => setMorph(null)}>
+                <Button variant="ghost" size="sm" onClick={() => setMorph(null)}>
                   reset
-                </button>
+                </Button>
               )}
             </Row>
 
             <Row label="Colour">
-              <button
-                type="button"
-                className={`${tabBase} ${tinted ? tabOn : ''}`}
+              <Button
+                variant={tinted ? 'secondary' : 'outline'}
+                size="sm"
                 onClick={() => setTinted((v) => !v)}
                 disabled={!!custom}
               >
                 {custom ? 'monochrome (drop has no brand colour)' : tinted ? 'brand' : 'monochrome'}
-              </button>
+              </Button>
             </Row>
 
             {error && (
-              <p className="text-[13px] leading-5 text-[#ff6b6b]" role="alert">
+              <p className="text-[13px] leading-5 text-destructive" role="alert">
                 {error.message}
               </p>
             )}
             {/* The gap between asked and placed is the shape talking back:
                 a thin mark simply has nowhere to put more dots. */}
             {baked && baked.n < count * 0.75 && (
-              <p className="text-[13px] leading-5 text-(--footer-muted)">
+              <p className="text-[13px] leading-5 text-muted-foreground">
                 {label} only had room for {baked.n} dots at this spacing — the mark is thinner than the
                 count assumes. That is a property of the artwork, not a failed bake.
               </p>
             )}
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="flex items-start bg-(--code-bg) rounded-[10px] mt-3 py-1.5 pr-10 pl-3 overflow-hidden relative">
-        <code className="font-[Roboto_Mono,monospace] text-sm leading-[22px] text-(--code-text) whitespace-pre overflow-x-auto min-w-0 flex-1">
+      <div className="relative mt-3 flex items-start overflow-hidden rounded-lg bg-muted py-1.5 pr-12 pl-3">
+        <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm leading-[22px] whitespace-pre">
           {snippet}
         </code>
-        <CopyButton getText={() => snippet} />
+        <CopyButton className="absolute top-1 right-1" getText={() => snippet} />
       </div>
 
       {baked && (
-        <div className="flex items-center gap-3 mt-3">
-          <span className="text-[13px] text-(--footer-muted)">
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-[13px] text-muted-foreground">
             Baked: {baked.n} points · {(serializeLogo(baked).length / 1024).toFixed(1)} KB of JSON
           </span>
           {/* Copying the point set is the whole production story in one
               button: bake once here, commit the JSON, and the app never
-              ships a rasteriser. The wrapper is sized because CopyButton is
-              absolutely positioned for its usual home in a code block. */}
-          <div className="relative size-9 shrink-0">
-            <CopyButton getText={() => serializeLogo(baked)} />
-          </div>
+              ships a rasteriser. */}
+          <CopyButton getText={() => serializeLogo(baked)} />
         </div>
       )}
     </section>

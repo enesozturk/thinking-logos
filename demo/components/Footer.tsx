@@ -1,12 +1,11 @@
 import React from 'react';
 
-const link =
-  'text-(--footer-name) no-underline transition-colors duration-150 hover:text-(--footer-name-hover)';
+const link = 'text-foreground/70 underline-offset-4 hover:text-foreground hover:underline';
 
 export function Footer() {
   return (
-    <footer className="text-[13px] leading-5 text-center pt-12 pb-8 max-w-[560px]">
-      <p className="text-(--footer-muted)">
+    <footer className="max-w-[560px] pt-12 pb-8 text-center text-[13px] leading-5 text-muted-foreground">
+      <p>
         Built on{' '}
         <a className={link} href="https://github.com/Jakubantalik/thinking-orbs" target="_blank" rel="noopener noreferrer">
           thinking-orbs
@@ -21,7 +20,7 @@ export function Footer() {
         </a>
         . MIT.
       </p>
-      <p className="mt-3 text-(--footer-muted) opacity-70">
+      <p className="mt-3 opacity-80">
         Brand marks are shown to illustrate what the library does with artwork you already own. The
         icon paths come from{' '}
         <a className={link} href="https://simpleicons.org" target="_blank" rel="noopener noreferrer">

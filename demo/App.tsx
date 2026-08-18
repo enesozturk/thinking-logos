@@ -23,13 +23,13 @@ import points from './logo.json';
 
 function CodeBlock({ title, code }: { title: string; code: string }) {
   return (
-    <section className="w-full mb-6" aria-label={title}>
-      <h2 className="text-base font-normal leading-[34px] text-(--section-title-muted) mb-1">{title}</h2>
-      <div className="flex items-start bg-(--code-bg) rounded-[10px] py-1.5 pr-10 pl-3 overflow-hidden relative">
-        <code className="font-[Roboto_Mono,monospace] text-sm leading-[22px] text-(--code-text) whitespace-pre overflow-x-auto min-w-0 flex-1">
+    <section className="mb-6 w-full" aria-label={title}>
+      <h2 className="mb-1 text-base leading-[34px] text-muted-foreground">{title}</h2>
+      <div className="relative flex items-start overflow-hidden rounded-lg bg-muted py-1.5 pr-12 pl-3">
+        <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm leading-[22px] whitespace-pre">
           {code}
         </code>
-        <CopyButton getText={() => code} />
+        <CopyButton className="absolute top-1 right-1" getText={() => code} />
       </div>
     </section>
   );
@@ -39,7 +39,7 @@ export function App() {
   const [theme, toggleTheme] = useTheme();
 
   return (
-    <main className="flex flex-col items-center max-w-[883px] mx-auto w-full px-6 pb-16 max-sm:px-4 max-sm:pb-12">
+    <main className="mx-auto flex w-full max-w-[883px] flex-col items-center px-6 pb-16 max-sm:px-4 max-sm:pb-12">
       <Header theme={theme} onToggleTheme={toggleTheme} />
       <BrandGrid />
       <LogoLab />

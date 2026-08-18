@@ -12,6 +12,10 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./demo/*"]
+    },
     "allowSyntheticDefaultImports": true
   },
   "include": ["src"],
