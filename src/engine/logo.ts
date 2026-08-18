@@ -455,7 +455,7 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
  * is a bare orb dissolving, `searching` a surface being swept, `breathing`
  * a body changing shape. This one is a body with something in orbit.
  */
-export const frameLogoOrbit: ModeFrame = (size, t, o, logo) => {
+export const frameLogoWork: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
   const seats = logo.seats;

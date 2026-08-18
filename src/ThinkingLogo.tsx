@@ -23,10 +23,11 @@ import { useBakedLogo } from './useBakedLogo';
 const LABELS: Record<LogoState, string> = {
   thinking: 'Thinking…',
   searching: 'Searching…',
-  orbiting: 'Working…',
+  working: 'Working…',
   solving: 'Solving…',
   listening: 'Listening…',
-  breathing: 'Thinking…'
+  waiting: 'Waiting…',
+  generating: 'Generating…'
 };
 
 export interface ThinkingLogoProps extends Omit<CanvasHTMLAttributes<HTMLCanvasElement>, 'style'> {

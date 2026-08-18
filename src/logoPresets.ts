@@ -12,19 +12,20 @@ import type { LogoBinding, ModeFrame } from './engine/types';
 import type { ModeOpts } from './engine/profiles';
 import {
   frameLogoAssemble,
-  frameLogoOrbit,
+  frameLogoWork,
   frameLogoScan,
   seatMap
 } from './engine/logo';
-import { frameLogoBreathe, frameLogoSolve, frameLogoWave } from './engine/logoDeform';
+import { frameLogoCanvas, frameLogoSolve, frameLogoWait, frameLogoWave } from './engine/logoDeform';
 
 export type LogoMode =
   | 'assemble'
   | 'scan'
-  | 'orbit'
+  | 'work'
   | 'solve'
   | 'wave'
-  | 'breathe';
+  | 'wait'
+  | 'canvas';
 
 /**
  * What the mark is doing.
@@ -37,27 +38,30 @@ export type LogoMode =
 export type LogoState =
   | 'thinking'
   | 'searching'
-  | 'orbiting'
+  | 'working'
   | 'solving'
   | 'listening'
-  | 'breathing';
+  | 'waiting'
+  | 'generating';
 
 export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   thinking: 'assemble',
   searching: 'scan',
-  orbiting: 'orbit',
+  working: 'work',
   solving: 'solve',
   listening: 'wave',
-  breathing: 'breathe'
+  waiting: 'wait',
+  generating: 'canvas'
 };
 
 export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   assemble: frameLogoAssemble,
   scan: frameLogoScan,
-  orbit: frameLogoOrbit,
+  work: frameLogoWork,
   solve: frameLogoSolve,
   wave: frameLogoWave,
-  breathe: frameLogoBreathe
+  wait: frameLogoWait,
+  canvas: frameLogoCanvas
 };
 
 export interface LogoPreset {
@@ -120,7 +124,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rMin: 0.3
     }
   },
-  orbit: {
+  work: {
     speed: 1,
     opts: {
       dwell: 4,
@@ -199,7 +203,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rMin: 0.3
     }
   },
-  breathe: {
+  wait: {
     speed: 1,
     opts: {
       dwell: 4,
@@ -221,6 +225,37 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       loudInk: 0.12,
       rBase: 0.55,
       rDepth: 1.4,
+      inkFar: 0.6,
+      inkSpan: 0.5,
+      inkRim: 0.16,
+      rsPow: 0.6,
+      rMin: 0.3
+    }
+  },
+  canvas: {
+    speed: 1,
+    opts: {
+      dwell: 4.5,
+      morph: 1.9,
+      expo: 0.3,
+      settle: 0.1,
+      turns: 0,
+      yawAmp: 0.12,
+      yawRate: 0.28,
+      tilt: 0.08,
+      cols: 22,
+      rows: 15,
+      wide: 1.22,
+      tall: 0.86,
+      period: 2.6,
+      resolve: 0.62,
+      stagger: 0.55,
+      spread: 0.55,
+      depth: 0.5,
+      grainR: 0.3,
+      grainInk: 0.16,
+      rBase: 0.55,
+      rDepth: 1.3,
       inkFar: 0.6,
       inkSpan: 0.5,
       inkRim: 0.16,

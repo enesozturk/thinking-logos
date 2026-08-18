@@ -241,7 +241,7 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
  * than something being zoomed. That antiphase is the whole trick; a body
  * that simply grows and shrinks reads as a beating heart, not a breath.
  */
-export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
+export const frameLogoWait: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
   const seats = logo.seats;
@@ -307,6 +307,98 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
       z,
       r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.loudR ?? 0.25) * loud * c) * rs,
       white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.12) * loud * c
+    });
+  }
+  return finalizeFrame(dots, [], o.rMin);
+};
+
+// --- Generating: logo → a canvas resolving out of noise → logo ---------
+
+/**
+ * The mark becomes a flat rectangular canvas whose dots repeatedly scatter
+ * into noise and settle back into their grid.
+ *
+ * Every other state here is a solid turning in space. Generation is not
+ * that: it is a picture arriving, and the picture arrives the way diffusion
+ * models actually make one — out of noise, in a few passes, resolving
+ * rather than being drawn. So this form is deliberately FLAT and
+ * rectangular, the only state that is, because a canvas is a canvas and
+ * making it a sphere would be decorating the wrong idea.
+ *
+ * Colour carries it as much as position. A dot still resolving is neutral
+ * grey — unsettled material — and takes on the brand tint as it lands, so
+ * the canvas visibly develops rather than merely tidying itself up.
+ */
+export const frameLogoCanvas: ModeFrame = (size, t, o, logo) => {
+  if (!logo) return empty();
+  const { p, e, n } = logo.points;
+  const seats = logo.seats;
+  const cx = size / 2;
+  const R = (size / 2) * 0.82;
+  const rs = radiusScale(size, o.rsPow ?? 0.6);
+
+  const b = beatAt(t, o.dwell ?? 4.5, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
+  const m = b.m;
+  const c = 1 - m;
+
+  // Barely any camera. A canvas read at an angle is a canvas read wrong,
+  // and the whole point of the form is that it is flat.
+  const pt = makeProj(
+    (o.yawAmp ?? 0.12) * Math.sin(t * (o.yawRate ?? 0.28)) * c,
+    (o.tilt ?? 0.08) * c,
+    cx,
+    cx,
+    R
+  );
+
+  const cols = Math.max(2, Math.round(o.cols ?? 22));
+  const rows = Math.max(2, Math.round(o.rows ?? 15));
+  const wide = o.wide ?? 1.22;
+  const tall = o.tall ?? 0.86;
+
+  // One pass of the sampler per `period`, held resolved for the tail of it
+  // so the finished picture is actually seen before it dissolves again.
+  const phase = (t / (o.period ?? 2.6)) % 1;
+  const settle = smoothE(clamp01(phase / (o.resolve ?? 0.62)));
+  const noise = 1 - settle;
+
+  const dots: Dot[] = [];
+  for (let i = 0; i < n; i++) {
+    const seat = seats[i];
+    const col = seat % cols;
+    const row = Math.floor(seat / cols) % rows;
+
+    const gx = (col / (cols - 1) - 0.5) * wide;
+    const gy = (row / (rows - 1) - 0.5) * tall;
+
+    // Each dot has its own place in the queue, so the picture resolves in
+    // patches rather than everywhere at once — which is what the process
+    // being depicted actually looks like.
+    const own = clamp01((settle - hashD(i, 3.1) * (o.stagger ?? 0.55)) / (1 - (o.stagger ?? 0.55)));
+    const loose = 1 - smoothE(own);
+    const spread = o.spread ?? 0.55;
+
+    const bx = gx + (hashD(i, 5.9) - 0.5) * spread * loose;
+    const by = gy + (hashD(i, 7.7) - 0.5) * spread * loose;
+    const bz = (hashD(i, 9.3) - 0.5) * (o.depth ?? 0.5) * loose;
+
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
+    const x = lx + (bx - lx) * c;
+    const y = ly + (by - ly) * c;
+    const z3 = lz + (bz - lz) * c;
+
+    const [px, py, z] = pt(x, y, z3);
+    const zx = clamp01((z + 1) / 2);
+    dots.push({
+      x: px,
+      y: py,
+      z,
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.3) * zx + (o.grainR ?? 0.3) * loose * c) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.grainInk ?? 0.16) * loose * c,
+      // Grey while unsettled, the brand's colour once it has landed.
+      k: 1 - loose * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);

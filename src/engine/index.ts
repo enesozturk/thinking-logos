@@ -26,13 +26,13 @@ export type { Dot, Line, OrbFrame, ModeFrame, ModeDraw, LogoBinding } from './ty
 // orb modes, and never needs an SVG rasteriser of its own.
 export {
   frameLogoAssemble,
-  frameLogoOrbit,
+  frameLogoWork,
   frameLogoScan,
   seatMap,
   beatAt,
   expoInOut
 } from './logo';
-export { frameLogoBreathe, frameLogoSolve, frameLogoWave } from './logoDeform';
+export { frameLogoCanvas, frameLogoWait, frameLogoSolve, frameLogoWave } from './logoDeform';
 export { resolveLogo, LOGO_PRESETS, LOGO_MODE_FRAMES, LOGO_STATE_TO_MODE } from '../logoPresets';
 export type { LogoMode, LogoState, LogoPreset, ResolvedLogo } from '../logoPresets';
 export type { LogoPointSet, LogoStyle, ShellMode, SeatMap } from './cloud';

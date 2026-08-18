@@ -157,8 +157,15 @@ function App() {
         tint={tint}
       />
       <Strip points={cube} state="solving" times={solve} note="GitHub — the busy-mark hard case" />
-      <Strip points={points} state="orbiting" times={globe} note="logo → a ringed planet → logo" tint={tint} />
-      <Strip points={points} state="breathing" times={globe} note="logo → a bellows of stacked rings → logo" tint={tint} />
+      <Strip points={points} state="working" times={globe} note="logo → a ringed planet → logo" tint={tint} />
+      <Strip points={points} state="waiting" times={globe} note="logo → a bellows of stacked rings → logo" tint={tint} />
+      <Strip
+        points={points}
+        state="generating"
+        times={globe}
+        note="logo → a canvas resolving out of noise → logo"
+        tint={tint}
+      />
     </main>
   );
 }

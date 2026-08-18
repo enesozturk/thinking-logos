@@ -15,6 +15,7 @@ import xMark from './marks/x.svg?raw';
 import {
   siClaude,
   siGithub,
+  siGooglegemini,
   siLinear,
   siSpotify,
   siX,
@@ -63,11 +64,12 @@ export const BRANDS: Brand[] = [
   // brand's own asset, and `svg` exists precisely so a caller is never
   // forced to reduce their mark to one path to use this.
   { ...brand(siClaude, 'claude', 'Thinking', 'medium'), svg: claudeMark },
-  { ...brand(siX, 'x', 'Orbiting', 'simple'), svg: xMark },
-  brand(siSupabase, 'supabase', 'Breathing', 'simple'),
+  { ...brand(siX, 'x', 'Working', 'simple'), svg: xMark },
+  brand(siSupabase, 'supabase', 'Waiting', 'simple'),
   brand(siLinear, 'linear', 'Searching', 'medium'),
   brand(siSpotify, 'spotify', 'Listening', 'medium'),
-  brand(siGithub, 'github', 'Solving', 'busy')
+  brand(siGithub, 'github', 'Solving', 'busy'),
+  { ...brand(siGooglegemini, 'gemini', 'Generating', 'simple'), title: 'Gemini' }
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

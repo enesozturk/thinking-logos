@@ -24,8 +24,9 @@ const STATES: LogoState[] = [
   'solving',
   'listening',
   'searching',
-  'orbiting',
-  'breathing'
+  'working',
+  'waiting',
+  'generating'
 ];
 const COLOURS = ['brand', 'monochrome'] as const;
 
