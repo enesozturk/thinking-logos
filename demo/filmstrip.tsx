@@ -134,11 +134,11 @@ function App() {
         points={points}
         state="thinking"
         times={rise}
-        note="THE MORPH — must now match listening exactly"
+        note="THE MORPH — no growth beat, straight in and out"
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
-      <Strip points={points} state="working" times={globe} note="logo → an armillary of rings, with couriers → logo" tint={tint} />
+      <Strip points={points} state="working" times={globe} note="logo → a turning torus, with couriers → logo" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip
         points={points}

@@ -130,7 +130,6 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
     t,
     o.dwell ?? 4,
     o.morph ?? 1.9,
-    o.breathDur ?? 0.35,
     o.turns ?? 1,
     o.settle ?? 0.1,
     o.expo ?? 0.3
@@ -174,10 +173,9 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
       r:
         ((o.rBase ?? 0.5) +
           (o.rDepth ?? 1.4) * zx +
-          (o.rBoost ?? 1.3) * boost +
-          (o.breatheR ?? 0.22) * b.breath) *
+          (o.rBoost ?? 1.3) * boost) *
         rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.breatheInk ?? 0.14) * b.breath - (o.scanInk ?? 0.3) * boost,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.scanInk ?? 0.3) * boost,
       // Un-swept dots dim only once the sphere has formed, so the mark
       // itself is never shown at partial opacity.
       a: 1 - (1 - dimBase) * g * (1 - Math.min(1, boost))
@@ -186,47 +184,57 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: logo → an armillary of rings, with couriers → logo --------
+// --- Unrest: logo → a turning torus, with couriers → logo --------------
 
 /**
- * The ring a dot rides, as a plane basis.
+ * A point on a torus, distributed by AREA rather than by parameter.
  *
- * Every ring is a great circle of the SAME sphere, and their axes come from
- * the Fibonacci lattice rather than from a hash. Both choices exist to make
- * the rings read as one object. Randomised inclinations at differing radii
- * — which is what this was first — give a scatter of unrelated ellipses;
- * evenly spread axes on a common radius give an armillary sphere, a thing
- * with a centre and a surface that the eye immediately reads as solid.
+ * Stepping the minor angle uniformly is the obvious thing and it is wrong:
+ * a torus has more surface on its outer rim than in its throat, in
+ * proportion to `R + r·cos v`, so uniform steps pile dots into the hole and
+ * starve the outside. The fix is to invert that density — solve
+ * `v + a·sin v = 2πξ` for v, which Newton does to well under a pixel in
+ * three passes from a good first guess.
+ *
+ * Worth the twenty lines. Even spacing is the difference between a solid
+ * that looks manufactured and one that looks like a mistake, and it is the
+ * same complaint that retired the wireframe globe.
  */
-function ringBasis(ring: number, rings: number): [number, number, number, number, number, number] {
-  const [nx, ny, nz] = fibDir(ring, rings);
-  let ux = -ny;
-  let uy = nx;
-  const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy));
-  ux /= ul;
-  uy /= ul;
-  // v = n × u, completing an orthonormal basis for the ring's plane.
-  return [ux, uy, ny * 0 - nz * uy, nz * ux - nx * 0, nx * uy - ny * ux, 0];
+function torusSeat(
+  i: number,
+  n: number,
+  major: number,
+  minor: number,
+  spin: number
+): [number, number, number] {
+  const a = minor / major;
+  const target = TURN * ((i + 0.5) / n);
+  let v = target;
+  for (let k = 0; k < 3; k++) {
+    v -= (v + a * Math.sin(v) - target) / (1 + a * Math.cos(v));
+  }
+  // Golden angle around the ring: it never repeats, so no seam forms where
+  // the winding closes.
+  const u = i * (Math.PI * (3 - Math.sqrt(5))) + spin;
+  const ring = major + minor * Math.cos(v);
+  return [ring * Math.cos(u), minor * Math.sin(v), ring * Math.sin(u)];
 }
 
 /**
- * The mark becomes an armillary of turning rings, with a few bright
- * couriers breaking away in sequence to cross the sphere and burn out.
+ * The mark becomes a slowly turning torus, with a few bright couriers
+ * breaking away to cross it and burn out on the far side.
  *
- * Rings are the one form none of the other states use — not a solid like
- * the orb, the cube or the breathing body, not a surface like the globe,
- * but open paths. That reads as machinery in a way a ball never does, which
- * is what `working` should say.
+ * Rings were tried first — seven great circles of a sphere — and they never
+ * settled into one object. Fibonacci-spread inclinations give seven planes
+ * that each look right alone and read as a tangle together, and no amount
+ * of shared spin rate fixed it, because the problem was that there was
+ * nothing for the eye to hold on to.
  *
- * The couriers only work because they have somewhere to be. Earlier
- * versions had them arriving from off-frame, or hopping between seats of a
- * stationary logo; both spent most of their motion in dead space. Crossing
- * from one ring of a visible solid to another, a courier is legible for its
- * whole life.
- *
- * They also launch in order rather than at random. Independent phases look
- * like interference; a wave travelling around the rings looks like a
- * mechanism, and a mechanism is the thing being depicted.
+ * A torus is the opposite: one closed surface, unmistakably solid, with a
+ * hole that announces its orientation from any angle. Turning about its own
+ * axis it reads as a wheel doing work — which is what this state is for —
+ * and it stays completely stable while doing it. It is also the only form
+ * here that is not a variation on a ball.
  */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -236,78 +244,57 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.breathDur ?? 0.35, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
-  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
-  const pt = makeProj(
-    (o.yawAmp ?? 0.32) * Math.sin(t * (o.yawRate ?? 0.32)) * c,
-    (o.tiltAmp ?? 0.26) * c,
-    cx,
-    cx,
-    R
-  );
+  // A fixed tilt while the torus is showing, easing to nothing as the mark
+  // arrives. Held at a constant angle rather than oscillating: the hole is
+  // the whole silhouette, and a wandering camera keeps changing how open it
+  // looks, which is exactly the instability rings suffered from.
+  const pt = makeProj((o.yawAmp ?? 0.16) * Math.sin(t * (o.yawRate ?? 0.3)) * c, (o.tilt ?? 0.62) * c, cx, cx, R);
 
-  const rings = Math.max(2, Math.round(o.rings ?? 7));
-  const perRing = Math.ceil(n / rings);
-  const ro = o.ringR ?? 0.92;
-  // One shared rate and one shared direction. Per-ring speeds were tried
-  // and they fight: the rings drift out of phase and the solid comes apart
-  // into loose hoops.
-  const spin = t * (o.ringSpin ?? 0.42);
-  const share = o.courierShare ?? 0.16;
+  const major = o.major ?? 0.68;
+  const minor = o.minor ?? 0.3;
+  const spin = t * (o.spin ?? 0.5);
+  const share = o.courierShare ?? 0.14;
   const rate = o.courierRate ?? 0.26;
+  const arc = o.arc ?? 0.55;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
-    const ring = seat % rings;
-    const [ux, uy, vx, vy, vz] = ringBasis(ring, rings);
+    let [bx, by, bz] = torusSeat(seat, n, major, minor, spin);
 
-    // Evenly spaced along the ring rather than hashed: a hashed angle
-    // clumps, and a clumped ring stops looking like a path.
-    const slot = Math.floor(seat / rings) / perRing;
-    const ang = slot * TURN + spin;
-    const ca = Math.cos(ang);
-    const sa = Math.sin(ang);
-
-    let bx = (ux * ca + vx * sa) * ro;
-    let by = (uy * ca + vy * sa) * ro;
-    let bz = vz * sa * ro;
-
-    // A courier leaves its ring, crosses the sphere to another, and burns
-    // out there before reappearing where it started. The launch order runs
-    // ring by ring and then around each ring, so departures travel across
-    // the object as a wave.
+    // A courier lifts off the surface, crosses to another point on it, and
+    // burns out there before reappearing where it started. The launch order
+    // follows the seat index, so departures travel round the ring as a wave
+    // rather than popping at random.
     let courier = 0;
     let fade = 1;
     if (hashD(i, 6.7) < share) {
-      const order = ring / rings + slot * (o.wave ?? 0.35);
-      const phase = (t * rate + order) % 1;
+      const phase = (t * rate + seat / n) % 1;
       const fly = clamp01(phase / 0.6);
       courier = smoothE(fly);
       fade = phase < 0.6 ? 1 : 1 - clamp01((phase - 0.6) / 0.24);
 
       const tSeat = seats[(i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n];
-      const tRing = tSeat % rings;
-      const [tux, tuy, tvx, tvy, tvz] = ringBasis(tRing, rings);
-      const tAng = (Math.floor(tSeat / rings) / perRing) * TURN + spin;
-      const tca = Math.cos(tAng);
-      const tsa = Math.sin(tAng);
-
-      const gx = (tux * tca + tvx * tsa) * ro;
-      const gy = (tuy * tca + tvy * tsa) * ro;
-      const gz = tvz * tsa * ro;
-
+      const [gx, gy, gz] = torusSeat(tSeat, n, major, minor, spin);
       bx += (gx - bx) * courier;
       by += (gy - by) * courier;
       bz += (gz - bz) * courier;
+
+      // Bow the path clear of the surface. A chord through a torus passes
+      // straight through the material and the courier is lost inside it.
+      const lift = 1 + arc * Math.sin(Math.PI * courier);
+      bx *= lift;
+      by *= lift;
+      bz *= lift;
     }
 
-    const lx = p[i * 3] * puff;
-    const ly = p[i * 3 + 1] * puff;
-    const lz = p[i * 3 + 2] * puff;
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
     const x = lx + (bx - lx) * c;
     const y = ly + (by - ly) * c;
     const z3 = lz + (bz - lz) * c;
@@ -389,8 +376,6 @@ function cruise(x: number, edge: number): number {
 export interface Beat {
   /** 0 = working form, 1 = the mark. */
   m: number;
-  /** One smooth 0 → 1 → 0 pulse while the mark is showing. */
-  breath: number;
   /** Whole turns completed; lands on an integer before the mark appears. */
   turns: number;
   /** Seconds into the working-form dwell — what `solve` and `scan` run on. */
@@ -400,24 +385,20 @@ export interface Beat {
 }
 
 /**
- * The cycle: dwell in the working form, morph to the mark, one breath,
- * morph back.
+ * The cycle: dwell in the working form, morph to the mark, morph back.
  *
- * Four explicit phases rather than a derived envelope, because every one of
- * them turned out to need its own duration, and deriving them from a single
- * bell meant tuning one by distorting the others. Nothing here is flat
- * except the dwell, which is the one pause that is actually wanted — the
- * mark never simply sits, it arrives, breathes once, and leaves.
+ * Explicit phases rather than a derived envelope, because each turned out
+ * to need its own duration, and deriving them from a single bell meant
+ * tuning one by distorting the others. Nothing here is flat except the
+ * dwell, which is the one pause that is actually wanted: the mark is
+ * reached and immediately left, so the morph out begins the instant the
+ * morph in completes.
  *
  * Rotation belongs to the working form. It runs across the dwell and eases
  * out partway through the morph in, so the orb is still turning as it
  * begins to become the mark, then settles. On the way back there is none at
  * all: a whole turn crammed into a short exit is the spin that reads as
  * frantic, and it buys nothing — the form is dissolving anyway.
- *
- * `breathDur` is deliberately small. It is not a pause: the mark is still
- * moving through it, and it exists only so the arrival has somewhere to
- * land before the departure begins.
  *
  * Because the count of turns is a whole number, the mark is always shown at
  * a whole revolution — dead face-on, every cycle — and the cycle closes
@@ -427,38 +408,23 @@ export function beatAt(
   t: number,
   dwell: number,
   morph: number,
-  breathDur: number,
   turns: number,
   settle: number,
   expo = 0.3
 ): Beat {
-  const cycle = dwell + morph * 2 + breathDur;
+  const cycle = dwell + morph * 2;
   const local = t % cycle;
 
   // Rotation spans the dwell plus the first part of the morph in.
   const spinSpan = dwell + morph * settle;
   const spun = turns * cruise(Math.min(1, local / spinSpan), 0.22);
 
-  if (local < dwell) {
-    return { m: 0, breath: 0, turns: spun, workT: local, local, cycle };
-  }
+  if (local < dwell) return { m: 0, turns: spun, workT: local, local, cycle };
   const intoMorph = local - dwell;
   if (intoMorph < morph) {
-    return { m: morphEase(intoMorph / morph, expo), breath: 0, turns: spun, workT: -1, local, cycle };
+    return { m: morphEase(intoMorph / morph, expo), turns: spun, workT: -1, local, cycle };
   }
-  const intoBreath = intoMorph - morph;
-  if (intoBreath < breathDur) {
-    return {
-      m: 1,
-      breath: Math.sin(Math.PI * (intoBreath / breathDur)),
-      turns: spun,
-      workT: -1,
-      local,
-      cycle
-    };
-  }
-  const out = (intoBreath - breathDur) / morph;
-  return { m: morphEase(1 - out, expo), breath: 0, turns: spun, workT: -1, local, cycle };
+  return { m: morphEase(1 - (intoMorph - morph) / morph, expo), turns: spun, workT: -1, local, cycle };
 }
 
 /**
@@ -484,7 +450,6 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     t,
     o.dwell ?? 4,
     o.morph ?? 1.9,
-    o.breathDur ?? 0.35,
     o.turns ?? 1,
     o.settle ?? 0.45,
     o.expo ?? 0.3
@@ -510,7 +475,6 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   const share = o.haloShare ?? 0.12;
   // The mark's whole moment on screen: one quick swell instead of sitting
   // still. Half a second, and then it is already leaving.
-  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -527,9 +491,9 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
     // more now that the orb is where most of the cycle is spent.
     const wob = sphereR * (1 + churn * (vnoise(fx * 2 + t * 0.7, fz * 2) - 0.5) * 2);
 
-    let lx = p[i * 3] * puff;
-    let ly = p[i * 3 + 1] * puff;
-    let lz = p[i * 3 + 2] * puff;
+    let lx = p[i * 3];
+    let ly = p[i * 3 + 1];
+    let lz = p[i * 3 + 2];
 
     let halo = 0;
     if (hashD(i, 6.7) < share) {
@@ -564,10 +528,9 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
       r:
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.5) * zx +
-          (o.haloR ?? 0.22) * halo +
-          (o.breatheR ?? 0.22) * b.breath) *
+          (o.haloR ?? 0.22) * halo) *
         rs,
-      white: inkOf(o, zx, e[i] * mi + (1 - mi)) - (o.breatheInk ?? 0.14) * b.breath,
+      white: inkOf(o, zx, e[i] * mi + (1 - mi)),
       a: 1 - (o.flightFade ?? 0.25) * travel
     });
   }

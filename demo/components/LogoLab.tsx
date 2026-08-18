@@ -30,17 +30,34 @@ const STATES: LogoState[] = [
 ];
 const STYLES: LogoStyle[] = ['fill', 'outline', 'both'];
 const SHELLS: ShellMode[] = ['dome', 'flat', 'slab'];
+const COLOURS = ['brand', 'monochrome'] as const;
 
 // The sizes a loading indicator actually ships at: chat avatar, inline
 // button, and inline text. Showing all three at once is the only reliable
 // way to catch a bake that only works when it is big.
 const SHIP_SIZES = [64, 44, 20];
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+/** Values stay lowercase — they are the prop values a caller will copy. */
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function Row({
+  label,
+  hint,
+  children
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Label className="w-16 shrink-0 text-muted-foreground">{label}</Label>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    <div className="flex flex-wrap items-baseline gap-3">
+      <Label className="w-16 shrink-0 pt-1.5 text-muted-foreground">{label}</Label>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">{children}</div>
+        {hint && <p className="text-[12px] leading-4 text-muted-foreground/70">{hint}</p>}
+      </div>
     </div>
   );
 }
@@ -56,14 +73,17 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Picker<T extends string>({
   value,
   onChange,
-  options
+  options,
+  disabled
 }: {
   value: T;
   onChange: (v: T) => void;
   options: readonly T[];
+  disabled?: boolean;
 }) {
   return (
     <ToggleGroup
+      disabled={disabled}
       value={[value]}
       onValueChange={(v) => {
         if (v.length) onChange(v[v.length - 1] as T);
@@ -72,8 +92,12 @@ function Picker<T extends string>({
       spacing={1}
     >
       {options.map((o) => (
-        <ToggleGroupItem key={o} value={o} className="px-3">
-          {o}
+        <ToggleGroupItem
+          key={o}
+          value={o}
+          className="px-3 text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+        >
+          {cap(o)}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -201,7 +225,7 @@ export function LogoLab() {
                 <>
                   <span className="text-[13px]">{custom.name}</span>
                   <Button variant="ghost" size="sm" onClick={() => setCustom(null)}>
-                    clear
+                    Clear
                   </Button>
                 </>
               ) : (
@@ -219,7 +243,7 @@ export function LogoLab() {
                 </Select>
               )}
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-                drop or pick an SVG…
+                Drop or pick an SVG…
               </Button>
               <input
                 ref={fileRef}
@@ -233,19 +257,19 @@ export function LogoLab() {
               />
             </Row>
 
-            <Row label="State">
+            <Row label="State" hint="What the mark is doing. Each one leaves the logo for a different form and comes back.">
               <Picker value={state} onChange={setState} options={STATES} />
             </Row>
 
-            <Row label="Style">
+            <Row label="Style" hint="How the artwork becomes dots: fill covers it, outline traces its silhouette, both does each.">
               <Picker value={style} onChange={setStyle} options={STYLES} />
             </Row>
 
-            <Row label="Shell">
+            <Row label="Shell" hint="How the flat silhouette is lifted into 3D — inflated, flat, or extruded with a side wall.">
               <Picker value={shell} onChange={setShell} options={SHELLS} />
             </Row>
 
-            <Row label="Dots">
+            <Row label="Dots" hint="The one legibility knob. A thin mark will place fewer than you ask for; that is the artwork talking back.">
               <Slider
                 className="w-48"
                 min={40}
@@ -259,7 +283,7 @@ export function LogoLab() {
               </span>
             </Row>
 
-            <Row label="Dwell">
+            <Row label="Dwell" hint="How long the working form — orb, cube, sphere, body, rings — is shown before the mark interrupts it.">
               <Slider
                 className="w-48"
                 min={1}
@@ -273,12 +297,12 @@ export function LogoLab() {
               </span>
               {dwell !== null && (
                 <Button variant="ghost" size="sm" onClick={() => setDwell(null)}>
-                  reset
+                  Reset
                 </Button>
               )}
             </Row>
 
-            <Row label="Morph">
+            <Row label="Morph" hint="How long the transformation itself takes, in each direction. Full cycle = dwell + 2 × morph + a 0.35s breath.">
               <Slider
                 className="w-48"
                 min={0.4}
@@ -292,20 +316,25 @@ export function LogoLab() {
               </span>
               {morph !== null && (
                 <Button variant="ghost" size="sm" onClick={() => setMorph(null)}>
-                  reset
+                  Reset
                 </Button>
               )}
             </Row>
 
-            <Row label="Colour">
-              <Button
-                variant={tinted ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => setTinted((v) => !v)}
+            <Row
+              label="Colour"
+              hint={
+                custom
+                  ? 'A dropped file carries no brand colour, so it renders monochrome.'
+                  : 'Tinting replaces the hue only — depth still reads through the ink ramp.'
+              }
+            >
+              <Picker
+                value={custom ? 'monochrome' : tinted ? 'brand' : 'monochrome'}
+                onChange={(v) => setTinted(v === 'brand')}
+                options={COLOURS}
                 disabled={!!custom}
-              >
-                {custom ? 'monochrome (drop has no brand colour)' : tinted ? 'brand' : 'monochrome'}
-              </Button>
+              />
             </Row>
 
             {error && (

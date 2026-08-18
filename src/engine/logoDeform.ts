@@ -82,10 +82,9 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
   const half = o.cubeHalf ?? 0.62;
 
   const dwell = o.dwell ?? 5.5;
-  const b = beatAt(t, dwell, o.morph ?? 1.9, o.breathDur ?? 0.35, o.turns ?? 1, o.settle ?? 0.45, o.expo ?? 0.3);
+  const b = beatAt(t, dwell, o.morph ?? 1.9, o.turns ?? 1, o.settle ?? 0.45, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
-  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   const pt = makeProj(Math.PI * 2 * b.turns, (o.tiltAmp ?? 0.36) * c, cx, cx, R);
 
@@ -101,9 +100,9 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
     const [qx, qy, qz] = cubeSeat(seats[i], n, half);
     const [tx, ty, tz, inActive] = applyMoves([qx, qy, qz], moves, sc);
 
-    const lx = p[i * 3] * puff;
-    const ly = p[i * 3 + 1] * puff;
-    const lz = p[i * 3 + 2] * puff;
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
     const x = lx + (tx - lx) * c;
     const y = ly + (ty - ly) * c;
     const z3 = lz + (tz - lz) * c;
@@ -119,10 +118,9 @@ export const frameLogoSolve: ModeFrame = (size, t, o, logo) => {
       r:
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.4) * zx +
-          (inActive ? (o.rActive ?? 0.3) : 0) * c +
-          (o.breatheR ?? 0.22) * b.breath) *
+          (inActive ? (o.rActive ?? 0.3) : 0) * c) *
         rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.breatheInk ?? 0.14) * b.breath
+      white: inkOf(o, zx, e[i] * m + (1 - m))
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -156,10 +154,9 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.breathDur ?? 0.35, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, 0, o.settle ?? 0.45, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
-  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   // Yaw oscillates rather than accumulating and is scaled by the body
   // amount, so it is exactly zero whenever the mark is showing, with no
@@ -198,9 +195,9 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
     const by = fy * tall * lumpy * amp;
     const bz = fz * wide * lumpy;
 
-    const lx = p[i * 3] * puff;
-    const ly = p[i * 3 + 1] * puff;
-    const lz = p[i * 3 + 2] * puff;
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
     const x = lx + (bx - lx) * c;
     const y = ly + (by - ly) * c;
     const z3 = lz + (bz - lz) * c;
@@ -217,10 +214,9 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
       r:
         ((o.rBase ?? 0.55) +
           (o.rDepth ?? 1.5) * zx +
-          (o.loudR ?? 0.3) * loud * c +
-          (o.breatheR ?? 0.22) * b.breath) *
+          (o.loudR ?? 0.3) * loud * c) *
         rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c - (o.breatheInk ?? 0.14) * b.breath
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);
@@ -250,10 +246,9 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.breathDur ?? 0.35, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, 0, o.settle ?? 0.45, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
-  const puff = 1 + (o.breathe ?? 0.07) * b.breath;
 
   const pt = makeProj(
     (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.4)) * c,
@@ -286,9 +281,9 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
     const by = fy * rad;
     const bz = fz * rad;
 
-    const lx = p[i * 3] * puff;
-    const ly = p[i * 3 + 1] * puff;
-    const lz = p[i * 3 + 2] * puff;
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
     const x = lx + (bx - lx) * c;
     const y = ly + (by - ly) * c;
     const z3 = lz + (bz - lz) * c;
