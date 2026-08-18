@@ -23,7 +23,6 @@ import { useBakedLogo } from './useBakedLogo';
 const LABELS: Record<LogoState, string> = {
   thinking: 'Thinking…',
   searching: 'Searching…',
-  working: 'Working…',
   orbiting: 'Working…',
   solving: 'Solving…',
   listening: 'Listening…',

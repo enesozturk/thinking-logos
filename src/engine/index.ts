@@ -28,7 +28,6 @@ export {
   frameLogoAssemble,
   frameLogoOrbit,
   frameLogoScan,
-  frameLogoUnrest,
   seatMap,
   beatAt,
   expoInOut

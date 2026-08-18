@@ -14,7 +14,6 @@ import {
   frameLogoAssemble,
   frameLogoOrbit,
   frameLogoScan,
-  frameLogoUnrest,
   seatMap
 } from './engine/logo';
 import { frameLogoBreathe, frameLogoSolve, frameLogoWave } from './engine/logoDeform';
@@ -22,7 +21,6 @@ import { frameLogoBreathe, frameLogoSolve, frameLogoWave } from './engine/logoDe
 export type LogoMode =
   | 'assemble'
   | 'scan'
-  | 'unrest'
   | 'orbit'
   | 'solve'
   | 'wave'
@@ -39,7 +37,6 @@ export type LogoMode =
 export type LogoState =
   | 'thinking'
   | 'searching'
-  | 'working'
   | 'orbiting'
   | 'solving'
   | 'listening'
@@ -48,7 +45,6 @@ export type LogoState =
 export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   thinking: 'assemble',
   searching: 'scan',
-  working: 'unrest',
   orbiting: 'orbit',
   solving: 'solve',
   listening: 'wave',
@@ -58,7 +54,6 @@ export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
 export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   assemble: frameLogoAssemble,
   scan: frameLogoScan,
-  unrest: frameLogoUnrest,
   orbit: frameLogoOrbit,
   solve: frameLogoSolve,
   wave: frameLogoWave,
@@ -109,46 +104,14 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       settle: 0.1,
       tiltAmp: 0.34,
       sphereR: 0.94,
-      scanRate: 0.52,
-      scanSpan: 2.2,
+      scanRate: 0.85,
+      scanSwing: 1.05,
       scanWidth: 0.22,
       dimBase: 0.4,
       rBoost: 1.3,
       scanInk: 0.3,
       rBase: 0.5,
       rDepth: 1.4,
-      inkFar: 0.6,
-      inkSpan: 0.5,
-      inkRim: 0.16,
-      rsPow: 0.6,
-      rMin: 0.3
-    }
-  },
-  unrest: {
-    speed: 1,
-    opts: {
-      dwell: 4,
-      morph: 1.9,
-      expo: 0.3,
-      settle: 0.1,
-      turns: 0,
-      yawAmp: 0.14,
-      yawRate: 0.28,
-      tilt: 0.34,
-      teeth: 8,
-      toothDepth: 0.34,
-      toothSharp: 2.8,
-      cogR: 0.78,
-      spin: 0.5,
-      courierShare: 0.13,
-      courierRate: 0.3,
-      arc: 0.42,
-      crestR: 0.3,
-      crestInk: 0.14,
-      cargoR: 0.85,
-      cargoInk: 0.32,
-      rBase: 0.5,
-      rDepth: 1.3,
       inkFar: 0.6,
       inkSpan: 0.5,
       inkRim: 0.16,

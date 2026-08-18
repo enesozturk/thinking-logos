@@ -93,9 +93,9 @@ function App() {
   const [cube, setCube] = React.useState<LogoPointSet | null>(null);
   useEffect(() => {
     void bakeLogo({ path: BRAND_BY_KEY.linear.path }, { count: 300, shell: 'dome' }).then(setPoints);
-    // Shopify's bag is the hard case: a busy mark where any motion that
+    // GitHub's mark is the hard case: busy enough that any motion which
     // mangles the silhouette is immediately obvious.
-    void bakeLogo({ path: BRAND_BY_KEY.shopify.path }, { count: 300, shell: 'dome' }).then(setCube);
+    void bakeLogo({ path: BRAND_BY_KEY.github.path }, { count: 300, shell: 'dome' }).then(setCube);
   }, []);
   if (!points || !cube) return <div style={{ color: '#888', padding: 40 }}>baking…</div>;
 
@@ -140,7 +140,6 @@ function App() {
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
-      <Strip points={points} state="working" times={globe} note="logo → a toothed orb that turns → logo" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip
         points={points}
@@ -157,7 +156,7 @@ function App() {
         note="THE SWEEP — the band must never leave the near side"
         tint={tint}
       />
-      <Strip points={cube} state="solving" times={solve} note="Shopify — the busy-mark hard case" />
+      <Strip points={cube} state="solving" times={solve} note="GitHub — the busy-mark hard case" />
       <Strip points={points} state="orbiting" times={globe} note="logo → a ringed planet → logo" tint={tint} />
       <Strip points={points} state="breathing" times={globe} note="logo → a bellows of stacked rings → logo" tint={tint} />
     </main>

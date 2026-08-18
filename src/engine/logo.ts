@@ -9,7 +9,7 @@
 
 import type { Dot, LogoBinding, ModeFrame, OrbFrame } from './types';
 import type { LogoPointSet, SeatMap } from './cloud';
-import { fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
+import { angleDelta, fibDir, finalizeFrame, hashD, makeProj, radiusScale, vnoise } from './core';
 
 const TURN = Math.PI * 2;
 
@@ -137,22 +137,23 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   const m = b.m;
   const g = 1 - m;
 
-  const pt = makeProj(TURN * b.turns, (o.tiltAmp ?? 0.34) * g, cx, cx, R);
+  const yaw = TURN * b.turns;
+  const pt = makeProj(yaw, (o.tiltAmp ?? 0.34) * g, cx, cx, R);
 
   const sphereR = o.sphereR ?? 0.94;
   const width = o.scanWidth ?? 0.22;
-  // The sweep is measured in SCREEN space and gated to the near side, so it
-  // is always somewhere the viewer can see it.
+  // A meridian in the sphere's own longitude, so the lit band runs pole to
+  // pole and bows with the surface — that curved, oval band is the whole
+  // look, and a band measured in screen space is a flat wipe that reads as
+  // a shimmer laid over the object rather than as light on it.
   //
-  // Running it in the sphere's own longitude was the obvious thing and it
-  // spends half of every pass behind the object: the band disappears, comes
-  // back on the other side, and the state stops reading as a scan at all.
-  // A screen-space band cannot hide. It travels left to right on a sawtooth
-  // — always the same direction, restarting off-frame where the jump is
-  // invisible — and fades out at the silhouette, which is what a beam
-  // crossing a curved surface actually does.
-  const span = o.scanSpan ?? 2.6;
-  const scanX = ((t * (o.scanRate ?? 0.42)) % 1) * span - span / 2;
+  // What it must not do is wander behind the sphere, which is what an
+  // accumulating longitude does for half of every pass. So the sweep is
+  // anchored to the CAMERA: `yaw + π/2` is whichever longitude currently
+  // faces the viewer, and the band oscillates about that. Bounded below
+  // π/2, it can never reach the silhouette, so it is always on the near
+  // side however far the sphere has turned.
+  const scan = yaw + Math.PI / 2 + (o.scanSwing ?? 1.05) * Math.sin(t * (o.scanRate ?? 0.85));
   const dimBase = o.dimBase ?? 0.4;
 
   const dots: Dot[] = [];
@@ -169,13 +170,11 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
     // A meridian, not a spot: distance is measured in longitude alone, so
     // the lit band runs pole to pole and the whole sphere is swept rather
     // than a patch of it.
+    const d = angleDelta(Math.atan2(fz, fx), scan);
+    const boost = Math.exp(-(d * d) / width) * g;
+
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // Near side only: at the silhouette this is zero, so the band never
-    // lights a dot that is facing away.
-    const front = clamp01(z / (sphereR * 0.9));
-    const d = ((px - cx) / R - scanX) / width;
-    const boost = Math.exp(-d * d) * front * g;
     dots.push({
       x: px,
       y: py,
@@ -189,141 +188,6 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
       // Un-swept dots dim only once the sphere has formed, so the mark
       // itself is never shown at partial opacity.
       a: 1 - (1 - dimBase) * g * (1 - Math.min(1, boost))
-    });
-  }
-  return finalizeFrame(dots, [], o.rMin);
-};
-
-// --- Unrest: logo → a toothed orb that turns → logo --------------------
-
-/**
- * The mark becomes a sphere cut with teeth around its equator, turning
- * steadily, with a few bright couriers crossing it and burning out.
- *
- * Three forms came before this one and each failed differently. Seven great
- * circles of a sphere never cohered — Fibonacci-spread inclinations look
- * right alone and read as a tangle together. A torus was stable but joined
- * a crowded family of round things and said nothing new. A helix said
- * plenty but read as its own object rather than as a member of the set.
- *
- * A cog is the right idea and a literal cog would be the wrong execution:
- * a flat toothed disc has no volume, and every other state here is a solid.
- * So the geometry stays a sphere and only its RADIUS is modulated — a
- * near-square wave around the azimuth, strongest at the equator and fading
- * to nothing at the poles. What you get is unmistakably machined without
- * ever stopping being an orb, which is the difference between borrowing an
- * idea and copying a picture.
- */
-export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
-  if (!logo) return empty();
-  const { p, e, n } = logo.points;
-  const seats = logo.seats;
-  const cx = size / 2;
-  const R = (size / 2) * 0.82;
-  const rs = radiusScale(size, o.rsPow ?? 0.6);
-
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
-  const m = b.m;
-  const c = 1 - m;
-
-  // A held tilt: the teeth are cut around the equator, so the equator has
-  // to be visible as a band rather than as a silhouette edge.
-  const pt = makeProj(
-    (o.yawAmp ?? 0.14) * Math.sin(t * (o.yawRate ?? 0.28)) * c,
-    (o.tilt ?? 0.34) * c,
-    cx,
-    cx,
-    R
-  );
-
-  const teeth = Math.max(3, Math.round(o.teeth ?? 9));
-  const depth = o.toothDepth ?? 0.26;
-  // Above about 2 the crests flatten into teeth; at 1 it is a ripple, and a
-  // ripple reads as a wobble rather than as something machined.
-  const sharp = o.toothSharp ?? 2.8;
-  const base = o.cogR ?? 0.78;
-  const spin = t * (o.spin ?? 0.5);
-  const share = o.courierShare ?? 0.13;
-  const rate = o.courierRate ?? 0.3;
-
-  const dots: Dot[] = [];
-  for (let i = 0; i < n; i++) {
-    const seat = seats[i];
-    const [fx, fy, fz] = fibDir(seat, n);
-
-    // Turn the point first, then cut the teeth from where it now is, so the
-    // teeth belong to the body and rotate with it.
-    const ca = Math.cos(spin);
-    const sa = Math.sin(spin);
-    const rx = fx * ca + fz * sa;
-    const rz = -fx * sa + fz * ca;
-
-    const tooth = clamp01(Math.cos(Math.atan2(rz, rx) * teeth) * sharp * 0.5 + 0.5);
-    // Fade to a smooth sphere at the poles: a gear has a rim, and teeth
-    // running over the top would read as a sea urchin.
-    const rim = 1 - fy * fy;
-    const rad = base * (1 + depth * tooth * rim);
-
-    let bx = rx * rad;
-    let by = fy * rad;
-    let bz = rz * rad;
-
-    // A courier lifts off the rim, crosses to another point on it, and
-    // burns out there before reappearing where it started. Launch order
-    // follows the seat index, so departures run round the body as a wave.
-    let courier = 0;
-    let fade = 1;
-    if (hashD(i, 6.7) < share) {
-      const phase = (t * rate + seat / n) % 1;
-      courier = smoothE(clamp01(phase / 0.6));
-      fade = phase < 0.6 ? 1 : 1 - clamp01((phase - 0.6) / 0.24);
-
-      const tSeat = seats[(i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n];
-      const [gx, gy, gz] = fibDir(tSeat, n);
-      const tx = (gx * ca + gz * sa) * base;
-      const tz = (-gx * sa + gz * ca) * base;
-      bx += (tx - bx) * courier;
-      by += (gy * base - by) * courier;
-      bz += (tz - bz) * courier;
-
-      // Bow the path clear of the body; a chord across a sphere runs
-      // straight through it and the courier is lost inside.
-      const lift = 1 + (o.arc ?? 0.42) * Math.sin(Math.PI * courier);
-      bx *= lift;
-      by *= lift;
-      bz *= lift;
-    }
-
-    const lx = p[i * 3];
-    const ly = p[i * 3 + 1];
-    const lz = p[i * 3 + 2];
-    const x = lx + (bx - lx) * c;
-    const y = ly + (by - ly) * c;
-    const z3 = lz + (bz - lz) * c;
-
-    const [px, py, z] = pt(x, y, z3);
-    const zx = clamp01((z + 1) / 2);
-    // Crests read brighter than roots, so the teeth are carried by ink as
-    // well as by silhouette — which is what keeps them legible once the
-    // whole thing is 24 pixels across.
-    const crest = tooth * rim * c;
-    const live = courier > 0 ? Math.sin(Math.PI * courier) : 0;
-    dots.push({
-      x: px,
-      y: py,
-      z,
-      r:
-        ((o.rBase ?? 0.5) +
-          (o.rDepth ?? 1.3) * zx +
-          (o.crestR ?? 0.3) * crest +
-          (o.cargoR ?? 0.85) * live * c) *
-        rs,
-      white:
-        inkOf(o, zx, e[i] * m + (1 - m)) -
-        (o.crestInk ?? 0.14) * crest -
-        (o.cargoInk ?? 0.32) * live * c,
-      a: 1 - (1 - fade) * c,
-      k: 1 - live * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);

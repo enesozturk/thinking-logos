@@ -11,7 +11,6 @@ const VERB_TO_STATE: Record<string, LogoState> = {
   Solving: 'solving',
   Listening: 'listening',
   Searching: 'searching',
-  Working: 'working',
   Breathing: 'breathing',
   Orbiting: 'orbiting'
 };
@@ -28,13 +27,12 @@ const MARK = 100;
  * the set look like a comparison rather than a collection.
  */
 const LAYOUT: Record<string, number> = {
-  anthropic: 300,
-  supabase: 224,
-  x: 262,
-  linear: 212,
-  spotify: 292,
-  github: 232,
-  shopify: 250
+  anthropic: 288,
+  supabase: 226,
+  x: 254,
+  linear: 214,
+  spotify: 276,
+  github: 236
 };
 
 export function BrandGrid() {

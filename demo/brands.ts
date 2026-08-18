@@ -15,7 +15,6 @@ import {
   siAnthropic,
   siGithub,
   siLinear,
-  siShopify,
   siSpotify,
   siX,
   siSupabase
@@ -67,8 +66,7 @@ export const BRANDS: Brand[] = [
   { ...brand(siX, 'x', 'Orbiting', 'simple'), svg: xMark },
   brand(siLinear, 'linear', 'Listening', 'medium'),
   brand(siSpotify, 'spotify', 'Searching', 'medium'),
-  brand(siGithub, 'github', 'Breathing', 'busy'),
-  brand(siShopify, 'shopify', 'Working', 'busy')
+  brand(siGithub, 'github', 'Breathing', 'busy')
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

@@ -24,7 +24,6 @@ const STATES: LogoState[] = [
   'solving',
   'listening',
   'searching',
-  'working',
   'orbiting',
   'breathing'
 ];

@@ -24,21 +24,20 @@ It is a superset of thinking-orbs: all nine procedural orb states are still expo
 
 ## States
 
-Seven distinct motions on the same mark — not one animation with seven labels. The verbs are the orb states' verbs, so you can run both in one UI and have them mean the same thing.
+Six distinct motions on the same mark — not one animation with six labels. The verbs are the orb states' verbs, so you can run both in one UI and have them mean the same thing.
 
 ```tsx
 <ThinkingLogo logo={art} state="thinking" />    {/* sphere ⇄ logo — the headline */}
 <ThinkingLogo logo={art} state="solving" />     {/* logo → cube → rubik solve → logo */}
 <ThinkingLogo logo={art} state="listening" />   {/* logo → a floating body that pulses → logo */}
 <ThinkingLogo logo={art} state="searching" />   {/* logo → an even sphere, swept by a meridian → logo */}
-<ThinkingLogo logo={art} state="working" />     {/* logo → a turning helix, with couriers → logo */}
 <ThinkingLogo logo={art} state="orbiting" />    {/* logo → a ringed planet → logo */}
 <ThinkingLogo logo={art} state="breathing" />   {/* logo → a bellows of stacked rings → logo */}
 ```
 
 `thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on.
 
-All four transforming states share one cycle: the working form dwells and does its work, the mark gathers, breathes once, and dissolves again. Two knobs matter — `dwell`, how long the cube gets to solve or the sphere to be scanned, and `morph`, how long the transformation itself takes in each direction. Full cycle is `dwell + 2 × morph`. Both are sliders in the playground.
+All six states share one cycle: the working form dwells and does its work, the mark gathers, breathes once, and dissolves again. Two knobs matter — `dwell`, how long the cube gets to solve or the sphere to be scanned, and `morph`, how long the transformation itself takes in each direction. Full cycle is `dwell + 2 × morph`. Both are sliders in the playground.
 
 ### The rule every state obeys
 
@@ -52,8 +51,7 @@ All four transforming states share one cycle: the working form dwells and does i
 - **`solving` scrambles a cube, not the logo.** A thin plate sliced and twisted becomes debris within two moves, and the reset then lands on nothing because the viewer stopped tracking a shape long ago. The rotation is confined to the cube — exactly one whole turn — so the mark itself never spins and is only ever shown square to the viewer.
 - **`searching` is carried by the sweep, not by the construction.** It was drawn as a wireframe of meridians and parallels, which said globe the way every stock icon says it and packed the dots into lines that bunch at the poles. The dots are now on the Fibonacci lattice — the closest thing to equal spacing on a sphere, with no seams and no poles — and a meridian of longitude travels round it with everything behind held back. An even field lit by a moving line reads as a surface being examined; a drawn grid just reads as a picture of a globe. It shares its lattice with `thinking`'s orb and stays entirely distinct, because the difference between those two was never geometry.
 - **`listening` becomes one body, not a chart.** Three attempts, the last two failing in opposite directions. Rolling a wave through the logo by displacing points in depth ghosted the mark across the frame, because a depth offset projects to a screen offset under any camera tilt. Laying the dots out as separate meter bars fixed that but went too literal — a bar chart is a diagram, and the logo shattered into fifteen unrelated pieces. What belongs here is a single wide, slightly irregular volume whose vertical extent swells along its width: the waveform is legible in the silhouette, but it is the silhouette *of something*.
-- **Subtlety does not survive being made small.** `working` used to jitter every dot on a noise field and `breathing` pulsed the mark a few percent in place. Both are pleasant at 140px and completely invisible at 24, which is where a loading indicator actually ships. What survives is contrast and silhouette, not displacement — so `working` becomes a helix with bright couriers crossing between its strands, and `breathing` becomes stacked rings whose whole proportion changes.
-- **`working` is the only form with an axis.** Two shapes came before it. Seven great circles of a sphere never settled into one object — Fibonacci-spread inclinations each look right alone and read as a tangle together. A torus fixed the stability but joined a crowded family: by then the orb, the scanned sphere, the planet and the bulging body were all round, and one more curved surface said nothing new. A helix is long where everything else is round, turns about its axis with complete stability, and gives the couriers a job that suits the shape — crossing from strand to strand is what the strands are for.
+- **Subtlety does not survive being made small.** `breathing` used to pulse the mark a few percent in place. That is pleasant at 140px and completely invisible at 24, which is where a loading indicator actually ships. What survives is silhouette, not displacement — so `breathing` becomes stacked rings whose whole proportion changes.
 - **`orbiting` needs a body at the centre.** It used to have the mark's own dots wander around its edges, which was a nice detail and not an orbit — nothing was going round anything. A planet supplies the thing being orbited, and every ring particle shares one angular rate, which is what makes the motion read as governed rather than as drift.
 - **`breathing` moves height and radius in opposite directions.** A body that simply grows and shrinks reads as a beating heart; drawing tall and narrow, then settling short and wide, keeps the volume roughly constant and reads as drawing air. It is stacked rings rather than a ball because an earlier version shared its entire silhouette with `thinking`'s orb — different motions on the same shape is, at a glance, one state twice.
 
