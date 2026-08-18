@@ -537,105 +537,102 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Orbit: a third of the mark wanders its own edges -----------------
+// --- Orbit: logo → a ringed planet → logo ------------------------------
 
 /**
- * Particles that are the logo's own dots, not extras added on top.
+ * The mark becomes a small planet with a ring turning around it.
  *
- * Two things make this read the way it should, and the first version had
- * neither. A meaningful FRACTION has to be away at once — a handful of
- * travellers around an otherwise intact mark reads as decoration, and the
- * mark never visibly gives anything up. And they must not share a path: a
- * common orbit radius draws a ring, and a ring is a separate object
- * orbiting the logo rather than the logo coming apart.
+ * The previous version never changed form: a share of the logo's dots
+ * simply wandered around its edges. It was a nice detail and it was not an
+ * orbit — nothing was going round anything, because there was no body at
+ * the centre for the eye to accept as the thing being orbited.
  *
- * So a third of the dots travel, each one drifting around the region of the
- * silhouette it came from, at its own radius, on its own noise. The gaps
- * they leave are spread across the whole mark instead of hollowing out one
- * side, and every traveller returns to the exact seat it left.
+ * A planet supplies that. The body is a compact sphere and the ring sits
+ * clear of it in a single plane, every particle sharing one angular rate,
+ * which is what makes the motion read as governed rather than as drift. The
+ * camera keeps a fixed tilt while the planet is showing so the ring is
+ * always an ellipse — edge-on it is a line, face-on it is a circle around a
+ * dot, and neither says Saturn.
+ *
+ * It stays distinct from the other spheres by what surrounds it: `thinking`
+ * is a bare orb dissolving, `searching` a surface being swept, `breathing`
+ * a body changing shape. This one is a body with something in orbit.
  */
 export const frameLogoOrbit: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
+  const seats = logo.seats;
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const pt = makeProj(
-    (o.yawAmp ?? 0.2) * Math.sin(t * (o.yawRate ?? 0.5)),
-    (o.tiltAmp ?? 0.1) * Math.sin(t * 0.38),
-    cx,
-    cx,
-    R
-  );
 
-  // The share that is allowed to be away. A third is about the ceiling: the
-  // silhouette survives losing a scattered third of its dots, and stops
-  // being recognisable somewhere past a half.
-  const share = o.travelShare ?? 0.3;
-  const rate = o.travelRate ?? 0.22;
-  const swing = o.travelSwing ?? 1.5;
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.turns ?? 1, o.settle ?? 0.1, o.expo ?? 0.3);
+  const m = b.m;
+  const c = 1 - m;
+
+  // A held tilt, not an oscillating one. The ring's whole legibility is its
+  // ellipse, and a wandering camera keeps re-opening and closing it.
+  const pt = makeProj(TURN * b.turns, (o.tilt ?? 0.46) * c, cx, cx, R);
+
+  const planetR = o.planetR ?? 0.58;
+  const inner = o.ringInner ?? 0.86;
+  const outer = o.ringOuter ?? 1.18;
+  const bands = Math.max(1, Math.round(o.ringBands ?? 3));
+  const share = o.ringShare ?? 0.3;
+  // One rate for every particle in the ring. Per-dot rates were what made
+  // the old version look like drift: a ring only reads as a ring while its
+  // particles keep station with each other.
+  const sweep = t * (o.ringRate ?? 0.5);
+  const spin = t * (o.planetSpin ?? 0.22);
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
+    const seat = seats[i];
+    const inRing = hashD(i, 6.7) < share;
+
+    let bx: number;
+    let by: number;
+    let bz: number;
+
+    if (inRing) {
+      // Angle from the seat index so the particles spread evenly round the
+      // ring rather than clumping by a hash, then advanced together.
+      const ang = (seat / n) * TURN + sweep;
+      // Quantised radii: a smooth annulus reads as a disc, discrete bands
+      // read as rings, and rings are the thing being depicted.
+      const band = bands > 1 ? Math.floor(hashD(i, 4.1) * bands) / (bands - 1) : 0;
+      const rad = inner + (outer - inner) * band;
+      bx = Math.cos(ang) * rad;
+      by = (hashD(i, 7.3) - 0.5) * (o.ringThick ?? 0.05);
+      bz = Math.sin(ang) * rad;
+    } else {
+      const [fx, fy, fz] = fibDir(seat, n);
+      // The body turns on its own axis, slower than the ring.
+      const ca = Math.cos(spin);
+      const sa = Math.sin(spin);
+      bx = (fx * ca + fz * sa) * planetR;
+      by = fy * planetR;
+      bz = (-fx * sa + fz * ca) * planetR;
+    }
+
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
     const lz = p[i * 3 + 2];
+    const x = lx + (bx - lx) * c;
+    const y = ly + (by - ly) * c;
+    const z3 = lz + (bz - lz) * c;
 
-    if (hashD(i, 6.7) >= share) {
-      const [px, py, z] = pt(lx, ly, lz);
-      const zx = clamp01((z + 1) / 2);
-      dots.push({
-        x: px,
-        y: py,
-        z,
-        r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx) * rs,
-        white: inkOf(o, zx, e[i])
-      });
-      continue;
-    }
-
-    // Continuous excursion rather than a discrete trip: `away` is never
-    // parked at zero for long, so the set is always in motion and the
-    // hashed phases keep every traveller at a different point in its own
-    // journey. The exponent below one biases toward being out.
-    const phase = (t * rate * (0.65 + hashD(i, 1.9) * 0.7) + hashD(i, 8.3)) % 1;
-    const away = Math.sin(Math.PI * phase) ** 0.9;
-
-    // Drift is relative to where the dot already is, not toward a shared
-    // orbit. Sending a third of the mark out to a common radius empties the
-    // logo into a cloud — tried it, and the S was gone. Pushing each dot a
-    // short way past its OWN position instead means an interior dot barely
-    // leaves and an edge dot steps just outside the silhouette, so what the
-    // viewer sees is the mark with a live fringe rather than a swarm.
-    const homeR = Math.hypot(lx, ly);
-    // The angular drift OSCILLATES within a bounded arc rather than
-    // accumulating with time. An unbounded sweep — even a slow one — carries
-    // a dot all the way round the mark, so a dot that left the top of the S
-    // comes back down at the bottom and the silhouette dissolves into a
-    // uniform cloud. Bounded, each traveller only ever patrols its own
-    // stretch of the outline, and the shape reads through the whole cycle.
-    const wander = Math.sin(t * (0.5 + hashD(i, 5.5) * 0.7) + hashD(i, 7.1) * 6.28);
-    const ang = Math.atan2(ly, lx) + swing * away * wander;
-    const reach = (o.reach ?? 0.12) + (o.reachVary ?? 0.16) * hashD(i, 4.1);
-    const rad = homeR + reach * away + 0.04 * (vnoise(lx * 3 + t * 0.5, ly * 3) - 0.5);
-    const ox = Math.cos(ang) * rad;
-    const oy = Math.sin(ang) * rad;
-    const oz = lz + (vnoise(lx * 2 + t * 0.4, ly * 2 + 9.1) - 0.5) * (o.orbitZ ?? 0.35);
-
-    const [px, py, z] = pt(
-      lx + (ox - lx) * away,
-      ly + (oy - ly) * away,
-      lz + (oz - lz) * away
-    );
+    const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Ring particles are finer than the body they orbit, which is both true
+    // of the real thing and what keeps the planet reading as solid.
+    const fine = inRing ? c : 0;
     dots.push({
       x: px,
       y: py,
       z,
-      // Travellers read brighter and larger — they are the ones doing the
-      // work — and fade back as they re-seat.
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.partBoost ?? 0.45) * away) * rs,
-      white: inkOf(o, zx, e[i]) - (o.partInk ?? 0.2) * away
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx - (o.ringR ?? 0.35) * fine) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.ringInk ?? 0.1) * fine
     });
   }
   return finalizeFrame(dots, [], o.rMin);

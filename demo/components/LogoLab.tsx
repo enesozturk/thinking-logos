@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ThinkingLogo } from '../../src/ThinkingLogo';
 import { serializeLogo } from '../../src/bake/bake';
-import type { LogoPointSet, LogoStyle, ShellMode } from '../../src/engine/cloud';
+import type { LogoPointSet } from '../../src/engine/cloud';
 import type { LogoState } from '../../src/logoPresets';
 import type { LogoSource } from '../../src/bake/bake';
 import { BRANDS } from '../brands';
@@ -28,8 +28,6 @@ const STATES: LogoState[] = [
   'orbiting',
   'breathing'
 ];
-const STYLES: LogoStyle[] = ['fill', 'outline', 'both'];
-const SHELLS: ShellMode[] = ['dome', 'flat', 'slab'];
 const COLOURS = ['brand', 'monochrome'] as const;
 
 // The sizes a loading indicator actually ships at: chat avatar, inline
@@ -108,8 +106,6 @@ export function LogoLab() {
   const [custom, setCustom] = useState<{ name: string; svg: string } | null>(null);
   const [brandKey, setBrandKey] = useState('x');
   const [state, setState] = useState<LogoState>('thinking');
-  const [style, setStyle] = useState<LogoStyle>('fill');
-  const [shell, setShell] = useState<ShellMode>('dome');
   const [tinted, setTinted] = useState(true);
   const [count, setCount] = useState(300);
   // Per-state default, since the solve needs more room than a plain dwell.
@@ -133,7 +129,12 @@ export function LogoLab() {
 
   // Identity matters: `useBakedLogo` re-bakes when the option VALUES change,
   // and a fresh object here every render would be harmless but noisy.
-  const bakeOpts = useMemo(() => ({ style, shell, count }), [style, shell, count]);
+  // `style` and `shell` are left at their defaults rather than exposed.
+  // `fill` is what a logo wants in every case that is not deliberately
+  // decorative, and the shell only sets each dot's z — which barely shows,
+  // because the mark is always brought to rest square to the viewer. Both
+  // remain options on `bake` for anyone who wants them.
+  const bakeOpts = useMemo(() => ({ count }), [count]);
   // `dwell` is how long the working form — orb, cube, sphere, body — gets
   // before the mark interrupts it. Null means "leave the state's default".
   const tune = useMemo(() => {
@@ -162,7 +163,7 @@ export function LogoLab() {
     `  state="${state}"`,
     `  size={64}`,
     tint ? `  tint="${tint}"` : null,
-    `  bake={{ style: '${style}', shell: '${shell}', count: ${count} }}`,
+    `  bake={{ count: ${count} }}`,
     dwell === null && morph === null
       ? null
       : `  tune={{ ${[dwell === null ? null : `dwell: ${dwell}`, morph === null ? null : `morph: ${morph}`]
@@ -259,14 +260,6 @@ export function LogoLab() {
 
             <Row label="State" hint="What the mark is doing. Each one leaves the logo for a different form and comes back.">
               <Picker value={state} onChange={setState} options={STATES} />
-            </Row>
-
-            <Row label="Style" hint="How the artwork becomes dots: fill covers it, outline traces its silhouette, both does each.">
-              <Picker value={style} onChange={setStyle} options={STYLES} />
-            </Row>
-
-            <Row label="Shell" hint="How the flat silhouette is lifted into 3D — inflated, flat, or extruded with a side wall.">
-              <Picker value={shell} onChange={setShell} options={SHELLS} />
             </Row>
 
             <Row label="Dots" hint="The one legibility knob. A thin mark will place fewer than you ask for; that is the artwork talking back.">

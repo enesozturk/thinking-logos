@@ -32,8 +32,8 @@ Seven distinct motions on the same mark — not one animation with seven labels.
 <ThinkingLogo logo={art} state="listening" />   {/* logo → a floating body that pulses → logo */}
 <ThinkingLogo logo={art} state="searching" />   {/* logo → an even sphere, swept by a meridian → logo */}
 <ThinkingLogo logo={art} state="working" />     {/* logo → an armillary of rings, with couriers → logo */}
-<ThinkingLogo logo={art} state="orbiting" />    {/* the mark's own dots leave, orbit, return */}
-<ThinkingLogo logo={art} state="breathing" />   {/* logo → a round body that bulges → logo */}
+<ThinkingLogo logo={art} state="orbiting" />    {/* logo → a ringed planet → logo */}
+<ThinkingLogo logo={art} state="breathing" />   {/* logo → a bellows of stacked rings → logo */}
 ```
 
 `thinking` is the one to reach for first. The dots churn as a sphere while work is in flight, fold inward paired by angle so the silhouette is readable a third of the way through, and settle face-on.
@@ -54,7 +54,8 @@ All four transforming states share one cycle: the working form dwells and does i
 - **`listening` becomes one body, not a chart.** Three attempts, the last two failing in opposite directions. Rolling a wave through the logo by displacing points in depth ghosted the mark across the frame, because a depth offset projects to a screen offset under any camera tilt. Laying the dots out as separate meter bars fixed that but went too literal — a bar chart is a diagram, and the logo shattered into fifteen unrelated pieces. What belongs here is a single wide, slightly irregular volume whose vertical extent swells along its width: the waveform is legible in the silhouette, but it is the silhouette *of something*.
 - **Subtlety does not survive being made small.** `working` used to jitter every dot on a noise field and `breathing` pulsed the mark a few percent in place. Both are pleasant at 140px and completely invisible at 24, which is where a loading indicator actually ships. What survives is contrast and silhouette, not displacement — so `working` becomes an armillary of rings with bright couriers crossing it, and `breathing` becomes a body whose own outline moves.
 - **`working` is a torus, the only form here that is not a variation on a ball.** Rings were tried first — seven great circles of a sphere — and never settled into one object: Fibonacci-spread inclinations give seven planes that each look right alone and read as a tangle together. A torus is one closed surface with a hole that announces its orientation from any angle, and turning about its own axis it reads as a wheel doing work. Its dots are placed by area, not by parameter, since a torus has more surface on its rim than in its throat and uniform steps pile them into the hole.
-- **`orbiting` uses the mark's own dots.** A third detach and leave real gaps, drifting within a bounded arc of where they started, then return to the exact seat they left. A shared orbit radius draws a ring, and a ring is a separate object circling the logo rather than the logo coming apart.
+- **`orbiting` needs a body at the centre.** It used to have the mark's own dots wander around its edges, which was a nice detail and not an orbit — nothing was going round anything. A planet supplies the thing being orbited, and every ring particle shares one angular rate, which is what makes the motion read as governed rather than as drift.
+- **`breathing` moves height and radius in opposite directions.** A body that simply grows and shrinks reads as a beating heart; drawing tall and narrow, then settling short and wide, keeps the volume roughly constant and reads as drawing air. It is stacked rings rather than a ball because an earlier version shared its entire silhouette with `thinking`'s orb — different motions on the same shape is, at a glance, one state twice.
 
 ## Baking
 

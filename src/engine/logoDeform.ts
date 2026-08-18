@@ -222,21 +222,24 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Breathing: logo → a round body that bulges and settles → logo -----
+// --- Breathing: logo → a bellows of stacked rings → logo ---------------
 
 /**
- * The mark becomes a sphere that swells unevenly — round throughout, but
- * never quite the same shape twice.
+ * The mark becomes a barrel of stacked rings that draws tall and narrow,
+ * then settles short and wide.
  *
- * Two earlier versions failed at opposite ends. Pulsing the logo a few
- * percent in place was invisible at icon size. A flat ring of radial dashes
- * was visible but read as line art, out of place beside the solids every
- * other state becomes.
+ * Two versions failed for opposite reasons. Pulsing the logo a few percent
+ * in place was invisible at icon size. A deformed sphere was visible but
+ * shared its whole silhouette with `thinking`'s orb — the motions differed
+ * and the shapes did not, which at a glance is the same thing as having one
+ * state twice.
  *
- * A deformed sphere is both: unmistakable at any size because the
- * silhouette itself moves, and made of the same material as the orb, the
- * cube and the globe. It is distinguished from `thinking`'s orb by being
- * alive — that one is an even, static ball, this one is always mid-breath.
+ * Stacked rings are structurally different from every other form here:
+ * open, layered, and obviously made of parts. And the pulse is not a scale
+ * — height and radius move in OPPOSITE directions, so the volume stays
+ * roughly constant and the object reads as something drawing air rather
+ * than something being zoomed. That antiphase is the whole trick; a body
+ * that simply grows and shrinks reads as a beating heart, not a breath.
  */
 export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -246,40 +249,45 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
 
+  // Held tilt, so the rings always read as a stack of ellipses. Seen
+  // straight on they collapse into concentric circles and the layering —
+  // the thing that makes this not a ball — disappears.
   const pt = makeProj(
-    (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.4)) * c,
-    (o.tiltAmp ?? 0.18) * c,
+    (o.yawAmp ?? 0.22) * Math.sin(t * (o.yawRate ?? 0.3)) * c,
+    (o.tilt ?? 0.42) * c,
     cx,
     cx,
     R
   );
 
-  const ballR = o.ballR ?? 0.86;
-  const swell = o.swell ?? 0.26;
-  const rate = o.swellRate ?? 0.9;
-  const pulse = 1 + (o.pulse ?? 0.09) * Math.sin(t * (o.pulseRate ?? 1.1));
+  const rings = Math.max(3, Math.round(o.rings ?? 9));
+  const perRing = Math.ceil(n / rings);
+  // Antiphase: in as it lengthens, out as it widens.
+  const breath = Math.sin(t * (o.breatheRate ?? 0.75));
+  const amp = o.breatheAmp ?? 0.2;
+  const height = (o.height ?? 1.5) * (1 + amp * breath);
+  const wide = (o.wide ?? 0.82) * (1 - amp * 0.72 * breath);
+  const spin = t * (o.spin ?? 0.16);
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const [fx, fy, fz] = fibDir(seats[i], n);
+    const seat = seats[i];
+    const ring = seat % rings;
+    const u = rings > 1 ? ring / (rings - 1) - 0.5 : 0;
 
-    // Radius varies with DIRECTION, so the ball bulges in places rather
-    // than scaling as a whole — which is the difference between a shape
-    // that is breathing and one that is merely resizing. Three drifting
-    // terms, none of them commensurate, so the bulges wander.
-    const w =
-      Math.sin(fy * 2.3 + t * rate) * 0.42 +
-      Math.sin(fx * 1.9 - t * rate * 0.71 + 1.3) * 0.33 +
-      (vnoise(fx * 1.6 + t * 0.31, fz * 1.6) - 0.5) * 0.5;
-    const rad = ballR * pulse * (1 + swell * w);
+    // Barrel profile: widest at the middle, tapering at both ends, so the
+    // stack has a body rather than reading as a cylinder.
+    const taper = Math.cos(u * Math.PI * (o.taper ?? 0.78));
+    const rad = wide * taper;
+    const ang = (Math.floor(seat / rings) / perRing) * Math.PI * 2 + spin;
 
-    const bx = fx * rad;
-    const by = fy * rad;
-    const bz = fz * rad;
+    const bx = Math.cos(ang) * rad;
+    const by = u * height;
+    const bz = Math.sin(ang) * rad;
 
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
@@ -290,15 +298,15 @@ export const frameLogoBreathe: ModeFrame = (size, t, o, logo) => {
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // Swollen regions read brighter, so the motion is carried by ink as
-    // well as by silhouette.
-    const loud = clamp01(w * 0.5 + 0.5);
+    // The widest rings read brightest, so the exhale is carried by ink as
+    // well as by shape.
+    const loud = clamp01(taper);
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx + (o.loudR ?? 0.3) * loud * c) * rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.14) * loud * c
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.loudR ?? 0.25) * loud * c) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.loudInk ?? 0.12) * loud * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);
