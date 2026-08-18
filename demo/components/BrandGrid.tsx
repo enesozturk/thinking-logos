@@ -16,8 +16,7 @@ const VERB_TO_STATE: Record<string, LogoState> = {
   Orbiting: 'orbiting'
 };
 
-const BIG = 80;
-const SMALL = 60;
+const MARK = 100;
 
 /**
  * Card height and mark size, per brand. Hand-set rather than derived.
@@ -25,17 +24,17 @@ const SMALL = 60;
  * A masonry of equal cards is just a grid. The uneven heights are the whole
  * effect: each mark has to read as one thing floating in a space of its
  * own, which only works if the spaces differ enough to be obviously
- * deliberate. The two mark sizes do the same job, and double as a check
- * that a shape still reads once it is shrunk.
+ * deliberate. The marks themselves are all one size — varying those made
+ * the set look like a comparison rather than a collection.
  */
-const LAYOUT: Record<string, { h: number; sm?: boolean }> = {
-  anthropic: { h: 300 },
-  supabase: { h: 190, sm: true },
-  x: { h: 248 },
-  linear: { h: 186, sm: true },
-  spotify: { h: 292 },
-  github: { h: 200, sm: true },
-  shopify: { h: 236 }
+const LAYOUT: Record<string, number> = {
+  anthropic: 300,
+  supabase: 224,
+  x: 262,
+  linear: 212,
+  spotify: 292,
+  github: 232,
+  shopify: 250
 };
 
 export function BrandGrid() {
@@ -46,19 +45,17 @@ export function BrandGrid() {
           the cards can be any size and the columns still balance. */}
       <div className="columns-2 gap-3 max-sm:columns-1">
         {BRANDS.map((b) => {
-          const l = LAYOUT[b.key] ?? { h: 220 };
-          const size = l.sm ? SMALL : BIG;
           const source = b.svg ? { svg: b.svg } : { path: b.path };
           return (
             <Card
               key={b.key}
-              style={{ height: l.h }}
+              style={{ height: LAYOUT[b.key] ?? 240 }}
               className="mb-3 flex break-inside-avoid items-center justify-center gap-3 max-sm:!h-[200px]"
             >
               <ThinkingLogo
                 logo={source}
                 state={VERB_TO_STATE[b.verb] ?? 'thinking'}
-                size={size}
+                size={MARK}
                 tint={`#${b.hex}`}
               />
               <span className="text-[13px] leading-none text-muted-foreground">
