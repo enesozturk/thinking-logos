@@ -11,11 +11,11 @@
 // logos that happen to bake well.
 
 import claudeMark from './marks/claude.svg?raw';
+import falMark from './marks/fal.svg?raw';
 import xMark from './marks/x.svg?raw';
 import {
   siClaude,
   siGithub,
-  siGooglegemini,
   siLinear,
   siSpotify,
   siX,
@@ -69,7 +69,10 @@ export const BRANDS: Brand[] = [
   brand(siLinear, 'linear', 'Searching', 'medium'),
   brand(siSpotify, 'spotify', 'Listening', 'medium'),
   brand(siGithub, 'github', 'Solving', 'busy'),
-  { ...brand(siGooglegemini, 'gemini', 'Generating', 'simple'), title: 'Gemini' }
+  // No simple-icons entry, so the whole record is written out. `path` is
+  // empty because `svg` takes precedence — a caller with real artwork
+  // should never have to reduce it to a single path first.
+  { key: 'fal', title: 'Fal', path: '', hex: 'EC0648', verb: 'Generating', weight: 'simple', svg: falMark }
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

@@ -160,6 +160,19 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   // the caps; at 1 it is the plain equal-area Fibonacci sphere.
   const ease = o.poleEase ?? 1.4;
 
+  // Draw out the lattice's own spirals.
+  //
+  // A Fibonacci sphere already contains them: points whose indices differ
+  // by a Fibonacci number are neighbours along one arm, so `i mod 13`
+  // labels which of thirteen spirals a dot belongs to. Left alone that
+  // structure is invisible — every dot the same weight reads as an even
+  // fog, which is what made this orb the plainest thing in the set.
+  // Weighting the arms in a repeating cycle makes the spirals surface as
+  // threads winding pole to pole. Nothing is moved; the geometry is the
+  // same equal-area lattice, only differently inked.
+  const arms = Math.max(3, Math.round(o.arms ?? 13));
+  const armDepth = o.armDepth ?? 0.55;
+
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const [ax, ay, az] = fibDir(seats[i], n);
@@ -179,6 +192,11 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
     const fx = ax * ring;
     const fy = lat;
     const fz = az * ring;
+
+    // Three weights repeating across the arms: enough to read as a weave,
+    // few enough that no arm disappears.
+    const tier = (seats[i] % arms) % 3;
+    const arm = 1 - armDepth * (tier === 0 ? 0 : tier === 1 ? 0.5 : 1);
 
     const gx = fx * sphereR;
     const gy = fy * sphereR;
@@ -200,12 +218,8 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
       x: px,
       y: py,
       z,
-      r:
-        ((o.rBase ?? 0.5) +
-          (o.rDepth ?? 1.4) * zx +
-          (o.rBoost ?? 1.3) * boost) *
-        rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.scanInk ?? 0.3) * boost,
+      r: ((o.rBase ?? 0.5) + (o.rDepth ?? 1.4) * zx * arm + (o.rBoost ?? 1.3) * boost) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.armInk ?? 0.16) * (1 - arm) * g - (o.scanInk ?? 0.3) * boost,
       // Un-swept dots dim only once the sphere has formed, so the mark
       // itself is never shown at partial opacity.
       a: 1 - (1 - dimBase) * g * (1 - Math.min(1, boost))

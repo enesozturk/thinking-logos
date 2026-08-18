@@ -34,7 +34,7 @@ const LAYOUT: Record<string, number> = {
   linear: 246,
   spotify: 268,
   github: 226,
-  gemini: 258
+  fal: 258
 };
 
 export function BrandGrid() {
