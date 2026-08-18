@@ -312,30 +312,35 @@ export const frameLogoWait: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Generating: logo → a crystal forming out of noise → logo ----------
+// --- Generating: logo → a crystal being stitched → logo ----------------
 
 /**
- * The mark becomes a diffuse cloud that condenses onto the faces of a
- * crystal, holds, and scatters again — over and over while it dwells.
+ * The mark becomes a crystal, and a single bright point races over its
+ * surface lighting every dot in turn — stitch by stitch, top to bottom.
+ * The instant the last one lands, the crystal becomes the logo.
  *
- * The first attempt made this a flat rectangular canvas, on the reasoning
- * that generation produces a picture. It was the right metaphor and the
- * wrong object: every other state here is a solid turning in space, and a
- * flat panel dropped out of the family entirely — it read as a chart that
- * had wandered in.
+ * The first attempt made this a flat canvas resolving out of noise. The
+ * metaphor was right and the object was wrong: every other state here is a
+ * solid turning in space, and a flat panel read as a chart that had
+ * wandered in. The second kept the crystal but kept the noise too, and the
+ * noise ran on its own clock — so the mark would arrive, leave, and a cloud
+ * of scattered dots would snap into being from nowhere.
  *
- * A crystal keeps the metaphor and rejoins the set. Structure emerging from
- * disorder IS generation, and crystal growth is where that happens in
- * nature; the noise-to-order cycle carries the same idea the diffusion
- * reference did, in a form that belongs beside the orb and the cube.
+ * There is no noise now. The form is always the crystal; what changes is
+ * how much of it has been WORKED. Unstitched dots sit dim and neutral
+ * grey, stitched ones carry full ink and the brand's colour, and the head
+ * travelling between them is the brightest thing on screen. Generation as
+ * something being made, rather than something appearing.
  *
- * The surface comes from normalising a Fibonacci direction by its L1 norm —
- * the exact counterpart of the L∞ norm that gives `solving` its cube — so
- * an octahedron falls out of one line, with facets and points where the
- * cube has flats and edges. Nothing here reads as a rounded anything.
+ * The stitch order is the Fibonacci index itself, which walks the lattice
+ * from pole to pole in a spiral — so the head sweeps row after row without
+ * needing an ordering computed for it.
  *
- * Colour does as much as position: a dot still condensing is neutral grey,
- * unsettled material, and takes on the brand tint as it lands.
+ * The unravel matters as much as the stitch. On the way back from the mark
+ * the work undoes itself, so the cycle reaches its own start already dark
+ * rather than resetting there. Every version that reset at the boundary
+ * popped, and a pop is exactly what this whole cycle was reshaped to
+ * remove.
  */
 export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -345,7 +350,9 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4.5, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
+  const dwell = o.dwell ?? 4.5;
+  const morph = o.morph ?? 1.9;
+  const b = beatAt(t, dwell, morph, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
 
@@ -363,11 +370,17 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
   const half = o.crystalR ?? 0.94;
   const spin = t * (o.spin ?? 0.3);
 
-  // One condensation per `period`, held formed for the tail of it so the
-  // finished crystal is actually seen before it comes apart again.
-  const phase = (t / (o.period ?? 3.2)) % 1;
-  const settle = smoothE(clamp01(phase / (o.resolve ?? 0.6)));
-  const stagger = o.stagger ?? 0.5;
+  // Stitch across the dwell, hold complete while the mark is showing, and
+  // undo on the way back so the cycle arrives at its own start already
+  // dark. Continuous end to end — nothing resets at the boundary.
+  const into = b.local - dwell;
+  const prog =
+    b.local < dwell ? b.local / dwell : into < morph ? 1 : clamp01(1 - (into - morph) / morph);
+
+  const head = prog * n;
+  const feather = Math.max(1, n * (o.feather ?? 0.03));
+  const headW = Math.max(1, n * (o.headWidth ?? 0.012));
+  const stitching = b.local < dwell;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -382,37 +395,33 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
     const ox = (ax / l1) * half;
     const oy = (ay / l1) * half;
     const oz = (az / l1) * half;
-    const fx = ox * ca + oz * sa;
-    const fz = -ox * sa + oz * ca;
-
-    // Each dot has its own place in the queue, so the crystal forms in
-    // patches rather than everywhere at once — which is what the process
-    // being depicted actually looks like.
-    const own = clamp01((settle - hashD(i, 3.1) * stagger) / (1 - stagger));
-    const loose = 1 - smoothE(own);
-    const spread = o.spread ?? 0.62;
-
-    const bx = fx + (hashD(i, 5.9) - 0.5) * spread * loose;
-    const by = oy + (hashD(i, 7.7) - 0.5) * spread * loose;
-    const bz = fz + (hashD(i, 9.3) - 0.5) * spread * loose;
+    const bx = ox * ca + oz * sa;
+    const bz = -ox * sa + oz * ca;
 
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
     const lz = p[i * 3 + 2];
     const x = lx + (bx - lx) * c;
-    const y = ly + (by - ly) * c;
+    const y = ly + (oy - ly) * c;
     const z3 = lz + (bz - lz) * c;
+
+    // Worked or not, and how close the head is right now.
+    const done = clamp01((head - seat) / feather);
+    const at = stitching ? Math.exp(-(((seat - head) / headW) ** 2)) : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
+    // Weighted by `c` so the dimming belongs to the crystal: the mark
+    // itself is never shown half-lit.
+    const unlit = (1 - done) * c;
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.grainR ?? 0.28) * loose * c) * rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.grainInk ?? 0.16) * loose * c,
-      // Grey while condensing, the brand's colour once it has landed.
-      k: 1 - loose * c
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.headR ?? 1.1) * at * c) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.unlitInk ?? 0.3) * unlit - (o.headInk ?? 0.4) * at * c,
+      // Neutral grey until it has been worked, the brand's colour after.
+      k: 1 - unlit
     });
   }
   return finalizeFrame(dots, [], o.rMin);

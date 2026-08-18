@@ -163,7 +163,7 @@ function App() {
         points={points}
         state="generating"
         times={globe}
-        note="logo → a crystal forming out of noise → logo"
+        note="crystal → stitched → logo → crystal"
         tint={tint}
       />
     </main>
