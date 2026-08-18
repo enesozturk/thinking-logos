@@ -16,7 +16,7 @@ import {
   frameLogoScan,
   seatMap
 } from './engine/logo';
-import { frameLogoCanvas, frameLogoSolve, frameLogoWait, frameLogoWave } from './engine/logoDeform';
+import { frameLogoCrystal, frameLogoSolve, frameLogoWait, frameLogoWave } from './engine/logoDeform';
 
 export type LogoMode =
   | 'assemble'
@@ -25,7 +25,7 @@ export type LogoMode =
   | 'solve'
   | 'wave'
   | 'wait'
-  | 'canvas';
+  | 'crystal';
 
 /**
  * What the mark is doing.
@@ -51,7 +51,7 @@ export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   solving: 'solve',
   listening: 'wave',
   waiting: 'wait',
-  generating: 'canvas'
+  generating: 'crystal'
 };
 
 export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
@@ -61,7 +61,7 @@ export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   solve: frameLogoSolve,
   wave: frameLogoWave,
   wait: frameLogoWait,
-  canvas: frameLogoCanvas
+  crystal: frameLogoCrystal
 };
 
 export interface LogoPreset {
@@ -232,7 +232,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rMin: 0.3
     }
   },
-  canvas: {
+  crystal: {
     speed: 1,
     opts: {
       dwell: 4.5,
@@ -240,22 +240,20 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       expo: 0.3,
       settle: 0.1,
       turns: 0,
-      yawAmp: 0.12,
-      yawRate: 0.28,
-      tilt: 0.08,
-      cols: 22,
-      rows: 15,
-      wide: 1.22,
-      tall: 0.86,
-      period: 2.6,
-      resolve: 0.62,
-      stagger: 0.55,
-      spread: 0.55,
-      depth: 0.5,
-      grainR: 0.3,
+      lean: 0.5,
+      yawAmp: 0.24,
+      yawRate: 0.32,
+      tilt: 0.2,
+      crystalR: 0.94,
+      spin: 0.3,
+      period: 3.2,
+      resolve: 0.6,
+      stagger: 0.5,
+      spread: 0.62,
+      grainR: 0.28,
       grainInk: 0.16,
       rBase: 0.55,
-      rDepth: 1.3,
+      rDepth: 1.4,
       inkFar: 0.6,
       inkSpan: 0.5,
       inkRim: 0.16,

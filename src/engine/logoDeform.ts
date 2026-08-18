@@ -312,24 +312,32 @@ export const frameLogoWait: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Generating: logo → a canvas resolving out of noise → logo ---------
+// --- Generating: logo → a crystal forming out of noise → logo ----------
 
 /**
- * The mark becomes a flat rectangular canvas whose dots repeatedly scatter
- * into noise and settle back into their grid.
+ * The mark becomes a diffuse cloud that condenses onto the faces of a
+ * crystal, holds, and scatters again — over and over while it dwells.
  *
- * Every other state here is a solid turning in space. Generation is not
- * that: it is a picture arriving, and the picture arrives the way diffusion
- * models actually make one — out of noise, in a few passes, resolving
- * rather than being drawn. So this form is deliberately FLAT and
- * rectangular, the only state that is, because a canvas is a canvas and
- * making it a sphere would be decorating the wrong idea.
+ * The first attempt made this a flat rectangular canvas, on the reasoning
+ * that generation produces a picture. It was the right metaphor and the
+ * wrong object: every other state here is a solid turning in space, and a
+ * flat panel dropped out of the family entirely — it read as a chart that
+ * had wandered in.
  *
- * Colour carries it as much as position. A dot still resolving is neutral
- * grey — unsettled material — and takes on the brand tint as it lands, so
- * the canvas visibly develops rather than merely tidying itself up.
+ * A crystal keeps the metaphor and rejoins the set. Structure emerging from
+ * disorder IS generation, and crystal growth is where that happens in
+ * nature; the noise-to-order cycle carries the same idea the diffusion
+ * reference did, in a form that belongs beside the orb and the cube.
+ *
+ * The surface comes from normalising a Fibonacci direction by its L1 norm —
+ * the exact counterpart of the L∞ norm that gives `solving` its cube — so
+ * an octahedron falls out of one line, with facets and points where the
+ * cube has flats and edges. Nothing here reads as a rounded anything.
+ *
+ * Colour does as much as position: a dot still condensing is neutral grey,
+ * unsettled material, and takes on the brand tint as it lands.
  */
-export const frameLogoCanvas: ModeFrame = (size, t, o, logo) => {
+export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
   const { p, e, n } = logo.points;
   const seats = logo.seats;
@@ -341,46 +349,52 @@ export const frameLogoCanvas: ModeFrame = (size, t, o, logo) => {
   const m = b.m;
   const c = 1 - m;
 
-  // Barely any camera. A canvas read at an angle is a canvas read wrong,
-  // and the whole point of the form is that it is flat.
+  // Turned enough to show two faces at once: seen straight on an
+  // octahedron is a square, which is the one reading to avoid next to a
+  // cube.
   const pt = makeProj(
-    (o.yawAmp ?? 0.12) * Math.sin(t * (o.yawRate ?? 0.28)) * c,
-    (o.tilt ?? 0.08) * c,
+    (o.lean ?? 0.5) + (o.yawAmp ?? 0.24) * Math.sin(t * (o.yawRate ?? 0.32)) * c,
+    (o.tilt ?? 0.2) * c,
     cx,
     cx,
     R
   );
 
-  const cols = Math.max(2, Math.round(o.cols ?? 22));
-  const rows = Math.max(2, Math.round(o.rows ?? 15));
-  const wide = o.wide ?? 1.22;
-  const tall = o.tall ?? 0.86;
+  const half = o.crystalR ?? 0.94;
+  const spin = t * (o.spin ?? 0.3);
 
-  // One pass of the sampler per `period`, held resolved for the tail of it
-  // so the finished picture is actually seen before it dissolves again.
-  const phase = (t / (o.period ?? 2.6)) % 1;
-  const settle = smoothE(clamp01(phase / (o.resolve ?? 0.62)));
-  const noise = 1 - settle;
+  // One condensation per `period`, held formed for the tail of it so the
+  // finished crystal is actually seen before it comes apart again.
+  const phase = (t / (o.period ?? 3.2)) % 1;
+  const settle = smoothE(clamp01(phase / (o.resolve ?? 0.6)));
+  const stagger = o.stagger ?? 0.5;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
-    const col = seat % cols;
-    const row = Math.floor(seat / cols) % rows;
+    const [ax, ay, az] = fibDir(seat, n);
 
-    const gx = (col / (cols - 1) - 0.5) * wide;
-    const gy = (row / (rows - 1) - 0.5) * tall;
+    // L1 normalisation puts the point on an octahedron; L∞ would put it on
+    // a cube, which is the shape `solving` already owns.
+    const l1 = Math.max(1e-6, Math.abs(ax) + Math.abs(ay) + Math.abs(az));
+    const ca = Math.cos(spin);
+    const sa = Math.sin(spin);
+    const ox = (ax / l1) * half;
+    const oy = (ay / l1) * half;
+    const oz = (az / l1) * half;
+    const fx = ox * ca + oz * sa;
+    const fz = -ox * sa + oz * ca;
 
-    // Each dot has its own place in the queue, so the picture resolves in
+    // Each dot has its own place in the queue, so the crystal forms in
     // patches rather than everywhere at once — which is what the process
     // being depicted actually looks like.
-    const own = clamp01((settle - hashD(i, 3.1) * (o.stagger ?? 0.55)) / (1 - (o.stagger ?? 0.55)));
+    const own = clamp01((settle - hashD(i, 3.1) * stagger) / (1 - stagger));
     const loose = 1 - smoothE(own);
-    const spread = o.spread ?? 0.55;
+    const spread = o.spread ?? 0.62;
 
-    const bx = gx + (hashD(i, 5.9) - 0.5) * spread * loose;
-    const by = gy + (hashD(i, 7.7) - 0.5) * spread * loose;
-    const bz = (hashD(i, 9.3) - 0.5) * (o.depth ?? 0.5) * loose;
+    const bx = fx + (hashD(i, 5.9) - 0.5) * spread * loose;
+    const by = oy + (hashD(i, 7.7) - 0.5) * spread * loose;
+    const bz = fz + (hashD(i, 9.3) - 0.5) * spread * loose;
 
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
@@ -395,9 +409,9 @@ export const frameLogoCanvas: ModeFrame = (size, t, o, logo) => {
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.3) * zx + (o.grainR ?? 0.3) * loose * c) * rs,
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.grainR ?? 0.28) * loose * c) * rs,
       white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.grainInk ?? 0.16) * loose * c,
-      // Grey while unsettled, the brand's colour once it has landed.
+      // Grey while condensing, the brand's colour once it has landed.
       k: 1 - loose * c
     });
   }
