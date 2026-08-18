@@ -138,7 +138,7 @@ function App() {
         tint={tint}
       />
       <Strip points={points} state="solving" times={solve} note="logo → cube → solve → logo, no spin" tint={tint} />
-      <Strip points={points} state="working" times={globe} note="logo → a turning torus, with couriers → logo" tint={tint} />
+      <Strip points={points} state="working" times={globe} note="logo → a turning helix, with couriers → logo" tint={tint} />
       <Strip points={points} state="listening" times={meter} note="logo → a floating body that bounces → logo" tint={tint} />
       <Strip
         points={points}

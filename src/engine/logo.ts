@@ -184,57 +184,24 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Unrest: logo → a turning torus, with couriers → logo --------------
+// --- Unrest: logo → a turning helix, with couriers → logo --------------
 
 /**
- * A point on a torus, distributed by AREA rather than by parameter.
+ * The mark becomes a bundle of strands twisting about a common axis, with a
+ * few bright couriers crossing between them and burning out on arrival.
  *
- * Stepping the minor angle uniformly is the obvious thing and it is wrong:
- * a torus has more surface on its outer rim than in its throat, in
- * proportion to `R + r·cos v`, so uniform steps pile dots into the hole and
- * starve the outside. The fix is to invert that density — solve
- * `v + a·sin v = 2πξ` for v, which Newton does to well under a pixel in
- * three passes from a good first guess.
+ * Two forms were tried and set aside. Seven great circles of a sphere never
+ * settled into one object — Fibonacci-spread inclinations each look right
+ * alone and read as a tangle together. A torus fixed the stability but
+ * joined a crowded family: by then the orb, the scanned sphere, the planet
+ * and the bulging body were all round, and one more curved surface said
+ * nothing new.
  *
- * Worth the twenty lines. Even spacing is the difference between a solid
- * that looks manufactured and one that looks like a mistake, and it is the
- * same complaint that retired the wireframe globe.
- */
-function torusSeat(
-  i: number,
-  n: number,
-  major: number,
-  minor: number,
-  spin: number
-): [number, number, number] {
-  const a = minor / major;
-  const target = TURN * ((i + 0.5) / n);
-  let v = target;
-  for (let k = 0; k < 3; k++) {
-    v -= (v + a * Math.sin(v) - target) / (1 + a * Math.cos(v));
-  }
-  // Golden angle around the ring: it never repeats, so no seam forms where
-  // the winding closes.
-  const u = i * (Math.PI * (3 - Math.sqrt(5))) + spin;
-  const ring = major + minor * Math.cos(v);
-  return [ring * Math.cos(u), minor * Math.sin(v), ring * Math.sin(u)];
-}
-
-/**
- * The mark becomes a slowly turning torus, with a few bright couriers
- * breaking away to cross it and burn out on the far side.
- *
- * Rings were tried first — seven great circles of a sphere — and they never
- * settled into one object. Fibonacci-spread inclinations give seven planes
- * that each look right alone and read as a tangle together, and no amount
- * of shared spin rate fixed it, because the problem was that there was
- * nothing for the eye to hold on to.
- *
- * A torus is the opposite: one closed surface, unmistakably solid, with a
- * hole that announces its orientation from any angle. Turning about its own
- * axis it reads as a wheel doing work — which is what this state is for —
- * and it stays completely stable while doing it. It is also the only form
- * here that is not a variation on a ball.
+ * A helix is the first form here with an AXIS. It is long where everything
+ * else is round, it turns about that axis with complete stability, and the
+ * twist is legible as mechanism rather than as decoration. The couriers
+ * finally have a job that suits the shape too: crossing from strand to
+ * strand, which is what the strands are there for.
  */
 export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -244,51 +211,67 @@ export const frameLogoUnrest: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, 0, o.settle ?? 0.1, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
 
-  // A fixed tilt while the torus is showing, easing to nothing as the mark
-  // arrives. Held at a constant angle rather than oscillating: the hole is
-  // the whole silhouette, and a wandering camera keeps changing how open it
-  // looks, which is exactly the instability rings suffered from.
-  const pt = makeProj((o.yawAmp ?? 0.16) * Math.sin(t * (o.yawRate ?? 0.3)) * c, (o.tilt ?? 0.62) * c, cx, cx, R);
+  // Leaned rather than upright, so the axis is visible as an axis. Dead
+  // vertical and the strands overlap into a single column.
+  const pt = makeProj(
+    (o.lean ?? 0.34) + (o.yawAmp ?? 0.12) * Math.sin(t * (o.yawRate ?? 0.3)) * c,
+    (o.tilt ?? 0.26) * c,
+    cx,
+    cx,
+    R
+  );
 
-  const major = o.major ?? 0.68;
-  const minor = o.minor ?? 0.3;
-  const spin = t * (o.spin ?? 0.5);
+  const strands = Math.max(2, Math.round(o.strands ?? 3));
+  const perStrand = Math.ceil(n / strands);
+  const height = o.height ?? 1.7;
+  const rad = o.helixR ?? 0.5;
+  const twist = (o.twist ?? 2) * TURN;
+  const spin = t * (o.spin ?? 0.55);
   const share = o.courierShare ?? 0.14;
-  const rate = o.courierRate ?? 0.26;
-  const arc = o.arc ?? 0.55;
+  const rate = o.courierRate ?? 0.3;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
-    let [bx, by, bz] = torusSeat(seat, n, major, minor, spin);
+    const strand = seat % strands;
+    const u = Math.floor(seat / strands) / perStrand;
 
-    // A courier lifts off the surface, crosses to another point on it, and
-    // burns out there before reappearing where it started. The launch order
-    // follows the seat index, so departures travel round the ring as a wave
+    // Strands are evenly offset around the axis, so the bundle is balanced
+    // however far it has turned.
+    const ang = u * twist + (strand / strands) * TURN + spin;
+    // Ends taper in, which stops the helix reading as a cut length of rope.
+    const taper = Math.sin(Math.PI * u) ** 0.35;
+    let bx = Math.cos(ang) * rad * taper;
+    let by = (u - 0.5) * height;
+    let bz = Math.sin(ang) * rad * taper;
+
+    // A courier lifts off its strand, crosses to a point on another, and
+    // burns out there before reappearing where it started. Launch order
+    // follows the seat index, so departures run along the bundle as a wave
     // rather than popping at random.
     let courier = 0;
     let fade = 1;
     if (hashD(i, 6.7) < share) {
       const phase = (t * rate + seat / n) % 1;
-      const fly = clamp01(phase / 0.6);
-      courier = smoothE(fly);
+      courier = smoothE(clamp01(phase / 0.6));
       fade = phase < 0.6 ? 1 : 1 - clamp01((phase - 0.6) / 0.24);
 
       const tSeat = seats[(i + 1 + Math.floor(hashD(i, 2.9) * (n - 1))) % n];
-      const [gx, gy, gz] = torusSeat(tSeat, n, major, minor, spin);
-      bx += (gx - bx) * courier;
-      by += (gy - by) * courier;
-      bz += (gz - bz) * courier;
+      const tu = Math.floor(tSeat / strands) / perStrand;
+      const tAng = tu * twist + ((tSeat % strands) / strands) * TURN + spin;
+      const tTaper = Math.sin(Math.PI * tu) ** 0.35;
+      bx += (Math.cos(tAng) * rad * tTaper - bx) * courier;
+      by += ((tu - 0.5) * height - by) * courier;
+      bz += (Math.sin(tAng) * rad * tTaper - bz) * courier;
 
-      // Bow the path clear of the surface. A chord through a torus passes
-      // straight through the material and the courier is lost inside it.
-      const lift = 1 + arc * Math.sin(Math.PI * courier);
+      // Bow the path clear of the bundle; a chord between two strands runs
+      // straight through the middle of it.
+      const lift = 1 + (o.arc ?? 0.5) * Math.sin(Math.PI * courier);
       bx *= lift;
-      by *= lift;
       bz *= lift;
     }
 
