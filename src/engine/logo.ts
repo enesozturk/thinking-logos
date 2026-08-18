@@ -156,9 +156,30 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
   const scan = yaw + Math.PI / 2 + (o.scanSwing ?? 1.05) * Math.sin(t * (o.scanRate ?? 0.85));
   const dimBase = o.dimBase ?? 0.4;
 
+  // How much the lattice is biased toward the equator. Above 1 it thins
+  // the caps; at 1 it is the plain equal-area Fibonacci sphere.
+  const ease = o.poleEase ?? 1.4;
+
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
-    const [fx, fy, fz] = fibDir(seats[i], n);
+    const [ax, ay, az] = fibDir(seats[i], n);
+
+    // Loosen the poles.
+    //
+    // The lattice is equal-area, so the caps hold as many dots per square
+    // unit as the equator does — but a sphere presents its caps almost
+    // edge-on, and equal area over a foreshortened region reads as a
+    // pile-up. Compressing latitude toward the equator by a fractional
+    // power moves dots out of the caps and leaves them airier, and because
+    // the ring radius is recomputed from the new latitude the silhouette is
+    // untouched: this redistributes density without reshaping anything.
+    const lat = (ay < 0 ? -1 : 1) * Math.abs(ay) ** ease;
+    const ring0 = Math.sqrt(Math.max(1e-9, 1 - ay * ay));
+    const ring = Math.sqrt(Math.max(0, 1 - lat * lat)) / ring0;
+    const fx = ax * ring;
+    const fy = lat;
+    const fz = az * ring;
+
     const gx = fx * sphereR;
     const gy = fy * sphereR;
     const gz = fz * sphereR;

@@ -104,6 +104,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       settle: 0.1,
       tiltAmp: 0.34,
       sphereR: 0.94,
+      poleEase: 1.4,
       scanRate: 0.85,
       scanSwing: 1.05,
       scanWidth: 0.22,
