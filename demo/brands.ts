@@ -10,9 +10,10 @@
 // is also why the set spans the full difficulty range rather than only the
 // logos that happen to bake well.
 
+import claudeMark from './marks/claude.svg?raw';
 import xMark from './marks/x.svg?raw';
 import {
-  siAnthropic,
+  siClaude,
   siGithub,
   siLinear,
   siSpotify,
@@ -58,15 +59,15 @@ function brand(
  * by omission, since Shopify's bag is what most real logos look like.
  */
 export const BRANDS: Brand[] = [
-  brand(siAnthropic, 'anthropic', 'Thinking', 'simple'),
-  brand(siSupabase, 'supabase', 'Solving', 'simple'),
   // Supplied as full markup rather than a simple-icons path — it is the
   // brand's own asset, and `svg` exists precisely so a caller is never
   // forced to reduce their mark to one path to use this.
+  { ...brand(siClaude, 'claude', 'Thinking', 'medium'), svg: claudeMark },
   { ...brand(siX, 'x', 'Orbiting', 'simple'), svg: xMark },
-  brand(siLinear, 'linear', 'Listening', 'medium'),
-  brand(siSpotify, 'spotify', 'Searching', 'medium'),
-  brand(siGithub, 'github', 'Breathing', 'busy')
+  brand(siSupabase, 'supabase', 'Breathing', 'simple'),
+  brand(siLinear, 'linear', 'Searching', 'medium'),
+  brand(siSpotify, 'spotify', 'Listening', 'medium'),
+  brand(siGithub, 'github', 'Solving', 'busy')
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

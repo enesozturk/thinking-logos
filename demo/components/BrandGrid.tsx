@@ -27,9 +27,9 @@ const MARK = 100;
  * the set look like a comparison rather than a collection.
  */
 const LAYOUT: Record<string, number> = {
-  anthropic: 288,
-  supabase: 226,
+  claude: 288,
   x: 254,
+  supabase: 226,
   linear: 214,
   spotify: 276,
   github: 236
