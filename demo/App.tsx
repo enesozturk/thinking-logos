@@ -14,20 +14,6 @@ export function App() {
       <BrandGrid />
       <LogoLab />
 
-      {/* The package is the alternative, not the default. Most people want
-          one mark in one state, and for them a file they own beats a
-          dependency they have to keep. */}
-      <p className="w-full text-[13px] leading-5 text-muted-foreground">
-        Using several marks or several states? <code className="font-mono">npm install thinking-logo</code>{' '}
-        gives you the whole engine and one copy of it —{' '}
-        <a
-          className="text-foreground underline-offset-4 hover:underline"
-          href="https://github.com/enesozturk/thinking-logo#readme"
-        >
-          see the README
-        </a>
-        .
-      </p>
       <Footer />
     </main>
   );

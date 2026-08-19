@@ -139,3 +139,26 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
+/* Shiki output.
+   `defaultColor: false` makes the highlighter emit both palettes as custom
+   properties instead of baking one in, so the theme switch is a class
+   change and never a re-highlight. */
+.shiki-host pre {
+  padding: 1rem;
+  background-color: transparent !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.shiki-host code {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+}
+
+.shiki-host span {
+  color: var(--shiki-light);
+}
+
+.dark .shiki-host span {
+  color: var(--shiki-dark);
+}

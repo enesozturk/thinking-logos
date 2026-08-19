@@ -4,16 +4,24 @@ Your logo as the loading state. Bake any SVG into a 3D point cloud and animate i
 
 Plain 2D canvas. No WebGL, no filters, no runtime dependency beyond React.
 
-[Live demo](https://enesozturk.github.io/thinking-logo/) · [Report an issue](https://github.com/enesozturk/thinking-logo/issues)
+[Playground](https://enesozturk.github.io/thinking-logo/) · [Report an issue](https://github.com/enesozturk/thinking-logo/issues)
 
-```bash
-npm install thinking-logo
-```
+## Getting it
+
+There is no package to install. Open the playground, drop your SVG in, pick
+a state, and copy the component it generates — one file, React the only
+import.
+
+That is not a shortcut. The bake is the only part that needs a DOM, and the
+playground has already done it, so the copied file carries the finished
+point set and never touches a rasteriser at runtime: no async, no image
+decode, no work on the user's first paint. It is a better artefact than a
+published package would hand you, and it is yours to edit.
 
 ```tsx
-import { ThinkingLogo } from 'thinking-logo';
+import { YourMark } from './your-mark';
 
-<ThinkingLogo logo={{ svg: mySvg }} state="thinking" size={64} />;
+<YourMark size={64} />;
 ```
 
 ## Why
@@ -89,9 +97,11 @@ A bake turns artwork into points. It is the only part that needs a DOM, and it h
 <ThinkingLogo logo={{ svg }} bake={{ style: 'outline', shell: 'slab', count: 220 }} />
 ```
 
-### Bake once, ship JSON
+### Baking it yourself
 
-The runtime path above rasterises in the browser on first mount. For production, do it at build time and ship the result — then no rasteriser, no `<img>` decode, and no work on the user's main thread.
+The playground bakes for you and the copied file needs none of this. If you
+are working from the source — several marks, or a build step of your own —
+the baker is a direct import.
 
 ```ts
 // build script

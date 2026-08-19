@@ -5,7 +5,7 @@ import type { LogoState } from '../../src/logoPresets';
 import type { LogoSource } from '../../src/bake/bake';
 import { BRANDS } from '../brands';
 import { buildStandalone } from '@/lib/standalone';
-import { CopyButton } from './CopyButton';
+import { CodeBlock } from './CodeBlock';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -351,12 +351,7 @@ export function LogoLab() {
         One file, no install. The dots are already baked, so nothing rasterises an SVG at runtime —
         paste it in and import it.
       </p>
-      <div className="relative overflow-hidden rounded-lg bg-muted">
-        <pre className="max-h-[380px] overflow-auto py-3 pr-12 pl-3">
-          <code className="font-mono text-[12px] leading-[19px] whitespace-pre">{file}</code>
-        </pre>
-        <CopyButton className="absolute top-2 right-2" getText={() => file} />
-      </div>
+      <CodeBlock code={file} maxHeight={420} />
     </section>
   );
 }

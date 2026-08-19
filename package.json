@@ -1,7 +1,7 @@
 {
   "name": "thinking-logo",
   "version": "0.1.0",
-  "description": "Turn your logo into a dotted thinking orb \u2014 bake any SVG into a 3D point cloud and animate it as an AI/agent loading state",
+  "description": "Turn your logo into a dotted thinking orb — bake any SVG into a 3D point cloud and animate it as an AI/agent loading state",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.es.js",
@@ -69,6 +69,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "shadcn": "^4.18.0",
+    "shiki": "^4.4.3",
     "simple-icons": "^16.28.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
