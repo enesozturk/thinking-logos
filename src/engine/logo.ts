@@ -448,26 +448,27 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
   return finalizeFrame(dots, [], o.rMin);
 };
 
-// --- Orbit: logo → a ringed planet → logo ------------------------------
+// --- Work: logo → a thread wound into a knot → logo --------------------
 
 /**
- * The mark becomes a small planet with a ring turning around it.
+ * The mark becomes a single thread that winds itself into a closed knot,
+ * one stitch at a time, and unwinds again on the way back.
  *
- * The previous version never changed form: a share of the logo's dots
- * simply wandered around its edges. It was a nice detail and it was not an
- * orbit — nothing was going round anything, because there was no body at
- * the centre for the eye to accept as the thing being orbited.
+ * Four solids were tried here and none of them fitted. A ringed planet was
+ * the right idea for `orbiting` and inherited by accident; an armillary of
+ * rings never cohered; a torus and a toothed orb were stable but joined a
+ * crowded family of round things. The mistake was reaching for another
+ * OBJECT when what the state needed was an ACT.
  *
- * A planet supplies that. The body is a compact sphere and the ring sits
- * clear of it in a single plane, every particle sharing one angular rate,
- * which is what makes the motion read as governed rather than as drift. The
- * camera keeps a fixed tilt while the planet is showing so the ring is
- * always an ellipse — edge-on it is a line, face-on it is a circle around a
- * dot, and neither says Saturn.
+ * `generating` supplies the mechanic — a bright head working its way over
+ * the form — and this inverts it. There the whole crystal is present and
+ * the head colours it in; here the thread does not exist until the head has
+ * laid it. One fills a surface, the other draws a line, so the two read as
+ * different kinds of labour rather than the same trick twice.
  *
- * It stays distinct from the other spheres by what surrounds it: `thinking`
- * is a bare orb dissolving, `searching` a surface being swept, `breathing`
- * a body changing shape. This one is a body with something in orbit.
+ * The path is a torus knot: a closed curve that never crosses itself, wraps
+ * the frame in three dimensions, and looks like nothing else in the set.
+ * Winding one is exactly what work looks like.
  */
 export const frameLogoWork: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -477,73 +478,76 @@ export const frameLogoWork: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.turns ?? 1, o.settle ?? 0.1, o.expo ?? 0.3);
+  const dwell = o.dwell ?? 4.5;
+  const morph = o.morph ?? 1.9;
+  const b = beatAt(t, dwell, morph, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
 
-  // A held tilt, not an oscillating one. The ring's whole legibility is its
-  // ellipse, and a wandering camera keeps re-opening and closing it.
-  const pt = makeProj(TURN * b.turns, (o.tilt ?? 0.46) * c, cx, cx, R);
+  const pt = makeProj(
+    (o.lean ?? 0.4) + (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.26)) * c,
+    (o.tilt ?? 0.4) * c,
+    cx,
+    cx,
+    R
+  );
 
-  const planetR = o.planetR ?? 0.58;
-  const inner = o.ringInner ?? 0.86;
-  const outer = o.ringOuter ?? 1.18;
-  const bands = Math.max(1, Math.round(o.ringBands ?? 3));
-  const share = o.ringShare ?? 0.3;
-  // One rate for every particle in the ring. Per-dot rates were what made
-  // the old version look like drift: a ring only reads as a ring while its
-  // particles keep station with each other.
-  const sweep = t * (o.ringRate ?? 0.5);
-  const spin = t * (o.planetSpin ?? 0.22);
+  // Wind across the dwell, hold complete while the mark shows, unwind on
+  // the way back — so the cycle reaches its own start with nothing laid,
+  // rather than resetting there.
+  const into = b.local - dwell;
+  const prog =
+    b.local < dwell ? b.local / dwell : into < morph ? 1 : clamp01(1 - (into - morph) / morph);
+  const head = prog * n;
+  const feather = Math.max(1, n * (o.feather ?? 0.02));
+  const headW = Math.max(1, n * (o.headWidth ?? 0.01));
+  const winding = b.local < dwell;
+
+  // A (p, q) torus knot. Coprime windings are what keep it a single closed
+  // curve instead of q separate loops.
+  const wraps = o.wraps ?? 3;
+  const turns = o.knotTurns ?? 2;
+  const major = o.major ?? 0.62;
+  const minor = o.minor ?? 0.3;
+  const spin = t * (o.spin ?? 0.24);
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
-    const inRing = hashD(i, 6.7) < share;
+    const u = (seat / n) * TURN;
+    const ring = major + minor * Math.cos(turns * u);
+    const kx = ring * Math.cos(wraps * u);
+    const ky = minor * Math.sin(turns * u);
+    const kz = ring * Math.sin(wraps * u);
 
-    let bx: number;
-    let by: number;
-    let bz: number;
-
-    if (inRing) {
-      // Angle from the seat index so the particles spread evenly round the
-      // ring rather than clumping by a hash, then advanced together.
-      const ang = (seat / n) * TURN + sweep;
-      // Quantised radii: a smooth annulus reads as a disc, discrete bands
-      // read as rings, and rings are the thing being depicted.
-      const band = bands > 1 ? Math.floor(hashD(i, 4.1) * bands) / (bands - 1) : 0;
-      const rad = inner + (outer - inner) * band;
-      bx = Math.cos(ang) * rad;
-      by = (hashD(i, 7.3) - 0.5) * (o.ringThick ?? 0.05);
-      bz = Math.sin(ang) * rad;
-    } else {
-      const [fx, fy, fz] = fibDir(seat, n);
-      // The body turns on its own axis, slower than the ring.
-      const ca = Math.cos(spin);
-      const sa = Math.sin(spin);
-      bx = (fx * ca + fz * sa) * planetR;
-      by = fy * planetR;
-      bz = (-fx * sa + fz * ca) * planetR;
-    }
+    const ca = Math.cos(spin);
+    const sa = Math.sin(spin);
+    const bx = kx * ca + kz * sa;
+    const bz = -kx * sa + kz * ca;
 
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
     const lz = p[i * 3 + 2];
     const x = lx + (bx - lx) * c;
-    const y = ly + (by - ly) * c;
+    const y = ly + (ky - ly) * c;
     const z3 = lz + (bz - lz) * c;
+
+    // Laid or not yet. Unlike `generating`, what is not yet worked is not
+    // there at all — the thread grows rather than filling in.
+    const laid = clamp01((head - seat) / feather);
+    const at = winding ? Math.exp(-(((seat - head) / headW) ** 2)) : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);
-    // Ring particles are finer than the body they orbit, which is both true
-    // of the real thing and what keeps the planet reading as solid.
-    const fine = inRing ? c : 0;
     dots.push({
       x: px,
       y: py,
       z,
-      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.5) * zx - (o.ringR ?? 0.35) * fine) * rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.ringInk ?? 0.1) * fine
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.headR ?? 1.2) * at * c) * rs,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) - (o.headInk ?? 0.4) * at * c,
+      // Present once laid; absent ahead of the head, never while the mark
+      // itself is showing.
+      a: 1 - (1 - laid) * c
     });
   }
   return finalizeFrame(dots, [], o.rMin);
