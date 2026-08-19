@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ThinkingLogo } from '../../src/ThinkingLogo';
-import { serializeLogo } from '../../src/bake/bake';
 import type { LogoPointSet } from '../../src/engine/cloud';
 import type { LogoState } from '../../src/logoPresets';
 import type { LogoSource } from '../../src/bake/bake';
 import { BRANDS } from '../brands';
+import { buildStandalone } from '@/lib/standalone';
 import { CopyButton } from './CopyButton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -155,24 +155,18 @@ export function LogoLab() {
     setCustom({ name: file.name.replace(/\.svg$/i, ''), svg: await file.text() });
   }, []);
 
-  const snippet = [
-    `import { ThinkingLogo } from 'thinking-logo';`,
-    ``,
-    `<ThinkingLogo`,
-    `  logo={{ svg: mySvg }}`,
-    `  state="${state}"`,
-    `  size={64}`,
-    tint ? `  tint="${tint}"` : null,
-    `  bake={{ count: ${count} }}`,
-    dwell === null && morph === null
-      ? null
-      : `  tune={{ ${[dwell === null ? null : `dwell: ${dwell}`, morph === null ? null : `morph: ${morph}`]
-          .filter(Boolean)
-          .join(', ')} }}`,
-    `/>`
-  ]
-    .filter((l) => l !== null)
-    .join('\n');
+  // The whole point of the playground is that someone leaves with working
+  // code, and the code they leave with should not need this package
+  // installed. The bake is the only part that needs a DOM and it has
+  // already happened here, so the file carries the finished point set and
+  // never touches a rasteriser at runtime.
+  const file = useMemo(
+    () =>
+      baked
+        ? buildStandalone({ name: label, state, points: baked, tint, tune })
+        : '// baking…',
+    [baked, label, state, tint, tune]
+  );
 
   return (
     <section className="mb-10 w-full" aria-label="Playground">
@@ -347,24 +341,22 @@ export function LogoLab() {
         </div>
       </Card>
 
-      <div className="relative mt-3 flex items-start overflow-hidden rounded-lg bg-muted py-1.5 pr-12 pl-3">
-        <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm leading-[22px] whitespace-pre">
-          {snippet}
-        </code>
-        <CopyButton className="absolute top-1 right-1" getText={() => snippet} />
+      <div className="mt-6 flex items-baseline justify-between gap-3">
+        <h3 className="text-base">Take the code</h3>
+        <span className="text-[13px] text-muted-foreground">
+          {baked ? `${baked.n} dots · ${(file.length / 1024).toFixed(1)} KB · React only` : 'baking…'}
+        </span>
       </div>
-
-      {baked && (
-        <div className="mt-3 flex items-center gap-2">
-          <span className="text-[13px] text-muted-foreground">
-            Baked: {baked.n} points · {(serializeLogo(baked).length / 1024).toFixed(1)} KB of JSON
-          </span>
-          {/* Copying the point set is the whole production story in one
-              button: bake once here, commit the JSON, and the app never
-              ships a rasteriser. */}
-          <CopyButton getText={() => serializeLogo(baked)} />
-        </div>
-      )}
+      <p className="mt-1 mb-2 text-[13px] leading-5 text-muted-foreground">
+        One file, no install. The dots are already baked, so nothing rasterises an SVG at runtime —
+        paste it in and import it.
+      </p>
+      <div className="relative overflow-hidden rounded-lg bg-muted">
+        <pre className="max-h-[380px] overflow-auto py-3 pr-12 pl-3">
+          <code className="font-mono text-[12px] leading-[19px] whitespace-pre">{file}</code>
+        </pre>
+        <CopyButton className="absolute top-2 right-2" getText={() => file} />
+      </div>
     </section>
   );
 }

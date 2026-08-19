@@ -46,6 +46,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:demo
+      # GitHub Pages serves static files only, so /thinking-logo/claude has
+      # no file behind it. Pages falls back to 404.html for unknown paths,
+      # and a copy of index.html there lets the app route them itself.
+      - run: cp dist-demo/index.html dist-demo/404.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
