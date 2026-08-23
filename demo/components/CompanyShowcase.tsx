@@ -36,7 +36,7 @@ export function CompanyShowcase({ brand }: { brand: Brand }) {
         <header className="flex items-baseline justify-between">
           <h1 className="font-heading text-2xl leading-none">{brand.title}</h1>
           <span className="font-heading text-sm leading-none text-muted-foreground">
-            thinking-logo
+            Thinking Logo
           </span>
         </header>
 

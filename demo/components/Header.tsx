@@ -30,7 +30,7 @@ export function Header({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: 
         <StaticMark />
       </div>
 
-      <h1 className="font-heading text-3xl leading-tight">thinking-logo</h1>
+      <h1 className="font-heading text-3xl leading-tight">Thinking Logo</h1>
       {/* One sentence per line, broken explicitly rather than left to wrap
           — a width that happens to break in the right place at one viewport
           breaks in the wrong one everywhere else. */}
