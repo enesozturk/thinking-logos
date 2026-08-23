@@ -53,7 +53,7 @@ export function CompanyShowcase({ brand }: { brand: Brand }) {
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-10">
             {STATES.map(({ state, label }) => (
               <div key={state} className="flex w-[168px] flex-col items-center gap-2.5">
-                <ThinkingLogo logo={source} state={state} size={132} tint={tint} />
+                <ThinkingLogo logo={source} state={state} size={132} tint={tint} startAtMark />
                 <span className="text-[13px] leading-none text-muted-foreground">{label}</span>
               </div>
             ))}

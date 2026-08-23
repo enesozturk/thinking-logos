@@ -20,6 +20,16 @@ import { useResolvedDark, useReducedMotion } from './theme';
 import type { OrbTheme } from './types';
 import { useBakedLogo } from './useBakedLogo';
 
+/**
+ * A single origin shared by every instance that asks to start on the mark.
+ *
+ * Taken on first use rather than at module load: the bundle is evaluated
+ * long before anything mounts, and an epoch set there would already be
+ * seconds old by the time the first canvas paints. Mount times differ by
+ * well under a frame, so one origin keeps the whole page in step.
+ */
+let markEpoch: number | null = null;
+
 const LABELS: Record<LogoState, string> = {
   thinking: 'Thinking…',
   searching: 'Searching…',
@@ -56,6 +66,17 @@ export interface ThinkingLogoProps extends Omit<CanvasHTMLAttributes<HTMLCanvasE
   paused?: boolean;
 
   /**
+   * Begin the cycle with the mark assembled rather than wherever the shared
+   * clock happens to be, and share one origin with every other instance
+   * that asks for it.
+   *
+   * For recording. A loop that starts mid-transformation has no natural cut
+   * point, and a grid of marks each caught at a different phase reads as
+   * seven unrelated things rather than one set. @default false
+   */
+  startAtMark?: boolean;
+
+  /**
    * Bake overrides. `count` defaults to whatever stays legible at `size` —
    * override it only after previewing at the smallest size you ship.
    */
@@ -78,6 +99,7 @@ export function ThinkingLogo({
   tint,
   speed = 1,
   paused = false,
+  startAtMark = false,
   bake,
   tune,
   onBake,
@@ -112,6 +134,13 @@ export function ThinkingLogo({
     if (!ctx) return;
 
     const { frame: modeFrame, speed: baseSpeed, opts, binding } = resolveLogo(state, points, tune);
+    // The mark is fully assembled one morph after the dwell ends, so that is
+    // where a capture should open.
+    const dwell = typeof opts.dwell === 'number' ? opts.dwell : 4;
+    const morph = typeof opts.morph === 'number' ? opts.morph : 1.9;
+    const offset = startAtMark ? dwell + morph : 0;
+    if (startAtMark) markEpoch ??= performance.now();
+    const origin = startAtMark ? (markEpoch as number) : 0;
     // Adapted against the resolved substrate, not the raw prop: a brand
     // black has to survive a dark UI, and the correction depends on which
     // theme actually won.
@@ -127,18 +156,19 @@ export function ThinkingLogo({
       else paintFrame(ctx, f, dark);
     };
 
-    // Reduced motion → one static, deterministic frame. The offset lands
-    // inside the assemble mode's hold, so what those viewers see is the
-    // logo itself rather than a cloud caught mid-flight.
+    // Reduced motion → one static, deterministic frame, taken where the mark
+    // is assembled rather than at a cloud caught mid-flight.
     if (reduced) {
-      render(4.2);
+      render(offset || 4.2);
       return;
     }
+
+    const clock = () => ((performance.now() - origin) / 1000) * effSpeed + offset;
 
     let raf = 0;
     let running = false;
     const loop = () => {
-      render((performance.now() / 1000) * effSpeed);
+      render(clock());
       if (running) raf = requestAnimationFrame(loop);
     };
     const start = () => {
@@ -151,7 +181,7 @@ export function ThinkingLogo({
       cancelAnimationFrame(raf);
     };
 
-    render((performance.now() / 1000) * effSpeed);
+    render(clock());
 
     let visible = true;
     const io =
@@ -175,7 +205,7 @@ export function ThinkingLogo({
       io?.disconnect();
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [points, state, size, dark, tint, speed, paused, reduced, tune]);
+  }, [points, state, size, dark, tint, speed, paused, reduced, tune, startAtMark]);
 
   return (
     <canvas

@@ -63,6 +63,7 @@ export function BrandGrid() {
                     state={VERB_TO_STATE[b.verb] ?? 'thinking'}
                     size={MARK}
                     tint={`#${b.hex}`}
+                    startAtMark
                   />
                   <span className="text-base leading-none whitespace-nowrap">
                     {b.title} <span className="text-muted-foreground">{b.verb.toLowerCase()}…</span>
