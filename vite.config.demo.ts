@@ -5,9 +5,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: resolve(__dirname, 'demo'),
-  // The demo is served from a project page (enesozturk.github.io/thinking-logo),
-  // so assets need the repo path as their base. Dev serves from / as usual.
-  base: process.env.NODE_ENV === 'production' ? '/thinking-logo/' : '/',
+  // Served from the root of its own domain, so assets resolve from `/`.
+  // This was `/thinking-logo/` while the site lived on a GitHub project
+  // page; a custom domain puts it at the root and that prefix would 404
+  // every asset.
+  base: '/',
   plugins: [react(), tailwindcss()],
   server: { port: 5177 },
   resolve: {
