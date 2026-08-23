@@ -31,33 +31,36 @@ export function CompanyShowcase({ brand }: { brand: Brand }) {
           recorded is what was designed. */}
       <div
         data-capture="4x3"
-        className="flex aspect-[4/3] w-full max-w-[940px] flex-col rounded-2xl border bg-card p-10"
+        className="flex aspect-[4/3] w-full max-w-[880px] flex-col rounded-2xl border bg-card px-10 py-8"
       >
         <header className="flex items-baseline justify-between">
-          <h1 className="font-heading text-3xl leading-none">{brand.title}</h1>
-          <p className="text-[13px] text-muted-foreground">
-            every state, rendered from {brand.title}&rsquo;s own mark
-          </p>
+          <h1 className="font-heading text-2xl leading-none">{brand.title}</h1>
+          <span className="font-heading text-sm leading-none text-muted-foreground">
+            thinking-logo
+          </span>
         </header>
 
-        <div className="flex flex-1 items-center">
-          <div className="grid w-full grid-cols-4 gap-x-4 gap-y-10 max-sm:grid-cols-3">
-          {STATES.map(({ state, label }) => (
-            <div key={state} className="flex flex-col items-center gap-2">
-              <ThinkingLogo logo={source} state={state} size={96} tint={tint} />
-              <span className="text-[13px] leading-none text-muted-foreground">{label}</span>
-            </div>
-          ))}
-          <div className="flex flex-col items-center justify-center gap-1 text-center">
-            <span className="font-heading text-lg leading-none">thinking-logo</span>
-            <span className="text-[12px] leading-none text-muted-foreground">
-              your logo, as the loading state
-            </span>
-            </div>
+        {/* The marks are the subject, so they take the room. Anything that
+            only explains them is a caption competing with them.
+
+            Wrapping rather than a grid, because seven items in four columns
+            leaves the second row three wide — a grid pins those to the left
+            and the whole block reads as unfinished, where wrapping centres
+            them. And the group is centred in the frame rather than stretched
+            to it: a stretched two-row grid pushes its rows apart and opens a
+            hole under the title. */}
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-10">
+            {STATES.map(({ state, label }) => (
+              <div key={state} className="flex w-[168px] flex-col items-center gap-2.5">
+                <ThinkingLogo logo={source} state={state} size={132} tint={tint} />
+                <span className="text-[13px] leading-none text-muted-foreground">{label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <footer className="text-[12px] text-muted-foreground">
+        <footer className="text-[12px] leading-none text-muted-foreground">
           github.com/enesozturk/thinking-logo
         </footer>
       </div>
