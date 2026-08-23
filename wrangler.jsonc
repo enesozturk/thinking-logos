@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "thinking-logo",
+  // Assets only — there is no `main`, so no Worker code runs and nothing is
+  // billed per request. The whole demo is static files.
+  "compatibility_date": "2025-04-01",
+  "assets": {
+    "directory": "./dist-demo",
+    // The /{company} routes have no file behind them. Assets are matched
+    // first, so real files — the hashed bundles, filmstrip.html — still win,
+    // and only unmatched paths fall through to the app's own router.
+    //
+    // Needs a compatibility date of 2025-04-01 or later, which is what makes
+    // navigation requests skip Worker invocation entirely.
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [{ "pattern": "thinking-logos.ozturkenes.com", "custom_domain": true }]
+}
