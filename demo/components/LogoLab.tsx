@@ -226,7 +226,11 @@ export function LogoLab() {
               ) : (
                 <Select value={brandKey} onValueChange={(v) => setBrandKey(v as string)}>
                   <SelectTrigger size="sm" className="w-36">
-                    <SelectValue />
+                    {/* Base UI's Value renders the raw value unless told how
+                        to label it, and the value here is the lookup key. */}
+                    <SelectValue>
+                      {(v) => BRANDS.find((b) => b.key === v)?.title ?? String(v ?? '')}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {BRANDS.map((b) => (

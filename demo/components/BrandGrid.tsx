@@ -2,7 +2,6 @@ import React from 'react';
 import { ThinkingLogo } from '../../src/ThinkingLogo';
 import type { LogoState } from '../../src/logoPresets';
 import { BRANDS } from '../brands';
-import { Card } from '@/components/ui/card';
 
 // The grid's real job: show that these are seven distinct MOTIONS on the
 // same kind of object, not one animation with seven labels.
@@ -16,54 +15,35 @@ const VERB_TO_STATE: Record<string, LogoState> = {
   Generating: 'generating'
 };
 
-const MARK = 100;
-
-/**
- * Card height and mark size, per brand. Hand-set rather than derived.
- *
- * A masonry of equal cards is just a grid. The uneven heights are the whole
- * effect: each mark has to read as one thing floating in a space of its
- * own, which only works if the spaces differ enough to be obviously
- * deliberate. The marks themselves are all one size — varying those made
- * the set look like a comparison rather than a collection.
- */
-const LAYOUT: Record<string, number> = {
-  claude: 296,
-  x: 232,
-  supabase: 214,
-  linear: 246,
-  spotify: 268,
-  github: 226,
-  fal: 258
-};
+const MARK = 48;
 
 export function BrandGrid() {
   return (
     <section className="mb-10 w-full" aria-label="Brand examples">
-      {/* CSS multi-column rather than a grid: it is the one layout primitive
-          that packs items of differing heights without measuring them, so
-          the cards can be any size and the columns still balance. */}
-      <div className="columns-2 gap-3 max-sm:columns-1">
-        {BRANDS.map((b) => {
-          const source = b.svg ? { svg: b.svg } : { path: b.path };
-          return (
-            <Card
-              key={b.key}
-              style={{ height: LAYOUT[b.key] ?? 240 }}
-              className="mb-3 flex break-inside-avoid items-center justify-center gap-3 max-sm:!h-[200px]"
-            >
-              <ThinkingLogo
-                logo={source}
-                state={VERB_TO_STATE[b.verb] ?? 'thinking'}
-                size={MARK}
-                tint={`#${b.hex}`}
-              />
-              <span className="text-[13px] leading-none text-muted-foreground">
-                <span className="text-foreground">{b.title}</span> {b.verb.toLowerCase()}…
-              </span>
-            </Card>
-          );
-        })}
+      {/* Pills rather than cards on a masonry.
+          
+          The masonry gave each mark a large empty room of its own, which
+          reads as a gallery — seven pieces to be looked at one at a time.
+          These are loading indicators; they belong in a row of chips, at the
+          size and in the shape they will actually ship in. Wrapping rather
+          than a grid so the short last row centres instead of hanging left. */}
+      <div className="flex flex-wrap justify-center gap-3">
+        {BRANDS.map((b) => (
+          <div
+            key={b.key}
+            className="flex items-center gap-3 rounded-full border bg-card py-2 pr-6 pl-2"
+          >
+            <ThinkingLogo
+              logo={b.svg ? { svg: b.svg } : { path: b.path }}
+              state={VERB_TO_STATE[b.verb] ?? 'thinking'}
+              size={MARK}
+              tint={`#${b.hex}`}
+            />
+            <span className="text-[15px] leading-none whitespace-nowrap">
+              {b.title} <span className="text-muted-foreground">{b.verb.toLowerCase()}…</span>
+            </span>
+          </div>
+        ))}
       </div>
     </section>
   );
