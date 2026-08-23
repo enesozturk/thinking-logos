@@ -31,9 +31,13 @@ export function Header({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: 
       </div>
 
       <h1 className="font-heading text-3xl leading-tight">thinking-logo</h1>
-      <p className="mt-2 max-w-[440px] text-sm leading-[21px] text-muted-foreground">
-        Your logo, as the loading state. Bake any SVG into a 3D point cloud and animate it.
-      </p>
+      {/* One sentence per line, broken explicitly rather than left to wrap
+          — a width that happens to break in the right place at one viewport
+          breaks in the wrong one everywhere else. */}
+      <div className="mt-2 text-sm leading-[22px] text-muted-foreground">
+        <p>Your logo, as your agent&rsquo;s loading animation.</p>
+        <p>Bake any SVG into a 3D point cloud and animate it.</p>
+      </div>
     </header>
   );
 }

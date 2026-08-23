@@ -1,6 +1,6 @@
 # thinking-logo
 
-Your logo as the loading state. Bake any SVG into a 3D point cloud and animate it with the [thinking-orbs](https://github.com/Jakubantalik/thinking-orbs) engine — the mark scatters into a sphere while the model works, and reassembles into your brand when it lands.
+Your logo, as your agent's loading animation. Bake any SVG into a 3D point cloud and animate it with the [thinking-orbs](https://github.com/Jakubantalik/thinking-orbs) engine — the mark scatters into a sphere while the model works, and reassembles into your brand when it lands.
 
 Plain 2D canvas. No WebGL, no filters, no runtime dependency beyond React.
 
