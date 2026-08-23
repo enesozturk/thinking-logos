@@ -15,7 +15,10 @@ const VERB_TO_STATE: Record<string, LogoState> = {
   Generating: 'generating'
 };
 
-const MARK = 48;
+// Large enough that the form is legible at a glance — the point of the
+// section is that these are seven different shapes, and at chip size that
+// difference is exactly what goes first.
+const MARK = 76;
 
 export function BrandGrid() {
   return (
@@ -27,11 +30,11 @@ export function BrandGrid() {
           These are loading indicators; they belong in a row of chips, at the
           size and in the shape they will actually ship in. Wrapping rather
           than a grid so the short last row centres instead of hanging left. */}
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-4">
         {BRANDS.map((b) => (
           <div
             key={b.key}
-            className="flex items-center gap-3 rounded-full border bg-card py-2 pr-6 pl-2"
+            className="flex items-center gap-4 rounded-full border bg-card py-4 pr-10 pl-4"
           >
             <ThinkingLogo
               logo={b.svg ? { svg: b.svg } : { path: b.path }}
@@ -39,7 +42,7 @@ export function BrandGrid() {
               size={MARK}
               tint={`#${b.hex}`}
             />
-            <span className="text-[15px] leading-none whitespace-nowrap">
+            <span className="text-base leading-none whitespace-nowrap">
               {b.title} <span className="text-muted-foreground">{b.verb.toLowerCase()}…</span>
             </span>
           </div>
