@@ -14,5 +14,20 @@
     // navigation requests skip Worker invocation entirely.
     "not_found_handling": "single-page-application"
   },
-  "routes": [{ "pattern": "thinking-logos.ozturkenes.com", "custom_domain": true }]
+  // Two entries for one hostname, deliberately.
+  //
+  // The custom domain is what binds the Worker and provisions its
+  // certificate. On its own it was not enough: the zone carries a
+  // wildcard `*.ozturkenes.com` A record left over from the Vercel
+  // migration, and Cloudflare had created only the AAAA half of the
+  // custom domain's record pair — so IPv4 traffic for this hostname fell
+  // through to the wildcard and was answered by Vercel with a 404. The
+  // missing A record cannot be added by hand ("a DNS record managed by
+  // Workers already exists on that host"), so the route is what closes
+  // the gap: it matches the hostname regardless of which origin DNS
+  // resolves to.
+  "routes": [
+    { "pattern": "thinking-logos.ozturkenes.com", "custom_domain": true },
+    { "pattern": "thinking-logos.ozturkenes.com/*", "zone_name": "ozturkenes.com" }
+  ]
 }
