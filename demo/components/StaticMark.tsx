@@ -34,5 +34,5 @@ export function StaticMark({ size = 104, at = 0.62 }: { size?: number; at?: numb
     MODE_DRAWS[mode](ctx, size, at, dark, opts);
   }, [size, at, dark]);
 
-  return <canvas ref={ref} role="img" aria-label="thinking-logo" style={{ width: size, height: size, display: 'block' }} />;
+  return <canvas ref={ref} role="img" aria-label="Thinking Logos" style={{ width: size, height: size, display: 'block' }} />;
 }
