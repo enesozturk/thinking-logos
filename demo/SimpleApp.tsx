@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { OrbState } from 'thinking-logo';
-import { ThinkingOrb } from 'thinking-logo';
+import type { OrbState } from 'thinking-logos';
+import { ThinkingOrb } from 'thinking-logos';
 
 const STATES: Array<{ state: OrbState; blurb: string }> = [
   { state: 'working', blurb: 'particles on tilted orbits' },

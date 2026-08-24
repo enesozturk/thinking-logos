@@ -1,5 +1,5 @@
 {
-  "name": "thinking-logo",
+  "name": "thinking-logos",
   "version": "0.1.0",
   "description": "Turn your logo into a dotted thinking orb \u2014 bake any SVG into a 3D point cloud and animate it as an AI/agent loading state",
   "type": "module",
@@ -101,12 +101,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/enesozturk/thinking-logo.git"
+    "url": "git+https://github.com/enesozturk/thinking-logos.git"
   },
   "bugs": {
-    "url": "https://github.com/enesozturk/thinking-logo/issues"
+    "url": "https://github.com/enesozturk/thinking-logos/issues"
   },
-  "homepage": "https://github.com/enesozturk/thinking-logo",
+  "homepage": "https://github.com/enesozturk/thinking-logos",
   "contributors": [
     "Jakub Antalik (thinking-orbs, the engine this is built on)"
   ]

@@ -17,7 +17,7 @@ export function Header({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: 
             copy-address and the rest working. */}
         <a
           className={buttonVariants({ variant: 'ghost', size: 'icon' })}
-          href="https://github.com/enesozturk/thinking-logo"
+          href="https://github.com/enesozturk/thinking-logos"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="GitHub repository"

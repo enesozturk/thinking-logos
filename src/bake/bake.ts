@@ -144,7 +144,7 @@ export function deserializeLogo(json: string | Record<string, unknown>): LogoPoi
     p: number[];
     e: number[];
   };
-  if (raw.version !== 1) throw new Error(`thinking-logo: unsupported point-set version ${raw.version}`);
+  if (raw.version !== 1) throw new Error(`thinking-logos: unsupported point-set version ${raw.version}`);
   return {
     version: 1,
     n: raw.n,

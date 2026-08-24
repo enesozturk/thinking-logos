@@ -27,21 +27,28 @@ export function CompanyShowcase({ brand }: { brand: Brand }) {
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
-      {/* One fixed 4:3 stage. Everything inside is sized to it, so what is
-          recorded is what was designed. */}
+      {/* One fixed 4:3 stage, pinned by its height. Everything inside is
+          sized to it, so what is recorded is what was designed. Height is
+          the fixed side because the capture is height-bound; the width
+          follows from the ratio (550 × 4/3 ≈ 733). */}
       <div
         data-capture="4x3"
-        className="flex aspect-[4/3] w-full max-w-[880px] flex-col rounded-2xl border bg-card px-10 py-8"
+        className="flex aspect-[4/3] h-[550px] max-w-full flex-col rounded-2xl border bg-card px-10 py-8"
       >
         <header className="flex items-baseline justify-between">
           <h1 className="font-heading text-2xl leading-none">{brand.title}</h1>
-          <span className="font-heading text-sm leading-none text-muted-foreground">
+          <span className="font-heading text-2xl leading-none text-muted-foreground">
             Thinking Logos
           </span>
         </header>
 
         {/* The marks are the subject, so they take the room. Anything that
             only explains them is a caption competing with them.
+
+            Item width is what keeps four to a row once the stage is pinned
+            to 550px tall: at that height the frame is 733px wide, and 168px
+            items only fit three across, which strands the seventh alone on
+            a third row and overflows the card.
 
             Wrapping rather than a grid, because seven items in four columns
             leaves the second row three wide — a grid pins those to the left
@@ -52,17 +59,13 @@ export function CompanyShowcase({ brand }: { brand: Brand }) {
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-10">
             {STATES.map(({ state, label }) => (
-              <div key={state} className="flex w-[168px] flex-col items-center gap-2.5">
-                <ThinkingLogo logo={source} state={state} size={132} tint={tint} startAtMark />
+              <div key={state} className="flex w-[136px] flex-col items-center gap-2.5">
+                <ThinkingLogo logo={source} state={state} size={125} tint={tint} startAtMark />
                 <span className="text-[13px] leading-none text-muted-foreground">{label}</span>
               </div>
             ))}
           </div>
         </div>
-
-        <footer className="text-[12px] leading-none text-muted-foreground">
-          github.com/enesozturk/thinking-logo
-        </footer>
       </div>
     </main>
   );

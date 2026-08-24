@@ -1,4 +1,4 @@
-// thinking-logo — your mark, animated with the thinking-orbs engine.
+// thinking-logos — your mark, animated with the thinking-orbs engine.
 //
 // A superset of thinking-orbs: the nine procedural orb states are here
 // unchanged, plus five states that animate baked artwork instead of a
@@ -11,7 +11,7 @@ export type { ThinkingOrbProps, OrbState, OrbSize, OrbTheme } from './types';
 export { ThinkingLogo } from './ThinkingLogo';
 export type { ThinkingLogoProps } from './ThinkingLogo';
 
-// Baking: artwork → point set. Needs a DOM; import from `thinking-logo/bake`
+// Baking: artwork → point set. Needs a DOM; import from `thinking-logos/bake`
 // directly in a build script to keep it out of a runtime-only bundle.
 export { bakeLogo, serializeLogo, deserializeLogo, recommendedCount } from './bake/bake';
 export type { BakeOptions, LogoSource } from './bake/bake';

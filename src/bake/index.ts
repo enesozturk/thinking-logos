@@ -1,4 +1,4 @@
-// The `thinking-logo/bake` entry point: artwork → point set.
+// The `thinking-logos/bake` entry point: artwork → point set.
 //
 // Split from the runtime on purpose. This half needs a DOM and runs once;
 // the engine half needs neither and runs 60 times a second. Importing only

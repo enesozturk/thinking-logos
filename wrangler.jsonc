@@ -1,5 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
+  // Stays singular even though the repo and the site are "thinking-logos".
+  // This is the deployed Worker's identity: renaming it would create a
+  // second, empty Worker and leave the custom domain and route bound to
+  // the old one.
   "name": "thinking-logo",
   // Assets only — there is no `main`, so no Worker code runs and nothing is
   // billed per request. The whole demo is static files.

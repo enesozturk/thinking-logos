@@ -50,13 +50,13 @@ export function maskAtF(m: AlphaMask, x: number, y: number): number {
 
 function canvas2d(w: number, h: number): { ctx: CanvasRenderingContext2D; el: HTMLCanvasElement } {
   if (typeof document === 'undefined') {
-    throw new Error('thinking-logo: bake requires a DOM. Bake once in the browser, then ship the serialised point set.');
+    throw new Error('thinking-logos: bake requires a DOM. Bake once in the browser, then ship the serialised point set.');
   }
   const el = document.createElement('canvas');
   el.width = w;
   el.height = h;
   const ctx = el.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('thinking-logo: could not acquire a 2D context');
+  if (!ctx) throw new Error('thinking-logos: could not acquire a 2D context');
   return { ctx, el };
 }
 
@@ -133,7 +133,7 @@ export async function rasterizeSvg(svgText: string, res: number): Promise<AlphaM
   const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
   const svg = doc.documentElement;
   if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) {
-    throw new Error('thinking-logo: input is not valid SVG markup');
+    throw new Error('thinking-logos: input is not valid SVG markup');
   }
   if (!svg.getAttribute('viewBox')) {
     const w = Number.parseFloat(svg.getAttribute('width') || '0');
@@ -150,7 +150,7 @@ export async function rasterizeSvg(svgText: string, res: number): Promise<AlphaM
   img.decoding = 'sync';
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
-    img.onerror = () => reject(new Error('thinking-logo: the browser could not render this SVG'));
+    img.onerror = () => reject(new Error('thinking-logos: the browser could not render this SVG'));
     img.src = url;
   });
 

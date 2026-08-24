@@ -14,7 +14,7 @@ export default defineConfig({
   server: { port: 5177 },
   resolve: {
     alias: {
-      'thinking-logo': resolve(__dirname, 'src/index.ts'),
+      'thinking-logos': resolve(__dirname, 'src/index.ts'),
       // The demo is the app; `@/` points into it so shadcn's generated
       // components resolve the same way they would in a standalone project.
       '@': resolve(__dirname, 'demo')

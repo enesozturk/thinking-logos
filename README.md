@@ -4,7 +4,7 @@ Your logo, as your agent's loading animation. Bake any SVG into a 3D point
 cloud and play it as seven loading states — the mark scatters into a working
 form while the model thinks, and reassembles into your brand when it lands.
 
-**[Playground](https://thinking-logos.ozturkenes.com)** · [Report an issue](https://github.com/enesozturk/thinking-logo/issues)
+**[Playground](https://thinking-logos.ozturkenes.com)** · [Report an issue](https://github.com/enesozturk/thinking-logos/issues)
 
 Plain 2D canvas. No WebGL, no filters, no runtime dependency beyond React.
 
@@ -103,14 +103,14 @@ of your own — the baker is a direct import, and a point set is plain JSON you
 can commit, diff, and hand to a platform with no SVG renderer at all:
 
 ```ts
-import { bakeLogo, serializeLogo } from 'thinking-logo/bake';
+import { bakeLogo, serializeLogo } from 'thinking-logos/bake';
 
 const set = await bakeLogo({ svg }, { count: 300, shell: 'dome' });
 writeFileSync('logo.json', serializeLogo(set));
 ```
 
 ```tsx
-import { deserializeLogo } from 'thinking-logo';
+import { deserializeLogo } from 'thinking-logos';
 import points from './logo.json';
 
 <ThinkingLogo logo={deserializeLogo(points)} state="thinking" />;
