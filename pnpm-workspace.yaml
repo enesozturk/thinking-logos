@@ -1,3 +1,4 @@
 allowBuilds:
   esbuild: true
-  workerd: set this to true or false
+  workerd: true
+  "@cloudflare/workerd-linux-64": true

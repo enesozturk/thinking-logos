@@ -20,6 +20,11 @@ export default defineConfig({
       '@': resolve(__dirname, 'demo')
     }
   },
+  // The highlighter worker loads Shiki's core, grammar and themes with
+  // dynamic imports, so it is several chunks. Vite's default worker format is
+  // IIFE, which cannot be code-split — hence the build failure without this.
+  // We already construct it with `{ type: 'module' }`.
+  worker: { format: 'es' },
   build: {
     outDir: resolve(__dirname, 'dist-demo'),
     emptyOutDir: true,

@@ -21,14 +21,33 @@ import type { OrbTheme } from './types';
 import { useBakedLogo } from './useBakedLogo';
 
 /**
- * A single origin shared by every instance that asks to start on the mark.
+ * One clock for every mounted instance, advanced once per animation frame.
  *
- * Taken on first use rather than at module load: the bundle is evaluated
- * long before anything mounts, and an epoch set there would already be
- * seconds old by the time the first canvas paints. Mount times differ by
- * well under a frame, so one origin keeps the whole page in step.
+ * Wall-clock time is the obvious source and it has a failure this library
+ * cannot afford: any long task — a bake, a syntax highlight, a slow
+ * extension — stops the frames but not the clock, so the animation resumes
+ * by jumping forward by however long the page was busy. Read on load it
+ * looks like the mark freezes and then fast-forwards, which is exactly what
+ * it is.
+ *
+ * Accumulating per frame with a ceiling on the step means a stall pauses the
+ * animation instead of skipping it. Every instance reads the same
+ * accumulator, so they stay in step with each other however they mount —
+ * the property the old shared wall clock was there for.
  */
-let markEpoch: number | null = null;
+const MAX_STEP = 0.1;
+let clockSeconds = 0;
+let lastStamp = -1;
+
+function tick(stamp: number): number {
+  if (stamp === lastStamp) return clockSeconds;
+  // Frames within one rAF callback share a timestamp, so the first instance
+  // to run advances the clock and the rest read what it wrote.
+  const step = lastStamp < 0 ? 0 : Math.min((stamp - lastStamp) / 1000, MAX_STEP);
+  lastStamp = stamp;
+  clockSeconds += step;
+  return clockSeconds;
+}
 
 const LABELS: Record<LogoState, string> = {
   thinking: 'Thinking…',
@@ -139,8 +158,6 @@ export function ThinkingLogo({
     const dwell = typeof opts.dwell === 'number' ? opts.dwell : 4;
     const morph = typeof opts.morph === 'number' ? opts.morph : 1.9;
     const offset = startAtMark ? dwell + morph : 0;
-    if (startAtMark) markEpoch ??= performance.now();
-    const origin = startAtMark ? (markEpoch as number) : 0;
     // Adapted against the resolved substrate, not the raw prop: a brand
     // black has to survive a dark UI, and the correction depends on which
     // theme actually won.
@@ -163,12 +180,10 @@ export function ThinkingLogo({
       return;
     }
 
-    const clock = () => ((performance.now() - origin) / 1000) * effSpeed + offset;
-
     let raf = 0;
     let running = false;
-    const loop = () => {
-      render(clock());
+    const loop = (stamp: number) => {
+      render(tick(stamp) * effSpeed + offset);
       if (running) raf = requestAnimationFrame(loop);
     };
     const start = () => {
@@ -181,7 +196,7 @@ export function ThinkingLogo({
       cancelAnimationFrame(raf);
     };
 
-    render(clock());
+    render(clockSeconds * effSpeed + offset);
 
     let visible = true;
     const io =
