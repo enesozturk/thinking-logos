@@ -69,11 +69,24 @@ export interface LogoPreset {
   opts: ModeOpts;
 }
 
+/**
+ * Every state dwells for the same 5.5s.
+ *
+ * The cycle is `dwell + 2 * morph`, and `morph` is 1.9 throughout, so a
+ * shared dwell is what makes every mark reach its logo on the same frame.
+ * They previously ran 7.8s, 8.3s and 9.3s, which drift apart on sight and
+ * make a grid of them impossible to film as a loop.
+ *
+ * 5.5 rather than the old minimum of 4 because `solve` needs that long —
+ * its scramble has to run and reverse inside the dwell and still read.
+ * Levelling upward costs the other states nothing; levelling down would
+ * have taken the solve apart.
+ */
 export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   assemble: {
     speed: 1,
     opts: {
-      dwell: 4,
+      dwell: 5.5,
       turns: 1,
       morph: 1.9,
       expo: 0.3,
@@ -101,7 +114,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   scan: {
     speed: 1,
     opts: {
-      dwell: 4,
+      dwell: 5.5,
       turns: 1,
       morph: 1.9,
       expo: 0.3,
@@ -130,7 +143,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   work: {
     speed: 1,
     opts: {
-      dwell: 4.5,
+      dwell: 5.5,
       morph: 1.9,
       expo: 0.3,
       settle: 0.1,
@@ -160,8 +173,6 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   solve: {
     speed: 1,
     opts: {
-      // The solve needs more room than a plain dwell: the palindrome has to
-      // scramble and unscramble inside it and still be legible.
       dwell: 5.5,
       turns: 1,
       morph: 1.9,
@@ -183,7 +194,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   wave: {
     speed: 1,
     opts: {
-      dwell: 4,
+      dwell: 5.5,
       morph: 1.9,
       expo: 0.3,
       settle: 0.1,
@@ -211,7 +222,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   wait: {
     speed: 1,
     opts: {
-      dwell: 4,
+      dwell: 5.5,
       morph: 1.9,
       expo: 0.3,
       settle: 0.1,
@@ -240,7 +251,7 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
   crystal: {
     speed: 1,
     opts: {
-      dwell: 4.5,
+      dwell: 5.5,
       morph: 1.9,
       expo: 0.3,
       settle: 0.1,
