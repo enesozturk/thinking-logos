@@ -128,7 +128,7 @@ export const frameLogoScan: ModeFrame = (size, t, o, logo) => {
 
   const b = beatAt(
     t,
-    o.dwell ?? 4,
+    o.dwell ?? 5.5,
     o.morph ?? 1.9,
     o.turns ?? 1,
     o.settle ?? 0.1,
@@ -359,7 +359,7 @@ export const frameLogoAssemble: ModeFrame = (size, t, o, logo) => {
 
   const b = beatAt(
     t,
-    o.dwell ?? 4,
+    o.dwell ?? 5.5,
     o.morph ?? 1.9,
     o.turns ?? 1,
     o.settle ?? 0.45,
@@ -478,7 +478,7 @@ export const frameLogoWork: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const dwell = o.dwell ?? 4.5;
+  const dwell = o.dwell ?? 5.5;
   const morph = o.morph ?? 1.9;
   const b = beatAt(t, dwell, morph, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;

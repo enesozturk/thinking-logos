@@ -144,7 +144,9 @@ export function LogoLab() {
     if (morph !== null) t.morph = morph;
     return t;
   }, [dwell, morph]);
-  const dwells = state === 'solving' ? 5.5 : 4;
+  // Every state now dwells for the same 5.5s, so the slider no longer
+  // needs to special-case the solve.
+  const dwells = 5.5;
 
   const accept = useCallback(async (file: File) => {
     setError(null);
@@ -293,7 +295,7 @@ export function LogoLab() {
               )}
             </Row>
 
-            <Row label="Morph" hint="How long the transformation itself takes, in each direction. Full cycle = dwell + 2 × morph + a 0.35s breath.">
+            <Row label="Morph" hint="How long the transformation itself takes, in each direction. Full cycle = dwell + 2 × morph.">
               <Slider
                 className="w-48"
                 min={0.4}

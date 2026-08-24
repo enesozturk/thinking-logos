@@ -154,7 +154,7 @@ export const frameLogoWave: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, 0, o.settle ?? 0.45, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 5.5, o.morph ?? 1.9, 0, o.settle ?? 0.45, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
 
@@ -249,7 +249,7 @@ export const frameLogoWait: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const b = beatAt(t, o.dwell ?? 4, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
+  const b = beatAt(t, o.dwell ?? 5.5, o.morph ?? 1.9, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;
   const c = 1 - m;
 
@@ -350,7 +350,7 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
 
-  const dwell = o.dwell ?? 4.5;
+  const dwell = o.dwell ?? 5.5;
   const morph = o.morph ?? 1.9;
   const b = beatAt(t, dwell, morph, o.turns ?? 0, o.settle ?? 0.1, o.expo ?? 0.3);
   const m = b.m;

@@ -155,7 +155,7 @@ export function ThinkingLogo({
     const { frame: modeFrame, speed: baseSpeed, opts, binding } = resolveLogo(state, points, tune);
     // The mark is fully assembled one morph after the dwell ends, so that is
     // where a capture should open.
-    const dwell = typeof opts.dwell === 'number' ? opts.dwell : 4;
+    const dwell = typeof opts.dwell === 'number' ? opts.dwell : 5.5;
     const morph = typeof opts.morph === 'number' ? opts.morph : 1.9;
     const offset = startAtMark ? dwell + morph : 0;
     // Adapted against the resolved substrate, not the raw prop: a brand
