@@ -4,6 +4,8 @@ Your logo, as your agent's loading animation. Bake any SVG into a 3D point
 cloud and play it as seven loading states — the mark scatters into a working
 form while the model thinks, and reassembles into your brand when it lands.
 
+![Seven brand marks, each animating a different loading state](docs/demo.gif)
+
 **[Playground](https://thinking-logos.ozturkenes.com)** · [Report an issue](https://github.com/enesozturk/thinking-logos/issues)
 
 Plain 2D canvas. No WebGL, no filters, no runtime dependency beyond React.
