@@ -13,6 +13,14 @@
 import claudeMark from './marks/claude.svg?raw';
 import falMark from './marks/fal.svg?raw';
 import xMark from './marks/x.svg?raw';
+import type { LogoState } from '../src/logoPresets';
+import {
+  FRONT_CAST,
+  FRONT_FACET,
+  FRONT_GROW,
+  FRONT_LATHE,
+  FRONT_SPIRAL
+} from '../src/engine/logoDeform';
 import {
   siClaude,
   siGithub,
@@ -39,6 +47,20 @@ export interface Brand {
   verb: string;
   /** Roughly how much detail the mark carries, for the legibility note. */
   weight: 'simple' | 'medium' | 'busy';
+  /**
+   * Show one verb several ways instead of showing every verb once.
+   *
+   * The seven-state grid is the right page for a brand whose product does
+   * all seven things. For a brand that does one — Fal generates, and does
+   * not listen or wait — six of the seven cards are answering a question
+   * nobody asked about it. Such a brand gets the variants of its own verb
+   * instead, which is the comparison actually worth making.
+   */
+  variants?: {
+    state: LogoState;
+    /** One entry per card; each is merged over the state's preset. */
+    tunes: Record<string, number>[];
+  };
 }
 
 function brand(
@@ -72,7 +94,28 @@ export const BRANDS: Brand[] = [
   // No simple-icons entry, so the whole record is written out. `path` is
   // empty because `svg` takes precedence — a caller with real artwork
   // should never have to reduce it to a single path first.
-  { key: 'fal', title: 'Fal', path: '', hex: 'EC0648', verb: 'Generating', weight: 'simple', svg: falMark }
+  {
+    key: 'fal',
+    title: 'Fal',
+    path: '',
+    hex: 'EC0648',
+    verb: 'Generating',
+    weight: 'simple',
+    svg: falMark,
+    // Fal runs inference. It generates; it does not listen or wait, so its
+    // page shows the five ways of generating rather than seven verbs, six
+    // of which would be about some other product.
+    variants: {
+      state: 'generating',
+      tunes: [
+        { front: FRONT_SPIRAL },
+        { front: FRONT_CAST },
+        { front: FRONT_FACET },
+        { front: FRONT_GROW },
+        { front: FRONT_LATHE }
+      ]
+    }
+  }
 ];
 
 export const BRAND_BY_KEY = Object.fromEntries(BRANDS.map((b) => [b.key, b])) as Record<string, Brand>;

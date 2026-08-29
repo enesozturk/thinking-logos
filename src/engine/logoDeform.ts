@@ -314,6 +314,25 @@ export const frameLogoWait: ModeFrame = (size, t, o, logo) => {
 
 // --- Generating: logo → a crystal being stitched → logo ----------------
 
+/** `front` values for {@link frameLogoCrystal}. Numbers, not a union, so the
+ *  whole option bag stays capturable by a Reanimated worklet. */
+export const FRONT_SPIRAL = 0;
+export const FRONT_CAST = 1;
+export const FRONT_FACET = 2;
+export const FRONT_GROW = 3;
+export const FRONT_LATHE = 4;
+
+/**
+ * Build order for the octahedron's eight octants, indexed by sign bits
+ * (`x<0` + 2·`y<0` + 4·`z<0`).
+ *
+ * Not 0..7 in order: that walks the bits, which pairs each face with the
+ * one across the crystal from it and makes the build hop back and forth
+ * through the middle. This sequence takes the four top faces round first,
+ * then the four below, so the assembly reads as going around and then down.
+ */
+const FACET_RANK = [0, 1, 4, 5, 3, 2, 7, 6];
+
 /**
  * The mark becomes a crystal, and a single bright point races over its
  * surface lighting every dot in turn — stitch by stitch, top to bottom.
@@ -332,9 +351,20 @@ export const frameLogoWait: ModeFrame = (size, t, o, logo) => {
  * travelling between them is the brightest thing on screen. Generation as
  * something being made, rather than something appearing.
  *
- * The stitch order is the Fibonacci index itself, which walks the lattice
- * from pole to pole in a spiral — so the head sweeps row after row without
- * needing an ordering computed for it.
+ * There are five ways to make it, chosen with `front`. They are variants
+ * rather than states because they differ in one scalar and nothing else:
+ * each answers "when does this dot get made?" and everything downstream —
+ * the head, the feather, the unlit grey, the colour — reads that answer
+ * without knowing which front produced it. A sixth way of building is a
+ * new branch here, not a new mode.
+ *
+ *   spiral  the Fibonacci index itself, which already walks the lattice
+ *           pole to pole — an ordering the lattice carries for free
+ *   cast    a level plane falling from the top vertex to the bottom, with
+ *           the unmade dots held above it so they fall into place
+ *   facet   one octant at a time, the crystal assembled from panels
+ *   grow    nucleation from a single vertex, outward by angle, like frost
+ *   lathe   a meridian sweeping one revolution, laying the surface behind it
  *
  * The unravel matters as much as the stitch. On the way back from the mark
  * the work undoes itself, so the cycle reaches its own start already dark
@@ -377,10 +407,13 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
   const prog =
     b.local < dwell ? b.local / dwell : into < morph ? 1 : clamp01(1 - (into - morph) / morph);
 
-  const head = prog * n;
-  const feather = Math.max(1, n * (o.feather ?? 0.03));
-  const headW = Math.max(1, n * (o.headWidth ?? 0.012));
+  // Both are fractions of the whole build, not dot counts, so a front can
+  // order the dots however it likes and still be compared against `prog`.
+  const feather = Math.max(1e-4, o.feather ?? 0.03);
+  const headW = Math.max(1e-4, o.headWidth ?? 0.012);
   const stitching = b.local < dwell;
+
+  const front = o.front ?? FRONT_SPIRAL;
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
@@ -395,6 +428,52 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
     const ox = (ax / l1) * half;
     const oy = (ay / l1) * half;
     const oz = (az / l1) * half;
+
+    // When this dot gets made, in [0, 1]. The only thing the five variants
+    // disagree about — everything downstream reads `order` and nothing else.
+    let order: number;
+    if (front === FRONT_CAST) {
+      // A level plane rising from the bottom vertex to the top one.
+      //
+      // Upward, against the spiral's downward sweep, so the two read as
+      // opposites rather than as the same idea at two speeds.
+      //
+      // This front was first built with the unmade dots held in the air
+      // above the plane, falling in as it rose. That is a good description
+      // of casting and a bad animation: it dissolves the crystal into
+      // grain, and the silhouette — the thing the viewer is meant to keep
+      // hold of — goes with it. The comment on this function already said
+      // so, having removed a noise cloud once for the same reason. The
+      // front carries the difference; nothing moves that did not move before.
+      order = clamp01((oy + half) / (2 * half));
+    } else if (front === FRONT_FACET) {
+      // One octant at a time. The sign bits name the face; the sweep inside
+      // it keeps a face from popping in whole, which reads as a cut rather
+      // than as work.
+      const face = (ax < 0 ? 1 : 0) + (ay < 0 ? 2 : 0) + (az < 0 ? 4 : 0);
+      // Each face fills downward across its own half of the crystal, so the
+      // whole build reads as one direction rather than eight local ones.
+      const within = ay >= 0 ? 1 - oy / half : -oy / half;
+      order = clamp01((FACET_RANK[face] + clamp01(within)) / 8);
+    } else if (front === FRONT_GROW) {
+      // Nucleation: one seed vertex, growing outward by angle. Measured in
+      // object space so the growth is anchored to the crystal and the spin
+      // carries it round, rather than the front sliding over a turning form.
+      const len = Math.max(1e-6, Math.sqrt(ax * ax + ay * ay + az * az));
+      order = Math.acos(Math.max(-1, Math.min(1, ax / len))) / Math.PI;
+    } else if (front === FRONT_LATHE) {
+      // A meridian sweeping one full revolution, laying the surface behind it.
+      order = (Math.atan2(az, ax) + Math.PI) / (2 * Math.PI);
+    } else {
+      // The Fibonacci index itself, which walks the lattice pole to pole in
+      // a spiral — an ordering the lattice already carries.
+      order = seat / n;
+    }
+
+    // Worked or not, and how close the head is right now.
+    const done = clamp01((prog - order) / feather);
+    const at = stitching ? Math.exp(-(((order - prog) / headW) ** 2)) : 0;
+
     const bx = ox * ca + oz * sa;
     const bz = -ox * sa + oz * ca;
 
@@ -404,10 +483,6 @@ export const frameLogoCrystal: ModeFrame = (size, t, o, logo) => {
     const x = lx + (bx - lx) * c;
     const y = ly + (oy - ly) * c;
     const z3 = lz + (bz - lz) * c;
-
-    // Worked or not, and how close the head is right now.
-    const done = clamp01((head - seat) / feather);
-    const at = stitching ? Math.exp(-(((seat - head) / headW) ** 2)) : 0;
 
     const [px, py, z] = pt(x, y, z3);
     const zx = clamp01((z + 1) / 2);

@@ -21,6 +21,54 @@ const STATES: { state: LogoState; label: string }[] = [
   { state: 'waiting', label: 'Waiting' }
 ];
 
+/**
+ * The variants of one verb, as the pills they ship as.
+ *
+ * Deliberately not labelled. The seven-state grid names each card because
+ * the whole point there is that these are seven different things; here they
+ * are one thing done five ways, and a caption reading "Cast" or "Lathe"
+ * invites reading the words instead of watching the difference — which is
+ * the only place the difference exists.
+ */
+function VariantPills({
+  brand,
+  source,
+  tint
+}: {
+  brand: Brand;
+  source: { svg: string } | { path: string };
+  tint: string;
+}) {
+  const v = brand.variants!;
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3">
+      {[v.tunes.slice(0, 2), v.tunes.slice(2, 4), v.tunes.slice(4)].map((row, r) => (
+        <div key={r} className="flex justify-center gap-3">
+          {row.map((tune, i) => (
+            <div
+              key={`${r}-${i}`}
+              className="flex items-center gap-3 rounded-full border border-border/60 bg-card/50 py-3.5 pr-8 pl-3.5"
+            >
+              <ThinkingLogo
+                logo={source}
+                state={v.state}
+                size={96}
+                tint={tint}
+                tune={tune}
+                startAtMark
+              />
+              <span className="text-base leading-none whitespace-nowrap">
+                {brand.title}{' '}
+                <span className="text-muted-foreground">{v.state.toLowerCase()}…</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CompanyShowcase({ brand }: { brand: Brand }) {
   const source = brand.svg ? { svg: brand.svg } : { path: brand.path };
   const tint = `#${brand.hex}`;
@@ -56,16 +104,20 @@ export function CompanyShowcase({ brand }: { brand: Brand }) {
             them. And the group is centred in the frame rather than stretched
             to it: a stretched two-row grid pushes its rows apart and opens a
             hole under the title. */}
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-10">
-            {STATES.map(({ state, label }) => (
-              <div key={state} className="flex w-[136px] flex-col items-center gap-2.5">
-                <ThinkingLogo logo={source} state={state} size={125} tint={tint} startAtMark />
-                <span className="text-[13px] leading-none text-muted-foreground">{label}</span>
-              </div>
-            ))}
+        {brand.variants ? (
+          <VariantPills brand={brand} source={source} tint={tint} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-10">
+              {STATES.map(({ state, label }) => (
+                <div key={state} className="flex w-[136px] flex-col items-center gap-2.5">
+                  <ThinkingLogo logo={source} state={state} size={125} tint={tint} startAtMark />
+                  <span className="text-[13px] leading-none text-muted-foreground">{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </main>
   );
