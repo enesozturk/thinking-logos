@@ -174,30 +174,42 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   //
   // The first version put a low-discrepancy point per dot and rounded it
   // onto the grid, which is not a voxelisation — it is a scatter that lands
-  // near a grid. Cell populations came out anywhere from one dot to six, the
-  // outer cells were the thinnest of all, and the result had no silhouette
-  // worth reading at the start of the cycle, which is when the viewer is
-  // deciding what they are looking at.
+  // near a grid. Cell populations ran from one dot to six, the outer cells
+  // were the thinnest of all, and there was no silhouette worth reading at
+  // the start of the cycle, which is when the viewer decides what they are
+  // looking at.
   //
-  // Enumerating the cells and dealing the dots round-robin fixes both: every
-  // cell gets the same weight, the boundary is the boundary of the ball, and
-  // the shape is a ball of blocks from the first frame. Two hundred-odd
-  // iterations a frame, only for this body.
+  // It is a CUBE rather than a ball, because a ball of blocks reads as a
+  // rough sphere and the whole point of this body is that its shape is
+  // unmistakable the moment it appears: flat faces, straight edges, corners
+  // that swing as it turns. Four numbers per cell — centre, and when it is
+  // realised — so the ordering is computed here rather than per dot per
+  // frame. A hundred-odd iterations, only for this body.
   const cells: number[] = [];
   if (body === BODY_VOXEL) {
-    const q = o.voxel ?? 0.3;
-    const rad = o.voxelR ?? 0.92;
-    const g = Math.floor(rad / q);
+    const q = o.voxel ?? 0.23;
+    const g = Math.max(1, Math.round(o.voxelG ?? 3));
+    // Outer cells are listed several times, so the round-robin deal gives
+    // them several times the dots. An even deal spends most of the cloud on
+    // the inside, where it is behind everything and only softens the edges;
+    // a cube is its faces and corners, and those are what have to be dense.
+    const skin = Math.max(1, Math.round(o.voxelSkin ?? 4));
     for (let a = -g; a <= g; a++) {
       for (let b2 = -g; b2 <= g; b2++) {
         for (let c2 = -g; c2 <= g; c2++) {
           const x = a * q;
           const y = b2 * q;
           const z = c2 * q;
-          // Cells whose centre is inside the ball. Testing the centre keeps
-          // the surface even; testing any corner leaves a fringe of cells
-          // that are half outside and reads as fuzz.
-          if (x * x + y * y + z * z <= rad * rad) cells.push(x, y, z);
+          // Chebyshev distance, so the layers are cubic shells: the body
+          // opens as a cube inside a cube inside a cube. Euclidean distance
+          // here would carve spherical layers out of a cubic body, and the
+          // two shapes would argue with each other in every frame.
+          const k = Math.max(Math.abs(a), Math.abs(b2), Math.abs(c2));
+          // Within a layer, around: a shell that lands whole reads as a cut,
+          // and the eye has nothing to follow between one layer and the next.
+          const around = (Math.atan2(z, x) + Math.PI) / TAU;
+          const reps = k === g ? skin : 1;
+          for (let r = 0; r < reps; r++) cells.push(x, y, z, (k + around) / (g + 1));
         }
       }
     }
@@ -257,24 +269,24 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     }
 
     if (body === BODY_VOXEL) {
-      // Coarse blocks, packed out from the core.
+      // A cube of blocks, opening from the core outward while it turns.
       //
-      // Two things separate this from the lattice, and both are structural.
-      // The cells are three times bigger and every dot sits in a cell rather
+      // Two things separate it from the lattice, and both are structural.
+      // Cells are three times bigger and every dot sits inside a cell rather
       // than on a mesh, so a cell is a clump you can count. And the front is
-      // a growing radius instead of a plane, so the body fills from the
-      // inside where the lattice resolves in flat sheets.
-      const count = cells.length / 3 || 1;
-      const cell = (idx % count) * 3;
-      const q = o.voxel ?? 0.3;
-      // Dots spread inside their own cell — a cell is a little block, not a
-      // point with a crowd on it.
-      at3[0] = cells[cell] + (hashD(idx, 3.4) - 0.5) * q * 0.62;
-      at3[1] = cells[cell + 1] + (hashD(idx, 7.8) - 0.5) * q * 0.62;
-      at3[2] = cells[cell + 2] + (hashD(idx, 5.2) - 0.5) * q * 0.62;
+      // a cubic shell growing outward, where the lattice resolves in flat
+      // sheets across a hollow sphere.
+      const count = cells.length / 4 || 1;
+      const cell = (idx % count) * 4;
+      const q = o.voxel ?? 0.23;
+      // Dots spread inside their own cell, but not to its walls: at full
+      // width the cells touch, the grid blurs into a cloud and the cube
+      // loses its edges.
+      at3[0] = cells[cell] + (hashD(idx, 3.4) - 0.5) * q * 0.4;
+      at3[1] = cells[cell + 1] + (hashD(idx, 7.8) - 0.5) * q * 0.4;
+      at3[2] = cells[cell + 2] + (hashD(idx, 5.2) - 0.5) * q * 0.4;
       turn();
-      const rad = Math.sqrt(at3[0] * at3[0] + at3[1] * at3[1] + at3[2] * at3[2]);
-      return clamp01(rad / (o.voxelR ?? 0.92));
+      return cells[cell + 3];
     }
 
     if (body === BODY_RASTER) {
