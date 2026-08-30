@@ -15,11 +15,11 @@ import falMark from './marks/fal.svg?raw';
 import xMark from './marks/x.svg?raw';
 import type { LogoState } from '../src/logoPresets';
 import {
-  BODY_FROND,
   BODY_CRYSTAL,
-  BODY_HELIX,
-  BODY_VESSEL,
-  BODY_TORUS
+  BODY_GALAXY,
+  BODY_LATTICE,
+  BODY_TORUS,
+  BODY_YARN
 } from '../src/engine/logoGenerate';
 import {
   siClaude,
@@ -109,10 +109,10 @@ export const BRANDS: Brand[] = [
       state: 'generating',
       tunes: [
         { body: BODY_CRYSTAL },
-        { body: BODY_VESSEL },
-        { body: BODY_FROND },
-        { body: BODY_HELIX },
-        { body: BODY_TORUS }
+        { body: BODY_TORUS },
+        { body: BODY_LATTICE },
+        { body: BODY_YARN },
+        { body: BODY_GALAXY }
       ]
     }
   }

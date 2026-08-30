@@ -1,47 +1,36 @@
-// The objects `generating` can build, in `body` order.
+// The bodies `generating` can realise, in `body` order.
 //
 // Names live here rather than in the engine: the engine ships numbers, and
 // a label is a demo concern. The index IS the `body` value, so the catalogue
 // page and the playground picker cannot drift from the engine's constants.
+//
+// Every one of these is the orb or something the orb could become. Forms
+// that were recognisable OBJECTS — a vessel, a tower, a cog, a tree, a
+// coiled shell — animated well and are gone anyway: a spinner that reads as
+// a picture of a pot makes the mark the second thing anyone looks at.
 export const BODY_NAMES = [
   'crystal',
-  'vessel',
-  'frond',
-  'helix',
   'torus',
-  'nautilus',
-  'armillary',
-  'mobius',
   'lattice',
-  'knot',
-  'tower',
-  'hourglass',
   'yarn',
-  'gear',
-  'tree',
   'lantern',
-  'scroll',
+  'mobius',
+  'helix',
+  'armillary',
+  'knot',
   'galaxy'
 ] as const;
 
 /** One line on what each object is, for the catalogue. */
 export const BODY_NOTES: string[] = [
-  'an octahedron, cut along a spiral',
-  'a turned vessel, layer by layer',
-  'branches out of one seed',
-  'a double strand, rung by rung',
+  'the orb cut into an octahedron',
   'a ring, wound a turn at a time',
-  'a logarithmic shell, chamber by chamber',
-  'nested hoops on different axes',
+  'the orb quantised onto a grid',
+  'one strand lapping a ball',
+  'the orb closed meridian by meridian',
   'a band with a half twist',
-  'a ball quantised onto a grid',
-  'an overhand knot in a thick cord',
-  'stepped storeys on a square plan',
-  'two cones filling toward the waist',
-  'one strand wound over a ball',
-  'a toothed wheel, cut around',
-  'trunk, boughs, twigs',
-  'a paper lamp, rib by rib',
-  'a sheet rolling itself up',
-  'a disc realised from the core out'
+  'a double strand, rung by rung',
+  'the orb reduced to its great circles',
+  'a trefoil in a thick cord',
+  'the orb flattened into a turning disc'
 ];

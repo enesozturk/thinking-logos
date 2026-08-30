@@ -69,37 +69,33 @@ work on the user's first paint.
 state, so the two can run in one UI and mean the same thing. `thinking`,
 `waiting` and `generating` have no orb counterpart.
 
-`generating` is eighteen objects rather than one, because generation looks
-like whatever is being generated. Pick one with `tune`:
+`generating` is ten forms rather than one, because generation looks like
+whatever is being generated. Pick one with `tune`:
 
 ```tsx
-import { BODY_LANTERN } from 'thinking-logos';
+import { BODY_LATTICE } from 'thinking-logos';
 
-<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_LANTERN }} />
+<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_LATTICE }} />
 ```
 
-| `body` | the object |
+| `body` | the form |
 | --- | --- |
-| 00 `BODY_CRYSTAL` | an octahedron, cut along a spiral |
-| 01 `BODY_VESSEL` | a turned vessel, layer by layer |
-| 02 `BODY_FROND` | branches out of one seed |
-| 03 `BODY_HELIX` | a double strand, rung by rung |
-| 04 `BODY_TORUS` | a ring, wound a turn at a time |
-| 05 `BODY_NAUTILUS` | a logarithmic shell, chamber by chamber |
-| 06 `BODY_ARMILLARY` | nested hoops on different axes |
-| 07 `BODY_MOBIUS` | a band with a half twist |
-| 08 `BODY_LATTICE` | a ball quantised onto a grid |
-| 09 `BODY_KNOT` | an overhand knot in a thick cord |
-| 10 `BODY_TOWER` | stepped storeys on a square plan |
-| 11 `BODY_HOURGLASS` | two cones filling toward the waist |
-| 12 `BODY_YARN` | one strand wound over a ball |
-| 13 `BODY_GEAR` | a toothed wheel, cut around |
-| 14 `BODY_TREE` | trunk, boughs, twigs |
-| 15 `BODY_LANTERN` | a paper lamp, rib by rib |
-| 16 `BODY_SCROLL` | a sheet rolling itself up |
-| 17 `BODY_GALAXY` | a disc realised from the core out |
+| 00 `BODY_CRYSTAL` | the orb cut into an octahedron |
+| 01 `BODY_TORUS` | a ring, wound a turn at a time |
+| 02 `BODY_LATTICE` | the orb quantised onto a grid |
+| 03 `BODY_YARN` | one strand lapping a ball |
+| 04 `BODY_LANTERN` | the orb closed meridian by meridian |
+| 05 `BODY_MOBIUS` | a band with a half twist |
+| 06 `BODY_HELIX` | a double strand, rung by rung |
+| 07 `BODY_ARMILLARY` | the orb reduced to its great circles |
+| 08 `BODY_KNOT` | a trefoil in a thick cord |
+| 09 `BODY_GALAXY` | the orb flattened into a turning disc |
 
-All eighteen run side by side on the `/bodies` page of the demo.
+All ten run side by side on the `/bodies` page of the demo. They are all the
+orb or something the orb could become — a recognisable object would make the
+viewer read a picture of that object, and the mark would be the second thing
+they looked at.
+
 
 Every one of them is the same two things: an object, and the front where the
 work is. The object is on screen for the whole cycle and is never partly there
