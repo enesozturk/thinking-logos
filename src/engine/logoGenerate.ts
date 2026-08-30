@@ -120,7 +120,27 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     b.local < dwell ? b.local / dwell : into < morph ? 1 : clamp01(1 - (into - morph) / morph);
   const working = b.local < dwell;
 
+  // EVERYTHING below is a function of where we are in the cycle, never of
+  // absolute time. That is what makes the animation loopable: the body
+  // leaves the mark at the same angle every time, so a recording of one
+  // cycle joins itself, and two spinners mounted a second apart show the
+  // same picture rather than drifting apart forever.
+  //
+  // The cost is that rates become COUNTS. A turn of 0.16 rad/s over a 9.3s
+  // cycle is 0.24 of a revolution, and 0.24 of a revolution does not join
+  // up — the body would jump back at the seam, in plain view, since it is
+  // fully shown on both sides of it. So a rate is rounded to whole turns
+  // per cycle, with one as the floor.
+  const phase = b.local / b.cycle;
+  const turnsPerCycle = Math.max(1, Math.round(((o.spin ?? 0.16) * b.cycle) / TAU));
+
   const cam = body * 4;
+  // Same rounding for the yaw sway: a whole number of oscillations per
+  // cycle, so it passes through zero exactly at the seam.
+  const swayPerCycle = Math.max(
+    1,
+    Math.round(((o.yawRate ?? CAMERAS[body * 4 + 3]) * b.cycle) / TAU)
+  );
   // EVERY camera term is weighted by `c`, the lean included. A held lean is
   // what a body needs to read as a solid, and it is exactly wrong on the
   // mark: the artwork is a flat plate, so any yaw still standing when the
@@ -129,7 +149,7 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   // rather than like a bug, which is worse.
   const pt = makeProj(
     ((o.lean ?? CAMERAS[cam]) +
-      (o.yawAmp ?? CAMERAS[cam + 2]) * Math.sin(t * (o.yawRate ?? CAMERAS[cam + 3]))) *
+      (o.yawAmp ?? CAMERAS[cam + 2]) * Math.sin(TAU * swayPerCycle * phase)) *
       c,
     (o.tilt ?? CAMERAS[cam + 1]) * c,
     cx,
@@ -145,7 +165,7 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const parts = Math.max(1, n - objN);
   const streams = Math.max(2, Math.min(12, Math.round(o.streams ?? 6)));
 
-  const spin = t * (o.spin ?? (body === BODY_CRYSTAL ? 0.3 : 0.16));
+  const spin = TAU * turnsPerCycle * phase;
   const feather = Math.max(1e-4, o.feather ?? 0.035);
   const headW = Math.max(1e-4, o.headWidth ?? 0.02);
 
@@ -422,10 +442,13 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
       // wrong place, and only a moving one reads as noise.
       const amp = (o.noise ?? 0.34) * (1 - done);
       const ph = hashD(seat, 1.3) * TAU;
-      const sp = 0.7 + hashD(seat, 5.9) * 0.9;
-      ox += Math.sin(t * sp + ph) * amp * (hashD(seat, 2.7) - 0.5) * 2;
-      oy += Math.sin(t * sp * 1.13 + ph * 1.7) * amp * (hashD(seat, 6.1) - 0.5) * 2;
-      oz += Math.sin(t * sp * 0.87 + ph * 2.3) * amp * (hashD(seat, 9.5) - 0.5) * 2;
+      // Whole wobbles per cycle, for the same reason the spin counts turns:
+      // a dot mid-swing at the seam jumps when the cycle restarts. Three
+      // speeds hashed per dot keeps it from reading as one shared pulse.
+      const sp = TAU * (2 + Math.floor(hashD(seat, 5.9) * 3)) * phase;
+      ox += Math.sin(sp + ph) * amp * (hashD(seat, 2.7) - 0.5) * 2;
+      oy += Math.sin(sp * 1.0 + ph * 1.7 + 1.1) * amp * (hashD(seat, 6.1) - 0.5) * 2;
+      oz += Math.sin(sp * 1.0 + ph * 2.3 + 2.2) * amp * (hashD(seat, 9.5) - 0.5) * 2;
     }
 
     const lx = p[i * 3];
@@ -463,14 +486,16 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
 
       const pj = seat - objN;
       const lane = pj % frontN;
-      const period = flight * (0.72 + hashD(pj, 4.1) * 0.75);
-      const u = frac(t / period + hashD(pj, 7.3));
+      // Whole flights per cycle, so a carrier is never caught mid-air at
+      // the seam.
+      const flights = Math.max(1, Math.round(b.cycle / (flight * (0.72 + hashD(pj, 4.1) * 0.75))));
+      const u = frac(phase * flights + hashD(pj, 7.3));
       const ease = u * u * (3 - 2 * u);
 
       // Its own launch point, and a drift on top, so no two flights lie
       // along the same line — a shared path draws a tail behind the dot.
       const [ax, ay, az] = fibDir(pj, parts);
-      const drift = t * 0.11 + hashD(pj, 2.2) * TAU;
+      const drift = TAU * phase + hashD(pj, 2.2) * TAU;
       const cd = Math.cos(drift);
       const sd = Math.sin(drift);
       const sx = (ax * cd + az * sd) * shell;
