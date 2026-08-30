@@ -27,10 +27,10 @@ export { resolveLogo, LOGO_PRESETS, LOGO_STATE_TO_MODE, LOGO_MODE_FRAMES } from 
 // matter collapsing. Pass one as `tune={{ body: BODY_HELIX }}`.
 export {
   BODY_CRYSTAL,
-  BODY_PRINT,
-  BODY_BLOOM,
+  BODY_VESSEL,
+  BODY_FROND,
   BODY_HELIX,
-  BODY_VORTEX
+  BODY_TORUS
 } from './engine/logoGenerate';
 
 // Power-user surface: the resolved presets + raw frame painters, for

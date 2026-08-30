@@ -31,7 +31,7 @@ const STATES: LogoState[] = [
 const COLOURS = ['brand', 'monochrome'] as const;
 // `generating` is the one state that is five objects. The picker lists them
 // in the order they are declared, so the index IS the `body` value.
-const BODIES = ['crystal', 'print', 'bloom', 'helix', 'vortex'] as const;
+const BODIES = ['crystal', 'vessel', 'frond', 'helix', 'torus'] as const;
 
 // The sizes a loading indicator actually ships at: chat avatar, inline
 // button, and inline text. Showing all three at once is the only reliable

@@ -19,21 +19,21 @@ import { adaptTint, paintFrameTinted, parseTint } from '../src/engine/tint';
 import type { LogoState } from '../src/logoPresets';
 import { resolveLogo } from '../src/logoPresets';
 import {
-  BODY_BLOOM,
+  BODY_FROND,
   BODY_CRYSTAL,
   BODY_HELIX,
-  BODY_PRINT,
-  BODY_VORTEX
+  BODY_VESSEL,
+  BODY_TORUS
 } from '../src/engine/logoGenerate';
 import { BRAND_BY_KEY } from './brands';
 
 /** The `generating` bodies, in the order the showcase lists them. */
 const GENERATING = [
-  { body: BODY_CRYSTAL, note: 'crystal — a solid cut face by face' },
-  { body: BODY_PRINT, note: 'print — a vessel rising off a build plate' },
-  { body: BODY_BLOOM, note: 'bloom — branches growing from a seed' },
+  { body: BODY_CRYSTAL, note: 'crystal — an octahedron cut face by face' },
+  { body: BODY_VESSEL, note: 'vessel — turned layer by layer, fed at the front' },
+  { body: BODY_FROND, note: 'frond — eight branches, one stream per tip' },
   { body: BODY_HELIX, note: 'helix — a double strand transcribed upward' },
-  { body: BODY_VORTEX, note: 'vortex — a disc of matter draining into a core' }
+  { body: BODY_TORUS, note: 'torus — a ring wound one turn of its tube at a time' }
 ];
 import './tailwind.css';
 

@@ -73,21 +73,24 @@ state, so the two can run in one UI and mean the same thing. `thinking`,
 whatever is being generated. Pick one with `tune`:
 
 ```tsx
-import { BODY_PRINT } from 'thinking-logos';
+import { BODY_VESSEL } from 'thinking-logos';
 
-<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_PRINT }} />
+<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_VESSEL }} />
 ```
 
-| `body` | what is being made |
+| `body` | the object |
 | --- | --- |
-| `BODY_CRYSTAL` (default) | a solid worked face by face, a bright head cutting it |
-| `BODY_PRINT` | a vessel rising off a build plate, one layer at a time |
-| `BODY_BLOOM` | branches growing out of a seed, tips still extending |
-| `BODY_HELIX` | a double strand transcribed bottom to top, rung by rung |
-| `BODY_VORTEX` | a disc of loose matter draining inward into a dense core |
+| `BODY_CRYSTAL` (default) | an octahedron, cut face by face by a travelling head |
+| `BODY_VESSEL` | a turned vessel, layer by layer, the front circling as it climbs |
+| `BODY_FROND` | eight branches out of one seed, each with its own growing tip |
+| `BODY_HELIX` | a double strand, transcribed bottom to top, rung by rung |
+| `BODY_TORUS` | a ring wound one turn of its tube at a time |
 
-Four of them add material that was not there; the fifth gathers material that
-already was. Both are what "generating" means, and they look nothing alike.
+All five are the same three things: an object, the particles making it, and
+the front where they meet. The object is on screen for the whole cycle and is
+never partly there — what changes is how much of it has been realised, carried
+by ink and colour rather than by absence. The particles stream in from outside
+and land exactly where the work is.
 
 All seven share one cycle: the working form dwells and does its work, the mark
 gathers, and dissolves again. Two knobs matter — `dwell`, how long the working
