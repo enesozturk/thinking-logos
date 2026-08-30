@@ -60,7 +60,7 @@ work on the user's first paint.
 <ThinkingLogo logo={art} state="searching" />   {/* logo → a sphere swept by a meridian → logo */}
 <ThinkingLogo logo={art} state="working" />     {/* logo → a thread wound into a knot → logo */}
 <ThinkingLogo logo={art} state="waiting" />     {/* logo → a bellows of stacked rings → logo */}
-<ThinkingLogo logo={art} state="generating" />  {/* crystal → stitched → logo → crystal */}
+<ThinkingLogo logo={art} state="generating" />  {/* logo → something being made → logo */}
 ```
 
 `thinking` is the one to reach for first.
@@ -68,6 +68,26 @@ work on the user's first paint.
 `searching`, `solving`, `listening` and `working` share their verb with an orb
 state, so the two can run in one UI and mean the same thing. `thinking`,
 `waiting` and `generating` have no orb counterpart.
+
+`generating` is five objects rather than one, because generation looks like
+whatever is being generated. Pick one with `tune`:
+
+```tsx
+import { BODY_PRINT } from 'thinking-logos';
+
+<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_PRINT }} />
+```
+
+| `body` | what is being made |
+| --- | --- |
+| `BODY_CRYSTAL` (default) | a solid worked face by face, a bright head cutting it |
+| `BODY_PRINT` | a vessel rising off a build plate, one layer at a time |
+| `BODY_BLOOM` | branches growing out of a seed, tips still extending |
+| `BODY_HELIX` | a double strand transcribed bottom to top, rung by rung |
+| `BODY_VORTEX` | a disc of loose matter draining inward into a dense core |
+
+Four of them add material that was not there; the fifth gathers material that
+already was. Both are what "generating" means, and they look nothing alike.
 
 All seven share one cycle: the working form dwells and does its work, the mark
 gathers, and dissolves again. Two knobs matter — `dwell`, how long the working

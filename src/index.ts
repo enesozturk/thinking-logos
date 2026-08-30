@@ -22,6 +22,17 @@ export type { LogoPointSet, LogoStyle, ShellMode, SeatMap } from './engine/cloud
 export type { LogoState, LogoMode, LogoPreset, ResolvedLogo } from './logoPresets';
 export { resolveLogo, LOGO_PRESETS, LOGO_STATE_TO_MODE, LOGO_MODE_FRAMES } from './logoPresets';
 
+// `generating` is five objects rather than one — a crystal being cut, a
+// vessel being printed, a growth, a strand being transcribed, a disc of
+// matter collapsing. Pass one as `tune={{ body: BODY_HELIX }}`.
+export {
+  BODY_CRYSTAL,
+  BODY_PRINT,
+  BODY_BLOOM,
+  BODY_HELIX,
+  BODY_VORTEX
+} from './engine/logoGenerate';
+
 // Power-user surface: the resolved presets + raw frame painters, for
 // consumers driving their own canvas outside React.
 export { resolvePreset, STATE_TO_MODE, type ModeKey, type Resolved } from './presets';

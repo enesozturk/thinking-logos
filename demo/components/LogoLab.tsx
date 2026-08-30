@@ -29,6 +29,9 @@ const STATES: LogoState[] = [
   'generating'
 ];
 const COLOURS = ['brand', 'monochrome'] as const;
+// `generating` is the one state that is five objects. The picker lists them
+// in the order they are declared, so the index IS the `body` value.
+const BODIES = ['crystal', 'print', 'bloom', 'helix', 'vortex'] as const;
 
 // The sizes a loading indicator actually ships at: chat avatar, inline
 // button, and inline text. Showing all three at once is the only reliable
@@ -106,6 +109,7 @@ export function LogoLab() {
   const [custom, setCustom] = useState<{ name: string; svg: string } | null>(null);
   const [brandKey, setBrandKey] = useState('x');
   const [state, setState] = useState<LogoState>('thinking');
+  const [body, setBody] = useState<(typeof BODIES)[number]>('crystal');
   const [tinted, setTinted] = useState(true);
   const [count, setCount] = useState(300);
   // Per-state default, since the solve needs more room than a plain dwell.
@@ -137,13 +141,17 @@ export function LogoLab() {
   const bakeOpts = useMemo(() => ({ count }), [count]);
   // `dwell` is how long the working form — orb, cube, sphere, body — gets
   // before the mark interrupts it. Null means "leave the state's default".
+  const bodyIndex = state === 'generating' ? BODIES.indexOf(body) : 0;
   const tune = useMemo(() => {
-    if (dwell === null && morph === null) return undefined;
-    const t: { dwell?: number; morph?: number } = {};
+    if (dwell === null && morph === null && bodyIndex === 0) return undefined;
+    const t: { dwell?: number; morph?: number; body?: number } = {};
     if (dwell !== null) t.dwell = dwell;
     if (morph !== null) t.morph = morph;
+    // Only when it is not the default, so every other state's copied file
+    // and shared URL stay exactly what they were.
+    if (bodyIndex > 0) t.body = bodyIndex;
     return t;
-  }, [dwell, morph]);
+  }, [dwell, morph, bodyIndex]);
   // Every state now dwells for the same 5.5s, so the slider no longer
   // needs to special-case the solve.
   const dwells = 5.5;
@@ -261,6 +269,15 @@ export function LogoLab() {
             <Row label="State" hint="What the mark is doing. Each one leaves the logo for a different form and comes back.">
               <Picker value={state} onChange={setState} options={STATES} />
             </Row>
+
+            {state === 'generating' && (
+              <Row
+                label="Body"
+                hint="What is being generated. The verb is the same; the thing being made is not."
+              >
+                <Picker value={body} onChange={setBody} options={BODIES} />
+              </Row>
+            )}
 
             <Row label="Dots" hint="The one legibility knob. A thin mark will place fewer than you ask for; that is the artwork talking back.">
               <Slider

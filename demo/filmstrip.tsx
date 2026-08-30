@@ -18,7 +18,23 @@ import { paintFrame } from '../src/engine/core';
 import { adaptTint, paintFrameTinted, parseTint } from '../src/engine/tint';
 import type { LogoState } from '../src/logoPresets';
 import { resolveLogo } from '../src/logoPresets';
+import {
+  BODY_BLOOM,
+  BODY_CRYSTAL,
+  BODY_HELIX,
+  BODY_PRINT,
+  BODY_VORTEX
+} from '../src/engine/logoGenerate';
 import { BRAND_BY_KEY } from './brands';
+
+/** The `generating` bodies, in the order the showcase lists them. */
+const GENERATING = [
+  { body: BODY_CRYSTAL, note: 'crystal — a solid cut face by face' },
+  { body: BODY_PRINT, note: 'print — a vessel rising off a build plate' },
+  { body: BODY_BLOOM, note: 'bloom — branches growing from a seed' },
+  { body: BODY_HELIX, note: 'helix — a double strand transcribed upward' },
+  { body: BODY_VORTEX, note: 'vortex — a disc of matter draining into a core' }
+];
 import './tailwind.css';
 
 const CELL = 96;
@@ -28,12 +44,14 @@ function Still({
   points,
   state,
   t,
-  tint
+  tint,
+  tune
 }: {
   points: LogoPointSet;
   state: LogoState;
   t: number;
   tint?: string;
+  tune?: Record<string, number>;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -44,14 +62,14 @@ function Still({
     c.height = CELL * dpr;
     const ctx = c.getContext('2d');
     if (!ctx) return;
-    const { frame, speed, opts, binding } = resolveLogo(state, points);
+    const { frame, speed, opts, binding } = resolveLogo(state, points, tune);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, CELL, CELL);
     const f = frame(CELL, t * speed, opts, binding);
     const rgb = tint ? parseTint(tint) : null;
     if (rgb) paintFrameTinted(ctx, f, true, adaptTint(rgb, true));
     else paintFrame(ctx, f, true);
-  }, [points, state, t, tint]);
+  }, [points, state, t, tint, tune]);
   return <canvas ref={ref} style={{ width: CELL, height: CELL, display: 'block' }} />;
 }
 
@@ -60,13 +78,15 @@ function Strip({
   state,
   times,
   note,
-  tint
+  tint,
+  tune
 }: {
   points: LogoPointSet;
   state: LogoState;
   times: number[];
   note: string;
   tint?: string;
+  tune?: Record<string, number>;
 }) {
   return (
     <section style={{ marginBottom: 28 }}>
@@ -77,7 +97,7 @@ function Strip({
       <div style={{ display: 'flex', gap: 6 }}>
         {times.map((t) => (
           <div key={t} style={{ background: 'rgba(217,217,217,0.04)', borderRadius: 12, padding: 2 }}>
-            <Still points={points} state={state} t={t} tint={tint} />
+            <Still points={points} state={state} t={t} tint={tint} tune={tune} />
             <div style={{ textAlign: 'center', fontSize: 10, color: 'rgba(251,251,251,0.3)', paddingBottom: 3 }}>
               {t.toFixed(1)}s
             </div>
@@ -159,13 +179,20 @@ function App() {
       <Strip points={cube} state="solving" times={solve} note="GitHub — the busy-mark hard case" />
       <Strip points={points} state="working" times={globe} note="logo → a thread wound into a knot → logo" tint={tint} />
       <Strip points={points} state="waiting" times={globe} note="logo → a bellows of stacked rings → logo" tint={tint} />
-      <Strip
-        points={points}
-        state="generating"
-        times={globe}
-        note="crystal → stitched → logo → crystal"
-        tint={tint}
-      />
+      {/* Five bodies, one verb. Filmed together because the only real test
+          of them is whether a stranger can tell them apart — which is a
+          question about the SET, not about any one of them. */}
+      {GENERATING.map(({ body, note }) => (
+        <Strip
+          key={note}
+          points={points}
+          state="generating"
+          times={globe}
+          note={note}
+          tint={tint}
+          tune={{ body }}
+        />
+      ))}
     </main>
   );
 }

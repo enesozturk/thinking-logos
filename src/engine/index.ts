@@ -33,6 +33,14 @@ export {
   expoInOut
 } from './logo';
 export { frameLogoCrystal, frameLogoWait, frameLogoSolve, frameLogoWave } from './logoDeform';
+export {
+  frameLogoGenerate,
+  BODY_CRYSTAL,
+  BODY_PRINT,
+  BODY_BLOOM,
+  BODY_HELIX,
+  BODY_VORTEX
+} from './logoGenerate';
 export { resolveLogo, LOGO_PRESETS, LOGO_MODE_FRAMES, LOGO_STATE_TO_MODE } from '../logoPresets';
 export type { LogoMode, LogoState, LogoPreset, ResolvedLogo } from '../logoPresets';
 export type { LogoPointSet, LogoStyle, ShellMode, SeatMap } from './cloud';

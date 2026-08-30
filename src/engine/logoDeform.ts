@@ -351,12 +351,16 @@ const FACET_RANK = [0, 1, 4, 5, 3, 2, 7, 6];
  * travelling between them is the brightest thing on screen. Generation as
  * something being made, rather than something appearing.
  *
- * There are five ways to make it, chosen with `front`. They are variants
- * rather than states because they differ in one scalar and nothing else:
- * each answers "when does this dot get made?" and everything downstream —
- * the head, the feather, the unlit grey, the colour — reads that answer
- * without knowing which front produced it. A sixth way of building is a
- * new branch here, not a new mode.
+ * The crystal can be cut in five orders, chosen with `front`. They differ
+ * in one scalar and nothing else: each answers "when does this dot get
+ * made?" and everything downstream — the head, the feather, the unlit grey,
+ * the colour — reads that answer without knowing which front produced it.
+ *
+ * These were once the five variants `generating` shipped, and as a set they
+ * failed: five orderings over one unchanging octahedron read as one
+ * animation at five speeds, not as five ideas. What varies now is the
+ * OBJECT (`logoGenerate.ts`, chosen with `body`), and the fronts are what
+ * they always should have been — this one body's own parameter.
  *
  *   spiral  the Fibonacci index itself, which already walks the lattice
  *           pole to pole — an ordering the lattice carries for free

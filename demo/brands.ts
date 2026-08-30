@@ -15,12 +15,12 @@ import falMark from './marks/fal.svg?raw';
 import xMark from './marks/x.svg?raw';
 import type { LogoState } from '../src/logoPresets';
 import {
-  FRONT_CAST,
-  FRONT_FACET,
-  FRONT_GROW,
-  FRONT_LATHE,
-  FRONT_SPIRAL
-} from '../src/engine/logoDeform';
+  BODY_BLOOM,
+  BODY_CRYSTAL,
+  BODY_HELIX,
+  BODY_PRINT,
+  BODY_VORTEX
+} from '../src/engine/logoGenerate';
 import {
   siClaude,
   siGithub,
@@ -103,16 +103,16 @@ export const BRANDS: Brand[] = [
     weight: 'simple',
     svg: falMark,
     // Fal runs inference. It generates; it does not listen or wait, so its
-    // page shows the five ways of generating rather than seven verbs, six
-    // of which would be about some other product.
+    // page shows the five things generating can look like rather than seven
+    // verbs, six of which would be about some other product.
     variants: {
       state: 'generating',
       tunes: [
-        { front: FRONT_SPIRAL },
-        { front: FRONT_CAST },
-        { front: FRONT_FACET },
-        { front: FRONT_GROW },
-        { front: FRONT_LATHE }
+        { body: BODY_CRYSTAL },
+        { body: BODY_PRINT },
+        { body: BODY_BLOOM },
+        { body: BODY_HELIX },
+        { body: BODY_VORTEX }
       ]
     }
   }

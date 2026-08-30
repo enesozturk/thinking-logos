@@ -16,22 +16,76 @@ import coreSrc from '../../src/engine/core.ts?raw';
 import latticeSrc from '../../src/engine/lattice.ts?raw';
 import logoSrc from '../../src/engine/logo.ts?raw';
 import deformSrc from '../../src/engine/logoDeform.ts?raw';
+import generateSrc from '../../src/engine/logoGenerate.ts?raw';
 import tintSrc from '../../src/engine/tint.ts?raw';
 import type { LogoPointSet } from '../../src/engine/cloud';
 import type { LogoMode, LogoState } from '../../src/logoPresets';
 import { LOGO_PRESETS, LOGO_STATE_TO_MODE } from '../../src/logoPresets';
 import type { ModeOpts } from '../../src/engine/profiles';
 
+interface ModeSource {
+  fn: string;
+  from: 'logo' | 'deform' | 'generate';
+  /** Other declarations in the same file that the frame function calls. */
+  extras?: string[];
+  /** Top-level constants it reads. Spliced literally: `takeBlock` matches
+   *  braces, and an array or a number has none to match. */
+  consts?: string;
+}
+
 /** Which file each mode's frame function lives in, and what else it needs. */
-const MODE_SOURCE: Record<LogoMode, { fn: string; from: 'logo' | 'deform'; extras?: string[] }> = {
+const MODE_SOURCE: Record<LogoMode, ModeSource> = {
   assemble: { fn: 'frameLogoAssemble', from: 'logo' },
   scan: { fn: 'frameLogoScan', from: 'logo' },
   work: { fn: 'frameLogoWork', from: 'logo' },
   wave: { fn: 'frameLogoWave', from: 'deform' },
   wait: { fn: 'frameLogoWait', from: 'deform' },
-  crystal: { fn: 'frameLogoCrystal', from: 'deform' },
+  generate: { fn: 'frameLogoCrystal', from: 'deform' },
   solve: { fn: 'frameLogoSolve', from: 'deform', extras: ['cubeSeat', 'makeCubeMoves'] }
 };
+
+/**
+ * The five bodies `generating` can build, keyed by the `body` tune.
+ *
+ * The copied file carries ONE body, not a dispatcher over five: someone who
+ * chose a printed vessel in the playground should leave with the vessel and
+ * nothing else, and four unused forms is most of a kilobyte of dead code in
+ * a file whose whole promise is that it depends on nothing.
+ */
+const GENERATE_BODIES: ModeSource[] = [
+  {
+    fn: 'frameLogoCrystal',
+    from: 'deform',
+    consts: `const FRONT_SPIRAL = 0;
+const FRONT_CAST = 1;
+const FRONT_FACET = 2;
+const FRONT_GROW = 3;
+const FRONT_LATHE = 4;
+/** Build order for the octahedron's eight octants, by sign bits: around the
+ *  top four faces first, then the four below. */
+const FACET_RANK = [0, 1, 4, 5, 3, 2, 7, 6];`
+  },
+  { fn: 'framePrint', from: 'generate', extras: ['buildBeat', 'vesselProfile'] },
+  { fn: 'frameBloom', from: 'generate', extras: ['buildBeat'] },
+  { fn: 'frameHelix', from: 'generate', extras: ['buildBeat', 'helixAt'] },
+  { fn: 'frameVortex', from: 'generate', extras: ['buildBeat'] }
+];
+
+const TAU_CONST = `const TAU = Math.PI * 2;`;
+
+/** `buildBeat`'s return type. Types are erased at runtime, so leaving this
+ *  out still ran — and still handed someone a file their editor underlined,
+ *  which is not what "self-contained" is supposed to mean. */
+const BUILD_TYPE = `interface Build {
+  /** Mark amount, 0 = pure body, 1 = pure logo. */
+  m: number;
+  /** \`1 - m\`, the body's share — everything the body does is weighted by it. */
+  c: number;
+  /** How much of the object has been made, in [0, 1]. */
+  prog: number;
+  /** True only while the work is actually happening. */
+  stitching: boolean;
+}`;
 
 const LOGO_FRAMES = ['frameLogoAssemble', 'frameLogoScan', 'frameLogoWork'];
 
@@ -126,8 +180,11 @@ export interface StandaloneInput {
 /** Build the whole file. */
 export function buildStandalone({ name, state, points, tint, tune }: StandaloneInput): string {
   const mode = LOGO_STATE_TO_MODE[state];
-  const spec = MODE_SOURCE[mode];
   const opts = { ...LOGO_PRESETS[mode].opts, ...tune };
+  const spec =
+    mode === 'generate'
+      ? (GENERATE_BODIES[opts.body ?? 0] ?? GENERATE_BODIES[0])
+      : MODE_SOURCE[mode];
   const component = name.replace(/[^A-Za-z0-9]/g, '') || 'ThinkingMark';
 
   let core = stripHeader(coreSrc);
@@ -138,7 +195,7 @@ export function buildStandalone({ name, state, points, tint, tune }: StandaloneI
 
   let logo = stripHeader(logoSrc);
   for (const fn of LOGO_FRAMES) if (fn !== spec.fn) logo = dropBlock(logo, fn);
-  if (spec.from === 'deform') for (const fn of LOGO_FRAMES) logo = dropBlock(logo, fn);
+  if (spec.from !== 'logo') for (const fn of LOGO_FRAMES) logo = dropBlock(logo, fn);
   logo = dropBlock(logo, 'seatMap');
 
   const parts = [
@@ -161,10 +218,19 @@ function radiusScale(size: number, pow: number): number {
     logo
   ];
 
+  if (spec.consts) parts.push('', spec.consts);
+
   if (spec.from === 'deform') {
     const deform = stripHeader(deformSrc);
     if (spec.extras) for (const x of spec.extras) parts.push('', takeBlock(deform, x));
     parts.push('', takeBlock(deform, spec.fn));
+  }
+
+  if (spec.from === 'generate') {
+    const generate = stripHeader(generateSrc);
+    parts.push('', TAU_CONST, '', BUILD_TYPE);
+    if (spec.extras) for (const x of spec.extras) parts.push('', takeBlock(generate, x));
+    parts.push('', takeBlock(generate, spec.fn));
   }
 
   if (mode === 'solve') {

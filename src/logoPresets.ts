@@ -16,7 +16,8 @@ import {
   frameLogoScan,
   seatMap
 } from './engine/logo';
-import { frameLogoCrystal, frameLogoSolve, frameLogoWait, frameLogoWave } from './engine/logoDeform';
+import { frameLogoSolve, frameLogoWait, frameLogoWave } from './engine/logoDeform';
+import { frameLogoGenerate } from './engine/logoGenerate';
 
 export type LogoMode =
   | 'assemble'
@@ -25,7 +26,7 @@ export type LogoMode =
   | 'solve'
   | 'wave'
   | 'wait'
-  | 'crystal';
+  | 'generate';
 
 /**
  * What the mark is doing.
@@ -51,7 +52,7 @@ export const LOGO_STATE_TO_MODE: Record<LogoState, LogoMode> = {
   solving: 'solve',
   listening: 'wave',
   waiting: 'wait',
-  generating: 'crystal'
+  generating: 'generate'
 };
 
 export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
@@ -61,7 +62,7 @@ export const LOGO_MODE_FRAMES: Record<LogoMode, ModeFrame> = {
   solve: frameLogoSolve,
   wave: frameLogoWave,
   wait: frameLogoWait,
-  crystal: frameLogoCrystal
+  generate: frameLogoGenerate
 };
 
 export interface LogoPreset {
@@ -248,7 +249,14 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       rMin: 0.3
     }
   },
-  crystal: {
+  // Thinner than the other six, and deliberately so. `generating` is not
+  // one object but five, chosen with `body`, and each body's own numbers —
+  // its camera, its proportions, how wide its head burns — live in its
+  // frame function as defaults. Restating one body's numbers here would
+  // silently impose them on the other four, since a preset outranks a
+  // default. What is left is what all five genuinely share: the cycle, the
+  // ink ramp and the dot radii.
+  generate: {
     speed: 1,
     opts: {
       dwell: 5.5,
@@ -256,17 +264,6 @@ export const LOGO_PRESETS: Record<LogoMode, LogoPreset> = {
       expo: 0.3,
       settle: 0.1,
       turns: 0,
-      lean: 0.5,
-      yawAmp: 0.24,
-      yawRate: 0.32,
-      tilt: 0.2,
-      crystalR: 0.94,
-      spin: 0.3,
-      feather: 0.03,
-      headWidth: 0.012,
-      headR: 1.1,
-      headInk: 0.4,
-      unlitInk: 0.3,
       rBase: 0.55,
       rDepth: 1.4,
       inkFar: 0.6,
