@@ -209,7 +209,13 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
           // and the eye has nothing to follow between one layer and the next.
           const around = (Math.atan2(z, x) + Math.PI) / TAU;
           const reps = k === g ? skin : 1;
-          for (let r = 0; r < reps; r++) cells.push(x, y, z, (k + around) / (g + 1));
+          // Outside IN. Filling from the core meant the first second of the
+          // cycle happened where nothing can be seen — every lit cell was
+          // behind five hundred unlit ones — and the body sat there looking
+          // idle. Starting at the skin puts the work on the silhouette
+          // immediately and drives it inward, so what is hidden at the end
+          // is the part nobody could see anyway.
+          for (let r = 0; r < reps; r++) cells.push(x, y, z, (g - k + around) / (g + 1));
         }
       }
     }
@@ -269,15 +275,20 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     }
 
     if (body === BODY_VOXEL) {
-      // A cube of blocks, opening from the core outward while it turns.
+      // A cube of blocks, worked from the skin inward while it turns.
       //
       // Two things separate it from the lattice, and both are structural.
       // Cells are three times bigger and every dot sits inside a cell rather
       // than on a mesh, so a cell is a clump you can count. And the front is
-      // a cubic shell growing outward, where the lattice resolves in flat
+      // a cubic shell closing inward, where the lattice resolves in flat
       // sheets across a hollow sphere.
       const count = cells.length / 4 || 1;
-      const cell = (idx % count) * 4;
+      // Strided, not modulo. With the skin weighted there are more entries
+      // than dots, and `idx % count` then walks the first `objN` of them and
+      // stops — which is a contiguous run of the enumeration, so a whole
+      // corner of the cube came out empty. Striding spreads the dots over
+      // the full list, and whatever it cannot cover it misses evenly.
+      const cell = Math.min(count - 1, Math.floor((idx * count) / objN)) * 4;
       const q = o.voxel ?? 0.23;
       // Dots spread inside their own cell, but not to its walls: at full
       // width the cells touch, the grid blurs into a cloud and the cube

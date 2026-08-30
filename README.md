@@ -82,7 +82,7 @@ import { BODY_DIFFUSION } from 'thinking-logos';
 | --- | --- |
 | 00 `BODY_LATTICE` | the orb quantised onto a grid |
 | 01 `BODY_DIFFUSION` | the orb resolving out of noise |
-| 02 `BODY_VOXEL` | a cube of blocks, opening from the core out |
+| 02 `BODY_VOXEL` | a cube of blocks, worked from the skin inward |
 | 03 `BODY_RASTER` | the orb drawn row by row |
 | 04 `BODY_SHELLS` | an onion thickened from the core out |
 | 05 `BODY_YARN` | four strands lapping a ball, stitch by stitch |
