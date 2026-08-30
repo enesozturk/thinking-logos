@@ -31,7 +31,7 @@ export const BODY_NAMES = [
 export const BODY_NOTES: string[] = [
   'the orb quantised onto a grid',
   'the orb resolving out of noise',
-  'a cube of blocks, worked from the skin inward',
+  'a cube of blocks, filled row by row, top down',
   'the orb drawn row by row',
   'an onion thickened from the core out',
   'four strands lapping a ball, stitch by stitch',

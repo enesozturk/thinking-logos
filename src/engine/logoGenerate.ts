@@ -200,22 +200,24 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
           const x = a * q;
           const y = b2 * q;
           const z = c2 * q;
-          // Chebyshev distance, so the layers are cubic shells: the body
-          // opens as a cube inside a cube inside a cube. Euclidean distance
-          // here would carve spherical layers out of a cubic body, and the
-          // two shapes would argue with each other in every frame.
           const k = Math.max(Math.abs(a), Math.abs(b2), Math.abs(c2));
-          // Within a layer, around: a shell that lands whole reads as a cut,
-          // and the eye has nothing to follow between one layer and the next.
-          const around = (Math.atan2(z, x) + Math.PI) / TAU;
           const reps = k === g ? skin : 1;
-          // Outside IN. Filling from the core meant the first second of the
-          // cycle happened where nothing can be seen — every lit cell was
-          // behind five hundred unlit ones — and the body sat there looking
-          // idle. Starting at the skin puts the work on the silhouette
-          // immediately and drives it inward, so what is hidden at the end
-          // is the part nobody could see anyway.
-          for (let r = 0; r < reps; r++) cells.push(x, y, z, (g - k + around) / (g + 1));
+          // Row by row, top to bottom, scanning along each row.
+          //
+          // Cubic shells were tried first and they cannot be paced: a shell
+          // is a hollow box, so its cell count grows as the square of its
+          // radius, and the outermost one is two thirds of the whole body.
+          // Whatever the clock does, the last layer arrives nearly at once —
+          // the cube looked finished the moment it started.
+          //
+          // A raster through the volume has the same number of cells in
+          // every slice, so the front moves at one speed for the whole
+          // dwell. It also runs where it can be seen: the top slice is the
+          // silhouette's top edge, not something buried in the middle.
+          const rowsN = 2 * g + 1;
+          const row = g - b2;
+          const within = ((a + g) * rowsN + (c + g)) / (rowsN * rowsN);
+          for (let r = 0; r < reps; r++) cells.push(x, y, z, (row + within) / rowsN);
         }
       }
     }
@@ -275,13 +277,13 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     }
 
     if (body === BODY_VOXEL) {
-      // A cube of blocks, worked from the skin inward while it turns.
+      // A cube of blocks, filled row by row from the top while it turns.
       //
       // Two things separate it from the lattice, and both are structural.
       // Cells are three times bigger and every dot sits inside a cell rather
       // than on a mesh, so a cell is a clump you can count. And the front is
-      // a cubic shell closing inward, where the lattice resolves in flat
-      // sheets across a hollow sphere.
+      // a raster through a solid, where the lattice resolves in sheets
+      // across a hollow sphere.
       const count = cells.length / 4 || 1;
       // Strided, not modulo. With the skin weighted there are more entries
       // than dots, and `idx % count` then walks the first `objN` of them and
