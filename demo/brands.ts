@@ -15,10 +15,10 @@ import falMark from './marks/fal.svg?raw';
 import xMark from './marks/x.svg?raw';
 import type { LogoState } from '../src/logoPresets';
 import {
-  BODY_CRYSTAL,
-  BODY_GALAXY,
+  BODY_DIFFUSION,
   BODY_LATTICE,
-  BODY_TORUS,
+  BODY_RASTER,
+  BODY_VOXEL,
   BODY_YARN
 } from '../src/engine/logoGenerate';
 import {
@@ -108,11 +108,11 @@ export const BRANDS: Brand[] = [
     variants: {
       state: 'generating',
       tunes: [
-        { body: BODY_CRYSTAL },
-        { body: BODY_TORUS },
         { body: BODY_LATTICE },
-        { body: BODY_YARN },
-        { body: BODY_GALAXY }
+        { body: BODY_DIFFUSION },
+        { body: BODY_VOXEL },
+        { body: BODY_RASTER },
+        { body: BODY_YARN }
       ]
     }
   }

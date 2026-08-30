@@ -69,32 +69,31 @@ work on the user's first paint.
 state, so the two can run in one UI and mean the same thing. `thinking`,
 `waiting` and `generating` have no orb counterpart.
 
-`generating` is ten forms rather than one, because generation looks like
+`generating` is eight forms rather than one, because generation looks like
 whatever is being generated. Pick one with `tune`:
 
 ```tsx
-import { BODY_LATTICE } from 'thinking-logos';
+import { BODY_DIFFUSION } from 'thinking-logos';
 
-<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_LATTICE }} />
+<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_DIFFUSION }} />
 ```
 
 | `body` | the form |
 | --- | --- |
-| 00 `BODY_CRYSTAL` | the orb cut into an octahedron |
-| 01 `BODY_TORUS` | a ring, wound a turn at a time |
-| 02 `BODY_LATTICE` | the orb quantised onto a grid |
-| 03 `BODY_YARN` | one strand lapping a ball |
-| 04 `BODY_LANTERN` | the orb closed meridian by meridian |
-| 05 `BODY_MOBIUS` | a band with a half twist |
-| 06 `BODY_HELIX` | a double strand, rung by rung |
-| 07 `BODY_ARMILLARY` | the orb reduced to its great circles |
-| 08 `BODY_KNOT` | a trefoil in a thick cord |
-| 09 `BODY_GALAXY` | the orb flattened into a turning disc |
+| 00 `BODY_LATTICE` | the orb quantised onto a grid |
+| 01 `BODY_DIFFUSION` | the orb resolving out of noise |
+| 02 `BODY_VOXEL` | a solid of cells, filled through the middle |
+| 03 `BODY_RASTER` | the orb drawn row by row |
+| 04 `BODY_SHELLS` | an onion thickened from the core out |
+| 05 `BODY_YARN` | four strands lapping a ball, stitch by stitch |
+| 06 `BODY_TORUS` | a ring, wound a turn at a time |
+| 07 `BODY_CRYSTAL` | the orb cut into an octahedron |
 
-All ten run side by side on the `/bodies` page of the demo. They are all the
-orb or something the orb could become — a recognisable object would make the
-viewer read a picture of that object, and the mark would be the second thing
-they looked at.
+All eight run side by side on the `/bodies` page of the demo. Each is the orb
+or something the orb could become, and each has volume: a recognisable object
+makes the viewer read a picture of that object, and a wire — a band, a helix,
+a knot — is a line in space with no matter for the work to be done to.
+
 
 
 Every one of them is the same two things: an object, and the front where the

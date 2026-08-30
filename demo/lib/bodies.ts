@@ -11,33 +11,30 @@
 // a label is a demo concern. The index IS the `body` value, so the catalogue
 // page and the playground picker cannot drift from the engine's constants.
 //
-// Every one of these is the orb or something the orb could become. Forms
-// that were recognisable OBJECTS — a vessel, a tower, a cog, a tree, a
-// coiled shell — animated well and are gone anyway: a spinner that reads as
-// a picture of a pot makes the mark the second thing anyone looks at.
+// Every one of these is the orb or something the orb could become, and every
+// one has volume. Two families were tried and cut: recognisable OBJECTS (a
+// vessel, a tower, a cog) make the viewer read a picture of that object, and
+// WIRES (a möbius band, a helix, nested hoops, a trefoil) are lines drawn in
+// space, with no matter for the work to be done to.
 export const BODY_NAMES = [
-  'crystal',
-  'torus',
   'lattice',
+  'diffusion',
+  'voxel',
+  'raster',
+  'shells',
   'yarn',
-  'lantern',
-  'mobius',
-  'helix',
-  'armillary',
-  'knot',
-  'galaxy'
+  'torus',
+  'crystal'
 ] as const;
 
 /** One line on what each object is, for the catalogue. */
 export const BODY_NOTES: string[] = [
-  'the orb cut into an octahedron',
-  'a ring, wound a turn at a time',
   'the orb quantised onto a grid',
-  'one strand lapping a ball',
-  'the orb closed meridian by meridian',
-  'a band with a half twist',
-  'a double strand, rung by rung',
-  'the orb reduced to its great circles',
-  'a trefoil in a thick cord',
-  'the orb flattened into a turning disc'
+  'the orb resolving out of noise',
+  'a solid of cells, filled through the middle',
+  'the orb drawn row by row',
+  'an onion thickened from the core out',
+  'four strands lapping a ball, stitch by stitch',
+  'a ring, wound a turn at a time',
+  'the orb cut into an octahedron'
 ];

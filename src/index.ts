@@ -22,20 +22,18 @@ export type { LogoPointSet, LogoStyle, ShellMode, SeatMap } from './engine/cloud
 export type { LogoState, LogoMode, LogoPreset, ResolvedLogo } from './logoPresets';
 export { resolveLogo, LOGO_PRESETS, LOGO_STATE_TO_MODE, LOGO_MODE_FRAMES } from './logoPresets';
 
-// `generating` is not one form but ten — the orb cut into an octahedron,
-// wound into a ball of yarn, quantised onto a grid, flattened into a disc.
-// Pass one as `tune={{ body: BODY_LATTICE }}`.
+// `generating` is not one form but eight — the orb quantised onto a grid,
+// resolved out of noise, filled cell by cell, drawn row by row, thickened
+// shell by shell. Pass one as `tune={{ body: BODY_DIFFUSION }}`.
 export {
-  BODY_CRYSTAL,
-  BODY_TORUS,
   BODY_LATTICE,
+  BODY_DIFFUSION,
+  BODY_VOXEL,
+  BODY_RASTER,
+  BODY_SHELLS,
   BODY_YARN,
-  BODY_LANTERN,
-  BODY_MOBIUS,
-  BODY_HELIX,
-  BODY_ARMILLARY,
-  BODY_KNOT,
-  BODY_GALAXY,
+  BODY_TORUS,
+  BODY_CRYSTAL,
   BODY_COUNT
 } from './engine/logoGenerate';
 

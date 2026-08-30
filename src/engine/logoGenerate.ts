@@ -23,16 +23,22 @@
 // second thing moving, at a different speed, in front of the thing the
 // viewer is meant to watch. It survives as `swarm`, off by default.
 //
-// WHAT COUNTS AS A BODY. Every one of these is the orb or something the orb
-// could become: a shell, a lattice, a winding, a ring, a band. Things were
-// tried that were not — a turned vessel, a stepped tower, a cog, a tree, a
-// coiled shell — and they are gone, however well they animated. A logo
-// spinner is a mark and an abstraction of loading; the moment the form is a
-// recognisable OBJECT, the viewer reads a picture of that object, wonders
-// what a pot has to do with the product, and the mark is the second thing
-// they looked at. Add bodies freely; add objects never.
+// WHAT COUNTS AS A BODY. Two rules, both learned by breaking them.
+//
+// Not an object. A vessel, a tower, a cog, a tree, a coiled shell all
+// animated well and are gone. A spinner is a mark and an abstraction of
+// loading; the moment the form is a recognisable OBJECT the viewer reads a
+// picture of that object, wonders what a pot has to do with the product,
+// and the mark is the second thing they looked at.
+//
+// Not a wire. A möbius band, a double helix, nested hoops, a trefoil, a
+// spiral disc — every one of them is a LINE drawn in space, and a line has
+// no volume to work on. What this state is about is matter being resolved:
+// something coarse becoming something finished, the way an image resolves
+// out of noise. That needs a body with an inside and a surface, so the
+// front has something to move THROUGH rather than merely along.
 
-import type { Dot, Line, ModeFrame, OrbFrame } from './types';
+import type { Dot, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, frac, hashD, makeProj, radiusScale } from './core';
 import { beatAt, inkOf } from './logo';
 
@@ -43,18 +49,16 @@ const TAU = Math.PI * 2;
  * Numbers rather than a union, so the whole option bag stays capturable by
  * a Reanimated worklet.
  */
-export const BODY_CRYSTAL = 0;
-export const BODY_TORUS = 1;
-export const BODY_LATTICE = 2;
-export const BODY_YARN = 3;
-export const BODY_LANTERN = 4;
-export const BODY_MOBIUS = 5;
-export const BODY_HELIX = 6;
-export const BODY_ARMILLARY = 7;
-export const BODY_KNOT = 8;
-export const BODY_GALAXY = 9;
+export const BODY_LATTICE = 0;
+export const BODY_DIFFUSION = 1;
+export const BODY_VOXEL = 2;
+export const BODY_RASTER = 3;
+export const BODY_SHELLS = 4;
+export const BODY_YARN = 5;
+export const BODY_TORUS = 6;
+export const BODY_CRYSTAL = 7;
 /** How many bodies exist. */
-export const BODY_COUNT = 10;
+export const BODY_COUNT = 8;
 
 /**
  * Camera per body: lean, tilt, yaw amplitude, yaw rate — four numbers each,
@@ -67,16 +71,14 @@ export const BODY_COUNT = 10;
  * bag every body has to ignore.
  */
 const CAMERAS = [
-  0.5, 0.2, 0.24, 0.32, // crystal — two faces at once, never square on
-  0.0, 0.52, 0.2, 0.24, // torus — face on it is a ring, not a solid
   0.4, 0.3, 0.3, 0.28, // lattice
+  0.3, 0.28, 0.3, 0.24, // diffusion
+  0.45, 0.32, 0.28, 0.24, // voxel — a corner toward the viewer, so it has depth
+  0.2, 0.26, 0.26, 0.22, // raster — near square on: it is being drawn AT you
+  0.3, 0.3, 0.3, 0.26, // shells
   0.2, 0.28, 0.3, 0.26, // yarn
-  0.0, 0.3, 0.28, 0.22, // lantern
-  0.2, 0.4, 0.35, 0.26, // mobius — the half twist has to be seen from above
-  0.0, 0.1, 0.5, 0.3, // helix — almost no tilt, wide yaw
-  0.3, 0.3, 0.3, 0.24, // armillary
-  0.2, 0.35, 0.3, 0.26, // knot
-  0.0, 0.6, 0.18, 0.2 // galaxy — a disc wants to be looked down on
+  0.0, 0.52, 0.2, 0.24, // torus — face on it is a ring, not a solid
+  0.5, 0.2, 0.24, 0.32 // crystal — two faces at once, never square on
 ];
 
 function clamp01(x: number): number {
@@ -146,21 +148,20 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const majorN = Math.max(6, Math.round(o.majorN ?? 22));
   const perMajor = Math.max(1, Math.ceil(objN / majorN));
 
-  const steps = Math.max(2, Math.ceil(objN / 2));
-  const helixTurns = o.helixTurns ?? 2.4;
-  const helixR = o.helixR ?? 0.44;
-  const helixH = o.helixH ?? 1.7;
+  const shells = Math.max(3, Math.round(o.shells ?? 5));
+  const perShell = Math.max(2, Math.ceil(objN / shells));
 
-  const rings = Math.max(3, Math.round(o.rings ?? 4));
-  const perRing = Math.max(1, Math.ceil(objN / rings));
+  const rows = Math.max(6, Math.round(o.rasterRows ?? 15));
+  const perRow = Math.max(2, Math.ceil(objN / rows));
 
-  const bandW = Math.max(3, Math.round(o.bandW ?? 5));
-  const perBand = Math.max(2, Math.ceil(objN / bandW));
-
-  const petals = Math.max(5, Math.round(o.petals ?? 15));
-  const perPetal = Math.max(2, Math.ceil(objN / petals));
-
-  const arms = Math.max(2, Math.round(o.arms ?? 3));
+  // Four needles rather than one. The winding count is what closes the ball,
+  // but it is also how far the front has to travel: at thirty-four laps in
+  // one dwell the bright point was a streak going up and down the sphere,
+  // which is a machine spinning, not a hand stitching. Splitting the same
+  // coverage across parallel strands keeps the surface closed while the
+  // front crawls — each strand carries a quarter of the laps.
+  const strands = Math.max(1, Math.round(o.strands ?? 4));
+  const perStrand = Math.max(2, Math.ceil(objN / strands));
 
   // Scratch. This runs once per dot per frame and a returned tuple here is
   // the hottest allocation in the library.
@@ -180,18 +181,112 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
    * in [0, 1].
    */
   function seatOn(idx: number): number {
-    if (body === BODY_CRYSTAL) {
-      // L1 normalisation puts the point on an octahedron; L∞ would put it
-      // on a cube, which is the shape `solving` already owns.
+    if (body === BODY_LATTICE) {
+      // The orb quantised onto a grid: the same dots the sphere would have,
+      // snapped to cells, so it reads as something rendered rather than as
+      // a surface that was always smooth.
+      const q = o.cell ?? 0.17;
       const [x, y, z] = fibDir(idx, objN);
-      const l1 = Math.max(1e-6, Math.abs(x) + Math.abs(y) + Math.abs(z));
-      at3[0] = (x / l1) * crystalR;
-      at3[1] = (y / l1) * crystalR;
-      at3[2] = (z / l1) * crystalR;
+      const rr = 0.9;
+      at3[0] = Math.round((x * rr) / q) * q;
+      at3[1] = Math.round((y * rr) / q) * q;
+      at3[2] = Math.round((z * rr) / q) * q;
       turn();
-      // The Fibonacci index itself already walks the lattice pole to pole
-      // in a spiral — an ordering the lattice carries for free.
-      return idx / objN;
+      // A flat wavefront on the diagonal, so cells resolve in sheets.
+      return clamp01((at3[0] + at3[1] + at3[2] + 3 * rr) / (6 * rr));
+    }
+
+    if (body === BODY_DIFFUSION) {
+      // The orb resolving out of noise — what an image model actually does,
+      // and the reason this state exists.
+      //
+      // Unresolved dots do not sit on the body: they sit in a cloud AROUND
+      // where they belong, drifting, and the front pulls each one onto its
+      // exact seat as it passes. So the form is legible from the first frame
+      // as a haze with a shape, and sharpens rather than appears.
+      const [x, y, z] = fibDir(idx, objN);
+      const rr = o.orbR ?? 0.86;
+      at3[0] = x * rr;
+      at3[1] = y * rr;
+      at3[2] = z * rr;
+      turn();
+      // Ordered by depth along one axis so the sharpening sweeps the body
+      // rather than speckling it — a random order reads as dots switching
+      // on, which is a loading dot animation, not a resolve.
+      return clamp01((at3[1] + rr) / (2 * rr));
+    }
+
+    if (body === BODY_VOXEL) {
+      // A solid, not a shell: cells fill the inside as well as the surface,
+      // so the diagonal front cuts THROUGH the body and you see it arrive at
+      // the far corner. The lattice's sphere is hollow; this is the same
+      // idea with a middle.
+      const q = o.voxel ?? 0.2;
+      // A low-discrepancy triple, so the cells are hit evenly instead of in
+      // the stripes a single golden ratio produces in three dimensions.
+      let vx = frac(idx * 0.7548776662) * 2 - 1;
+      let vy = frac(idx * 0.5698402909) * 2 - 1;
+      let vz = frac(idx * 0.3568324) * 2 - 1;
+      // Fold the cube into the ball: cells outside pull back along their own
+      // direction, which keeps the grid intact where clipping would leave a
+      // sphere of dust with a hole in it.
+      const len = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1;
+      const keep = Math.min(1, 0.92 / len);
+      vx *= keep;
+      vy *= keep;
+      vz *= keep;
+      at3[0] = Math.round(vx / q) * q;
+      at3[1] = Math.round(vy / q) * q;
+      at3[2] = Math.round(vz / q) * q;
+      turn();
+      return clamp01((at3[0] + at3[1] + at3[2] + 2.76) / 5.52);
+    }
+
+    if (body === BODY_RASTER) {
+      // The orb drawn the way a picture is drawn: row by row, left to right.
+      // Rows are rings of latitude, so the front is a line crossing the body
+      // and stepping down — the one body whose order is legible as a
+      // sequence rather than as a direction.
+      const row = idx % rows;
+      const v = row / (rows - 1);
+      const col = (Math.floor(idx / rows) % perRow) / perRow;
+      const rr = o.orbR ?? 0.88;
+      const lat = Math.PI * v;
+      const ring = Math.sin(lat) * rr;
+      at3[0] = Math.cos(col * TAU + spin) * ring;
+      at3[1] = Math.cos(lat) * rr;
+      at3[2] = Math.sin(col * TAU + spin) * ring;
+      return (row + col) / rows;
+    }
+
+    if (body === BODY_SHELLS) {
+      // An onion realised from the core outward. Every shell is a complete
+      // orb, so what the front does is thicken the body rather than travel
+      // over it — the only one of these that grows in the third dimension.
+      const k = idx % shells;
+      const i2 = Math.floor(idx / shells) % perShell;
+      const rr = (o.orbR ?? 0.9) * (0.26 + (0.74 * k) / (shells - 1));
+      const [x, y, z] = fibDir(i2, perShell);
+      at3[0] = x * rr;
+      at3[1] = y * rr;
+      at3[2] = z * rr;
+      turn();
+      return (k + i2 / perShell) / shells;
+    }
+
+    if (body === BODY_YARN) {
+      // One continuous strand lapping the orb — but four of them, running in
+      // parallel a quarter turn apart, so the surface closes without the
+      // front having to race. See the note on `strands`.
+      const st = idx % strands;
+      const s = Math.min(1, Math.floor(idx / strands) / (perStrand - 1));
+      const a = s * TAU * (o.winds ?? 9) + (st / strands) * TAU + spin;
+      const bb = Math.asin(0.96 * Math.sin(s * TAU * 2.6 + 0.6 + st * 0.7));
+      const rr = (o.ballR ?? 0.88) * (1 + (hashD(idx, 4.9) - 0.5) * (o.ballFuzz ?? 0.05));
+      at3[0] = Math.cos(a) * Math.cos(bb) * rr;
+      at3[1] = Math.sin(bb) * rr;
+      at3[2] = Math.sin(a) * Math.cos(bb) * rr;
+      return s;
     }
 
     if (body === BODY_TORUS) {
@@ -207,121 +302,17 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
       return (mj + around) / majorN;
     }
 
-    if (body === BODY_LATTICE) {
-      // The orb quantised onto a grid: the same dots the sphere would have,
-      // snapped to cells, so it reads as voxels rather than as a surface.
-      const q = o.cell ?? 0.17;
-      const [x, y, z] = fibDir(idx, objN);
-      const rr = 0.9;
-      at3[0] = Math.round((x * rr) / q) * q;
-      at3[1] = Math.round((y * rr) / q) * q;
-      at3[2] = Math.round((z * rr) / q) * q;
-      turn();
-      // A flat wavefront on the diagonal, so cells light in sheets.
-      return clamp01((at3[0] + at3[1] + at3[2] + 3 * rr) / (6 * rr));
-    }
-
-    if (body === BODY_YARN) {
-      // One continuous strand wound over the orb, the winding axis drifting
-      // so passes cross instead of stacking into a groove.
-      //
-      // The winding count is what decides whether this is a ball or a few
-      // hoops. Thirteen left the orb showing through in bands; the strand
-      // has to lap often enough that the gaps close and what is left is a
-      // sphere made of one line.
-      const s = idx / objN;
-      const a = s * TAU * (o.winds ?? 34) + spin;
-      const bb = Math.asin(0.96 * Math.sin(s * TAU * 2.6 + 0.6));
-      const rr = (o.ballR ?? 0.88) * (1 + (hashD(idx, 4.9) - 0.5) * (o.ballFuzz ?? 0.05));
-      at3[0] = Math.cos(a) * Math.cos(bb) * rr;
-      at3[1] = Math.sin(bb) * rr;
-      at3[2] = Math.sin(a) * Math.cos(bb) * rr;
-      return s;
-    }
-
-    if (body === BODY_LANTERN) {
-      // Meridians closed one at a time. The rib count is the whole
-      // difference between a sphere and a birdcage: too few and it is
-      // mostly the gaps you see.
-      const rib = idx % petals;
-      const v = Math.min(1, Math.floor(idx / petals) / (perPetal - 1));
-      const ang = (rib / petals) * TAU + spin + 0.35 * Math.sin(v * Math.PI);
-      const rr = Math.sin(v * Math.PI) * (o.lanternR ?? 0.84);
-      at3[0] = Math.cos(ang) * rr;
-      at3[1] = Math.cos(v * Math.PI) * (o.lanternH ?? 0.88);
-      at3[2] = Math.sin(ang) * rr;
-      return (rib + v) / petals;
-    }
-
-    if (body === BODY_MOBIUS) {
-      const w = idx % bandW;
-      const u = Math.min(1, Math.floor(idx / bandW) / (perBand - 1));
-      const th = u * TAU + spin;
-      const wv = (w / (bandW - 1) - 0.5) * (o.bandWide ?? 0.44);
-      const rr = (o.bandR ?? 0.7) + wv * Math.cos(th / 2);
-      at3[0] = Math.cos(th) * rr;
-      at3[1] = wv * Math.sin(th / 2);
-      at3[2] = Math.sin(th) * rr;
-      return u;
-    }
-
-    if (body === BODY_HELIX) {
-      const strand = idx % 2;
-      const u = Math.min(1, Math.floor(idx / 2) / (steps - 1));
-      const ang = u * helixTurns * TAU + strand * Math.PI + spin;
-      at3[0] = Math.cos(ang) * helixR;
-      at3[1] = (u - 0.5) * helixH;
-      at3[2] = Math.sin(ang) * helixR;
-      return u;
-    }
-
-    if (body === BODY_ARMILLARY) {
-      // Nested hoops on different axes — the orb reduced to its own great
-      // circles, threaded one at a time.
-      const k = idx % rings;
-      const around = (Math.floor(idx / rings) % perRing) / perRing;
-      const rad = 0.92 - k * (0.62 / rings);
-      const a = around * TAU + spin;
-      const x0 = Math.cos(a) * rad;
-      const z0 = Math.sin(a) * rad;
-      const al = k * 0.62;
-      const be = k * 1.1;
-      const y1 = -z0 * Math.sin(al);
-      const z1 = z0 * Math.cos(al);
-      at3[0] = x0 * Math.cos(be) + z1 * Math.sin(be);
-      at3[1] = y1;
-      at3[2] = -x0 * Math.sin(be) + z1 * Math.cos(be);
-      return (k + around) / rings;
-    }
-
-    if (body === BODY_KNOT) {
-      const s = idx / objN;
-      const th = s * TAU;
-      const r1 = o.knotR ?? 0.58;
-      const r2 = o.knotTube ?? 0.24;
-      const ring = r1 + r2 * Math.cos(3 * th);
-      at3[0] = Math.cos(2 * th + spin) * ring;
-      at3[1] = r2 * Math.sin(3 * th);
-      at3[2] = Math.sin(2 * th + spin) * ring;
-      // A cord has thickness, but only just: at 0.09 the crossings blurred
-      // into each other and the trefoil stopped being three lobes.
-      at3[0] += (hashD(idx, 3.1) - 0.5) * 0.045;
-      at3[1] += (hashD(idx, 5.7) - 0.5) * 0.045;
-      at3[2] += (hashD(idx, 8.3) - 0.5) * 0.045;
-      return s;
-    }
-
-    // GALAXY. The orb flattened into a field that is already turning,
-    // realised from the core outward — the one body that is not a surface.
-    const arm = idx % arms;
-    const q = Math.sqrt((Math.floor(idx / arms) + 0.5) / Math.ceil(objN / arms));
-    const ang =
-      (arm / arms) * TAU + q * (o.swirlTurns ?? 2.4) * TAU + spin + (hashD(idx, 6.6) - 0.5) * 0.5;
-    const rr = q * (o.discR ?? 1.0);
-    at3[0] = Math.cos(ang) * rr;
-    at3[1] = (hashD(idx, 9.4) - 0.5) * 0.14 * (1 - q);
-    at3[2] = Math.sin(ang) * rr;
-    return q;
+    // CRYSTAL. L1 normalisation puts the point on an octahedron; L∞ would
+    // put it on a cube, which is the shape `solving` already owns.
+    const [x, y, z] = fibDir(idx, objN);
+    const l1 = Math.max(1e-6, Math.abs(x) + Math.abs(y) + Math.abs(z));
+    at3[0] = (x / l1) * crystalR;
+    at3[1] = (y / l1) * crystalR;
+    at3[2] = (z / l1) * crystalR;
+    turn();
+    // The Fibonacci index itself already walks the lattice pole to pole in a
+    // spiral — an ordering the lattice carries for free.
+    return idx / objN;
   }
 
   // --- pass 1: the body, and where its work front is --------------------
@@ -362,10 +353,25 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     const hot = working ? Math.exp(-(((order - prog) / headW) ** 2)) : 0;
     const unlit = (1 - done) * c;
 
+    let ox = bx;
+    let oy = by;
+    let oz = bz;
+    if (body === BODY_DIFFUSION) {
+      // Noise, drifting on its own slow clock, pulled out of the dot as the
+      // front reaches it. The drift matters: a static offset is a dot in the
+      // wrong place, and only a moving one reads as noise.
+      const amp = (o.noise ?? 0.34) * (1 - done);
+      const ph = hashD(seat, 1.3) * TAU;
+      const sp = 0.7 + hashD(seat, 5.9) * 0.9;
+      ox += Math.sin(t * sp + ph) * amp * (hashD(seat, 2.7) - 0.5) * 2;
+      oy += Math.sin(t * sp * 1.13 + ph * 1.7) * amp * (hashD(seat, 6.1) - 0.5) * 2;
+      oz += Math.sin(t * sp * 0.87 + ph * 2.3) * amp * (hashD(seat, 9.5) - 0.5) * 2;
+    }
+
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
     const lz = p[i * 3 + 2];
-    const [px, py, z] = pt(lx + (bx - lx) * c, ly + (by - ly) * c, lz + (bz - lz) * c);
+    const [px, py, z] = pt(lx + (ox - lx) * c, ly + (oy - ly) * c, lz + (oz - lz) * c);
     const zx = clamp01((z + 1) / 2);
     dots.push({
       x: px,
@@ -443,29 +449,10 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     }
   }
 
-  // The helix's body is two things, and rungs are what separate a double
-  // strand from a coiled spring. Drawn only where the strand has been
-  // realised, so the ladder builds along with its rails.
-  const lines: Line[] = [];
-  if (body === BODY_HELIX) {
-    const every = Math.max(2, Math.round(o.rungEvery ?? 5));
-    // A stroke floor in device pixels, not a scale factor: below about half
-    // a pixel a line stops being a line and becomes a smudge.
-    const lw = Math.max(0.55, (o.rungW ?? 0.9) * rs);
-    for (let k2 = 0; k2 < steps; k2 += every) {
-      const u = k2 / (steps - 1);
-      const done = clamp01((prog - u) / feather);
-      const a = done * c * (o.rungA ?? 0.5);
-      if (a < 0.02) continue;
-      const ang = u * helixTurns * TAU + spin;
-      const y = (u - 0.5) * helixH;
-      const [x1, y1] = pt(Math.cos(ang) * helixR, y, Math.sin(ang) * helixR);
-      const [x2, y2, z2] = pt(-Math.cos(ang) * helixR, y, -Math.sin(ang) * helixR);
-      lines.push({ x1, y1, x2, y2, white: inkOf(o, clamp01((z2 + 1) / 2), 1), a, w: lw });
-    }
-  }
-
-  return finalizeFrame(dots, lines, o.rMin);
+  // No body draws edges any more — the wire forms that did are gone, and a
+  // volume has no edges worth stroking. The empty list stays because the
+  // frame contract has one and a future body may fill it.
+  return finalizeFrame(dots, [], o.rMin);
 };
 
 /**

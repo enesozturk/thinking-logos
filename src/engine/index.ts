@@ -35,16 +35,14 @@ export {
 export { frameLogoWait, frameLogoSolve, frameLogoWave } from './logoDeform';
 export {
   frameLogoGenerate,
-  BODY_CRYSTAL,
-  BODY_TORUS,
   BODY_LATTICE,
+  BODY_DIFFUSION,
+  BODY_VOXEL,
+  BODY_RASTER,
+  BODY_SHELLS,
   BODY_YARN,
-  BODY_LANTERN,
-  BODY_MOBIUS,
-  BODY_HELIX,
-  BODY_ARMILLARY,
-  BODY_KNOT,
-  BODY_GALAXY,
+  BODY_TORUS,
+  BODY_CRYSTAL,
   BODY_COUNT
 } from './logoGenerate';
 export { resolveLogo, LOGO_PRESETS, LOGO_MODE_FRAMES, LOGO_STATE_TO_MODE } from '../logoPresets';
