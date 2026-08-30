@@ -7,21 +7,22 @@
 // on screen at all, only the fraction built so far, which is a progress bar
 // drawn in perspective.
 //
-// What generation looks like is three things at once:
+// What generation looks like is two things:
 //
-//   the object    a real 3D form, present and legible for the WHOLE cycle,
-//                 turning in space. It is never partly there. What changes
-//                 is how much of it has been realised, carried by ink and
-//                 colour — dim neutral grey where the work has not reached,
-//                 full brand colour where it has.
-//   the particles loose matter, streaming in from outside and landing where
-//                 the work is happening. The only thing on screen that
-//                 moves fast, and the reason the object is being realised.
-//   the front     where those two meet: the brightest point in the frame.
+//   the object  a real 3D form, present and legible for the WHOLE cycle,
+//               turning in space. It is never partly there. What changes is
+//               how much of it has been realised, carried by ink and colour
+//               — dim neutral grey where the work has not reached, full
+//               brand colour where it has.
+//   the front   where the work is right now: the brightest point in the
+//               frame, travelling over the object in the object's own order.
 //
-// Drop any one and it stops reading. Without the object nothing is being
-// made; without the particles nothing is making it; without the front they
-// are two unrelated animations sharing a canvas.
+// Loose matter flying in to feed the front was tried twice and cut twice.
+// Phased along shared paths it grew tails; flying independently it was a
+// scatter of specks crossing the frame. Both times the cost was the same:
+// a second thing moving, at a different speed, in front of the thing the
+// viewer is meant to be watching. It survives as `swarm`, off by default,
+// because the idea is sound and the frame is better without it.
 //
 // Everything except the object is shared, which is why there are eighteen
 // bodies here and not eighteen files. A body answers exactly one question —
@@ -152,19 +153,15 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   // matter being delivered to it. Seats are a permutation, so taking them
   // off the end takes an even scatter of the mark rather than one region of
   // it — which matters at the morph, where every dot has to land.
-  const share = clamp01(o.swarm ?? 0.14);
+  // Off by default: see the note at the top of the file. A caller who wants
+  // matter flying in sets a fraction of the dots aside for it.
+  const share = clamp01(o.swarm ?? 0);
   const objN = Math.max(8, Math.round(n * (1 - share)));
   const parts = Math.max(1, n - objN);
 
-  // Carriers AIM in a few directions — the frond has one per branch, since
-  // its work happens at eight tips at once and a stream aimed at their
-  // average is aimed at nothing — but each one flies alone.
-  //
-  // They were briefly phased evenly along shared paths, which drew a line
-  // of dots behind every carrier. It read as a tail, and a tail is a second
-  // thing to follow in a frame that already has an object, a front and the
-  // matter itself. Each carrier now has its own launch point and its own
-  // phase, so what arrives is a scatter of single dots.
+  // Carriers aim at a few fronts rather than one — a body whose work happens
+  // in several places at once, like the frond's eight tips, is not fed by a
+  // stream aimed at their average. Each carrier still flies alone.
   const streams = Math.max(2, Math.min(12, Math.round(o.streams ?? 6)));
 
   const spin = t * (o.spin ?? (body === BODY_CRYSTAL ? 0.3 : 0.16));
@@ -580,9 +577,10 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   // `idx % streams` gives one front per stream, which matters for a body
   // whose work happens in several places at once — the frond grows at eight
   // tips, and a stream aimed at their average is aimed at nothing.
+  const frontN = share > 0 ? streams : 1;
   const fronts = [];
   const fdist = [];
-  for (let s = 0; s < streams; s++) {
+  for (let s = 0; s < frontN; s++) {
     fronts.push(0, 0, 0);
     fdist.push(1e9);
   }
@@ -598,7 +596,7 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     const bz = at3[2];
 
     const d = Math.abs(order - prog);
-    const lane = seat % streams;
+    const lane = seat % frontN;
     if (d < fdist[lane]) {
       fdist[lane] = d;
       fronts[lane * 3] = bx;

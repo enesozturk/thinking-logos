@@ -101,11 +101,11 @@ import { BODY_LANTERN } from 'thinking-logos';
 
 All eighteen run side by side on the `/bodies` page of the demo.
 
-All five are the same three things: an object, the particles making it, and
-the front where they meet. The object is on screen for the whole cycle and is
-never partly there — what changes is how much of it has been realised, carried
-by ink and colour rather than by absence. The particles stream in from outside
-and land exactly where the work is.
+Every one of them is the same two things: an object, and the front where the
+work is. The object is on screen for the whole cycle and is never partly there
+— what changes is how much of it has been realised, carried by ink and colour
+rather than by absence — and the front is the brightest point in the frame,
+travelling over it in the object's own build order.
 
 All seven share one cycle: the working form dwells and does its work, the mark
 gathers, and dissolves again. Two knobs matter — `dwell`, how long the working
