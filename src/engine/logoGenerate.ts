@@ -224,29 +224,36 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     }
 
     if (body === BODY_VOXEL) {
-      // A solid, not a shell: cells fill the inside as well as the surface,
-      // so the diagonal front cuts THROUGH the body and you see it arrive at
-      // the far corner. The lattice's sphere is hollow; this is the same
-      // idea with a middle.
-      const q = o.voxel ?? 0.2;
-      // A low-discrepancy triple, so the cells are hit evenly instead of in
-      // the stripes a single golden ratio produces in three dimensions.
+      // Coarse blocks, filled from the core outward.
+      //
+      // This started as the lattice with a middle and was nearly the same
+      // picture: same cell size, same diagonal front, and at spinner size
+      // the only difference was that one of them was hollow. Two things now
+      // separate them and both are structural, not cosmetic. The cells are
+      // three times bigger, and every dot goes to its cell's CENTRE rather
+      // than being rounded onto a grid — so a cell is a clump you can count,
+      // not a point in a mesh. And the front is a growing radius instead of
+      // a plane, so the body fills like something being packed out from the
+      // inside, where the lattice resolves in flat sheets.
+      const q = o.voxel ?? 0.3;
+      // A low-discrepancy triple: three golden ratios rather than one, which
+      // in three dimensions lands in stripes.
       let vx = frac(idx * 0.7548776662) * 2 - 1;
       let vy = frac(idx * 0.5698402909) * 2 - 1;
       let vz = frac(idx * 0.3568324) * 2 - 1;
-      // Fold the cube into the ball: cells outside pull back along their own
-      // direction, which keeps the grid intact where clipping would leave a
-      // sphere of dust with a hole in it.
       const len = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1;
-      const keep = Math.min(1, 0.92 / len);
+      // Fold the cube into the ball rather than clipping it: clipping leaves
+      // the outer cells half-populated and the silhouette goes ragged.
+      const keep = Math.min(1, 0.9 / len);
       vx *= keep;
       vy *= keep;
       vz *= keep;
-      at3[0] = Math.round(vx / q) * q;
-      at3[1] = Math.round(vy / q) * q;
-      at3[2] = Math.round(vz / q) * q;
+      at3[0] = Math.round(vx / q) * q + (hashD(idx, 3.4) - 0.5) * q * 0.16;
+      at3[1] = Math.round(vy / q) * q + (hashD(idx, 7.8) - 0.5) * q * 0.16;
+      at3[2] = Math.round(vz / q) * q + (hashD(idx, 5.2) - 0.5) * q * 0.16;
       turn();
-      return clamp01((at3[0] + at3[1] + at3[2] + 2.76) / 5.52);
+      const rad = Math.sqrt(at3[0] * at3[0] + at3[1] * at3[1] + at3[2] * at3[2]);
+      return clamp01(rad / 0.95);
     }
 
     if (body === BODY_RASTER) {
