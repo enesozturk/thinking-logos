@@ -152,17 +152,20 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   // matter being delivered to it. Seats are a permutation, so taking them
   // off the end takes an even scatter of the mark rather than one region of
   // it — which matters at the morph, where every dot has to land.
-  const share = clamp01(o.swarm ?? 0.22);
+  const share = clamp01(o.swarm ?? 0.14);
   const objN = Math.max(8, Math.round(n * (1 - share)));
   const parts = Math.max(1, n - objN);
 
-  // Carriers travel in a few STREAMS rather than each on its own path.
-  // Independent flights are the obvious way and produce dust: a hundred
-  // specks at a hundred phases, none alive long enough to follow. Phased
-  // along a handful of shared paths they become lines of dots pouring into
-  // the work — legible in a still, unmistakable in motion.
+  // Carriers AIM in a few directions — the frond has one per branch, since
+  // its work happens at eight tips at once and a stream aimed at their
+  // average is aimed at nothing — but each one flies alone.
+  //
+  // They were briefly phased evenly along shared paths, which drew a line
+  // of dots behind every carrier. It read as a tail, and a tail is a second
+  // thing to follow in a frame that already has an object, a front and the
+  // matter itself. Each carrier now has its own launch point and its own
+  // phase, so what arrives is a scatter of single dots.
   const streams = Math.max(2, Math.min(12, Math.round(o.streams ?? 6)));
-  const perStream = Math.max(1, Math.ceil(parts / streams));
 
   const spin = t * (o.spin ?? (body === BODY_CRYSTAL ? 0.3 : 0.16));
   const feather = Math.max(1e-4, o.feather ?? 0.035);
@@ -641,17 +644,14 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
 
     const pj = seat - objN;
     const lane = pj % streams;
-    // Evenly spaced along the lane, so the gap between carriers is constant
-    // and the stream reads as one moving thing rather than as a queue.
-    const along = Math.floor(pj / streams) / perStream;
-    const period = flight * (0.85 + hashD(lane, 4.1) * 0.5);
-    const u = frac(t / period + along + hashD(lane, 7.3));
+    const period = flight * (0.72 + hashD(pj, 4.1) * 0.75);
+    const u = frac(t / period + hashD(pj, 7.3));
     const ease = u * u * (3 - 2 * u);
 
-    // The launch point drifts, so consecutive flights of one stream do not
-    // retrace a line — which reads as a wire, not as weather.
-    const [ax, ay, az] = fibDir(lane, streams);
-    const drift = t * 0.11 + hashD(lane, 2.2) * TAU;
+    // Its own launch point, and a drift on top, so no two flights lie along
+    // the same line.
+    const [ax, ay, az] = fibDir(pj, parts);
+    const drift = t * 0.11 + hashD(pj, 2.2) * TAU;
     const cd = Math.cos(drift);
     const sd = Math.sin(drift);
     const sx = (ax * cd + az * sd) * shell;
