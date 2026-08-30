@@ -132,7 +132,16 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   // fully shown on both sides of it. So a rate is rounded to whole turns
   // per cycle, with one as the floor.
   const phase = b.local / b.cycle;
-  const turnsPerCycle = Math.max(1, Math.round(((o.spin ?? 0.16) * b.cycle) / TAU));
+  // A body that maps onto ITSELF under a smaller rotation can loop on a
+  // fraction of a turn. The torus is built from `majorN` identical segments,
+  // so a rotation of one segment leaves the same set of dots in the same
+  // places — which lets it turn at a fifth of the speed and still join at
+  // the seam. Bodies with no such symmetry are stuck with whole turns.
+  const spinSym = body === BODY_TORUS ? Math.max(6, Math.round(o.majorN ?? 22)) : 1;
+  const turnsPerCycle = Math.max(
+    1 / spinSym,
+    Math.round(((o.spin ?? 0.16) * b.cycle * spinSym) / TAU) / spinSym
+  );
 
   const cam = body * 4;
   // Same rounding for the yaw sway: a whole number of oscillations per
@@ -166,19 +175,29 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const streams = Math.max(2, Math.min(12, Math.round(o.streams ?? 6)));
 
   const spin = TAU * turnsPerCycle * phase;
-  const feather = Math.max(1e-4, o.feather ?? 0.035);
-  const headW = Math.max(1e-4, o.headWidth ?? 0.02);
+  // The raster's front crosses a whole ring per row, so at the shared width
+  // it was a point moving several times a second: a beam sweeping the body,
+  // not work being done to it. A wider, softer front over fewer rows turns
+  // the same motion back into dots being seated.
+  const wide = body === BODY_RASTER;
+  const feather = Math.max(1e-4, o.feather ?? (wide ? 0.075 : 0.035));
+  const headW = Math.max(1e-4, o.headWidth ?? (wide ? 0.055 : 0.02));
 
   // --- body constants, resolved once ------------------------------------
   const crystalR = o.crystalR ?? 0.92;
 
   const majorN = Math.max(6, Math.round(o.majorN ?? 22));
-  const perMajor = Math.max(1, Math.ceil(objN / majorN));
+  // FLOOR, not ceil. Every segment has to sample the same set of positions
+  // around the tube, or the ring is not actually made of identical segments
+  // and the rotational symmetry the slow spin relies on does not hold. With
+  // ceil, the segments that get one dot fewer cover a different subset and
+  // the body jumps at the seam — measured at 8px before this changed.
+  const perMajor = Math.max(1, Math.floor(objN / majorN));
 
   const shells = Math.max(3, Math.round(o.shells ?? 5));
   const perShell = Math.max(2, Math.ceil(objN / shells));
 
-  const rows = Math.max(6, Math.round(o.rasterRows ?? 15));
+  const rows = Math.max(6, Math.round(o.rasterRows ?? 10));
   const perRow = Math.max(2, Math.ceil(objN / rows));
 
   // Four needles rather than one. The winding count is what closes the ball,
@@ -436,6 +455,17 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     let ox = bx;
     let oy = by;
     let oz = bz;
+    if (body === BODY_RASTER) {
+      // Not seated yet: sitting a little proud of the surface, and dropping
+      // onto it as the row is drawn. Without this the dots do not move at
+      // all and the only thing travelling is the highlight, which is why it
+      // read as a beam rather than as work.
+      const lift = (o.settleLift ?? 0.13) * (1 - done);
+      ox *= 1 + lift;
+      oy *= 1 + lift;
+      oz *= 1 + lift;
+    }
+
     if (body === BODY_DIFFUSION) {
       // Noise, drifting on its own slow clock, pulled out of the dot as the
       // front reaches it. The drift matters: a static offset is a dot in the
