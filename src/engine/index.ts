@@ -39,7 +39,21 @@ export {
   BODY_VESSEL,
   BODY_FROND,
   BODY_HELIX,
-  BODY_TORUS
+  BODY_TORUS,
+  BODY_NAUTILUS,
+  BODY_ARMILLARY,
+  BODY_MOBIUS,
+  BODY_LATTICE,
+  BODY_KNOT,
+  BODY_TOWER,
+  BODY_HOURGLASS,
+  BODY_YARN,
+  BODY_GEAR,
+  BODY_TREE,
+  BODY_LANTERN,
+  BODY_SCROLL,
+  BODY_GALAXY,
+  BODY_COUNT
 } from './logoGenerate';
 export { resolveLogo, LOGO_PRESETS, LOGO_MODE_FRAMES, LOGO_STATE_TO_MODE } from '../logoPresets';
 export type { LogoMode, LogoState, LogoPreset, ResolvedLogo } from '../logoPresets';

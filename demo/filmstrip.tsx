@@ -18,23 +18,11 @@ import { paintFrame } from '../src/engine/core';
 import { adaptTint, paintFrameTinted, parseTint } from '../src/engine/tint';
 import type { LogoState } from '../src/logoPresets';
 import { resolveLogo } from '../src/logoPresets';
-import {
-  BODY_FROND,
-  BODY_CRYSTAL,
-  BODY_HELIX,
-  BODY_VESSEL,
-  BODY_TORUS
-} from '../src/engine/logoGenerate';
+import { BODY_NAMES, BODY_NOTES } from './bodies';
 import { BRAND_BY_KEY } from './brands';
 
-/** The `generating` bodies, in the order the showcase lists them. */
-const GENERATING = [
-  { body: BODY_CRYSTAL, note: 'crystal — an octahedron cut face by face' },
-  { body: BODY_VESSEL, note: 'vessel — turned layer by layer, fed at the front' },
-  { body: BODY_FROND, note: 'frond — eight branches, one stream per tip' },
-  { body: BODY_HELIX, note: 'helix — a double strand transcribed upward' },
-  { body: BODY_TORUS, note: 'torus — a ring wound one turn of its tube at a time' }
-];
+/** Every `generating` object, in `body` order. */
+const GENERATING = BODY_NAMES.map((name, body) => ({ body, note: `${name} — ${BODY_NOTES[body]}` }));
 import './tailwind.css';
 
 const CELL = 96;

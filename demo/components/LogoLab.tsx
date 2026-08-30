@@ -3,6 +3,7 @@ import { ThinkingLogo } from '../../src/ThinkingLogo';
 import type { LogoPointSet } from '../../src/engine/cloud';
 import type { LogoState } from '../../src/logoPresets';
 import type { LogoSource } from '../../src/bake/bake';
+import { BODY_NAMES } from '../bodies';
 import { BRANDS } from '../brands';
 import { buildStandalone } from '@/lib/standalone';
 import { CodeBlock } from './CodeBlock';
@@ -31,7 +32,8 @@ const STATES: LogoState[] = [
 const COLOURS = ['brand', 'monochrome'] as const;
 // `generating` is the one state that is five objects. The picker lists them
 // in the order they are declared, so the index IS the `body` value.
-const BODIES = ['crystal', 'vessel', 'frond', 'helix', 'torus'] as const;
+// Names and order come from the catalogue, so the picker cannot drift
+// from the engine's `body` constants.
 
 // The sizes a loading indicator actually ships at: chat avatar, inline
 // button, and inline text. Showing all three at once is the only reliable
@@ -109,7 +111,7 @@ export function LogoLab() {
   const [custom, setCustom] = useState<{ name: string; svg: string } | null>(null);
   const [brandKey, setBrandKey] = useState('x');
   const [state, setState] = useState<LogoState>('thinking');
-  const [body, setBody] = useState<(typeof BODIES)[number]>('crystal');
+  const [body, setBody] = useState<string>(BODY_NAMES[0]);
   const [tinted, setTinted] = useState(true);
   const [count, setCount] = useState(300);
   // Per-state default, since the solve needs more room than a plain dwell.
@@ -141,7 +143,7 @@ export function LogoLab() {
   const bakeOpts = useMemo(() => ({ count }), [count]);
   // `dwell` is how long the working form — orb, cube, sphere, body — gets
   // before the mark interrupts it. Null means "leave the state's default".
-  const bodyIndex = state === 'generating' ? BODIES.indexOf(body) : 0;
+  const bodyIndex = state === 'generating' ? Math.max(0, BODY_NAMES.indexOf(body as never)) : 0;
   const tune = useMemo(() => {
     if (dwell === null && morph === null && bodyIndex === 0) return undefined;
     const t: { dwell?: number; morph?: number; body?: number } = {};
@@ -275,7 +277,7 @@ export function LogoLab() {
                 label="Body"
                 hint="What is being generated. The verb is the same; the thing being made is not."
               >
-                <Picker value={body} onChange={setBody} options={BODIES} />
+                <Picker value={body} onChange={setBody} options={BODY_NAMES} />
               </Row>
             )}
 

@@ -1,47 +1,99 @@
-// Generating: an object, and the particles making it.
+// Generating: an object, the particles making it, and the front.
 //
-// Two attempts to get here, wrong in opposite directions. Five build ORDERS
-// over one octahedron changed nothing you could see — the object never
-// varied, so they read as one animation at five speeds. Five objects that
-// grew out of nothing fixed that and broke something worse: for most of the
-// cycle there was no object on screen at all, only the fraction of it built
-// so far, which is a progress bar drawn in perspective.
+// Three attempts to get here. Five build ORDERS over one octahedron changed
+// nothing you could see — the object never varied, so they read as one
+// animation at five speeds. Five objects that GREW OUT OF NOTHING fixed
+// that and broke something worse: for most of the cycle there was no object
+// on screen at all, only the fraction built so far, which is a progress bar
+// drawn in perspective.
 //
-// What generation actually looks like is three things at once:
+// What generation looks like is three things at once:
 //
 //   the object    a real 3D form, present and legible for the WHOLE cycle,
 //                 turning in space. It is never partly there. What changes
 //                 is how much of it has been realised, carried by ink and
 //                 colour — dim neutral grey where the work has not reached,
 //                 full brand colour where it has.
-//   the particles loose matter, streaming in from outside and landing
-//                 exactly where the work is happening. They are the reason
-//                 the object is being realised, and the only thing on
-//                 screen that moves fast.
+//   the particles loose matter, streaming in from outside and landing where
+//                 the work is happening. The only thing on screen that
+//                 moves fast, and the reason the object is being realised.
 //   the front     where those two meet: the brightest point in the frame.
 //
-// Drop any one of the three and it stops reading. Without the object there
-// is nothing being made; without the particles nothing is making it;
-// without the front they are two unrelated animations sharing a canvas.
+// Drop any one and it stops reading. Without the object nothing is being
+// made; without the particles nothing is making it; without the front they
+// are two unrelated animations sharing a canvas.
 //
-// The bodies differ in the object and in where its work front travels; the
-// particle layer is shared, because a stream of matter falling into a point
-// is the same event whatever is being built. Selected by `body`, a number
-// rather than a union so the option bag stays capturable whole by a
-// Reanimated worklet.
+// Everything except the object is shared, which is why there are eighteen
+// bodies here and not eighteen files. A body answers exactly one question —
+// where does dot `i` sit on me, and when is it realised — in twenty lines.
+// The front is then DERIVED rather than declared: it is the realised dot
+// closest to the work, found while the object is being laid out. A body
+// that had to describe its own front would be twice the code and could
+// disagree with itself.
 
 import type { Dot, Line, ModeFrame, OrbFrame } from './types';
 import { fibDir, finalizeFrame, frac, hashD, makeProj, radiusScale } from './core';
 import { beatAt, inkOf } from './logo';
 
 const TAU = Math.PI * 2;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
-/** `body` values for {@link frameLogoGenerate}. */
+/**
+ * `body` values for {@link frameLogoGenerate} — the object being generated.
+ * Numbers rather than a union, so the whole option bag stays capturable by
+ * a Reanimated worklet.
+ */
 export const BODY_CRYSTAL = 0;
 export const BODY_VESSEL = 1;
 export const BODY_FROND = 2;
 export const BODY_HELIX = 3;
 export const BODY_TORUS = 4;
+export const BODY_NAUTILUS = 5;
+export const BODY_ARMILLARY = 6;
+export const BODY_MOBIUS = 7;
+export const BODY_LATTICE = 8;
+export const BODY_KNOT = 9;
+export const BODY_TOWER = 10;
+export const BODY_HOURGLASS = 11;
+export const BODY_YARN = 12;
+export const BODY_GEAR = 13;
+export const BODY_TREE = 14;
+export const BODY_LANTERN = 15;
+export const BODY_SCROLL = 16;
+export const BODY_GALAXY = 17;
+/** How many bodies exist. */
+export const BODY_COUNT = 18;
+
+/**
+ * Camera per body: lean, tilt, yaw amplitude, yaw rate — four numbers each,
+ * flat, in `body` order.
+ *
+ * Not one shared camera, because the camera is half of whether a form reads
+ * at all: a vessel seen face on is an outline, a torus is a flat ring, a
+ * helix under any real tilt crosses itself into a braid, and an octahedron
+ * square to the viewer is a square. Not per-body option keys either — that
+ * would be seventy-two names in a bag every body has to ignore.
+ */
+const CAMERAS = [
+  0.5, 0.2, 0.24, 0.32, // crystal — two faces at once, never square on
+  0.0, 0.32, 0.26, 0.24, // vessel — enough tilt that the layers read as a stack
+  0.3, 0.26, 0.3, 0.2, // frond
+  0.0, 0.1, 0.5, 0.3, // helix — almost no tilt, wide yaw
+  0.0, 0.52, 0.2, 0.24, // torus — seen face on it is a ring, not a solid
+  0.0, 0.45, 0.25, 0.22, // nautilus — the coil is planar, so look down on it
+  0.3, 0.3, 0.3, 0.24, // armillary
+  0.2, 0.4, 0.35, 0.26, // mobius — the half twist needs to be seen from above
+  0.4, 0.3, 0.3, 0.28, // lattice
+  0.2, 0.35, 0.3, 0.26, // knot
+  0.0, 0.3, 0.3, 0.2, // tower
+  0.0, 0.22, 0.28, 0.24, // hourglass — near level, so both cones read
+  0.2, 0.28, 0.3, 0.26, // yarn
+  0.0, 0.55, 0.22, 0.22, // gear — a wheel edge on is a bar
+  0.0, 0.22, 0.3, 0.2, // tree
+  0.0, 0.3, 0.28, 0.22, // lantern
+  0.0, 0.35, 0.3, 0.24, // scroll
+  0.0, 0.6, 0.18, 0.2 // galaxy — a disc wants to be looked down on
+];
 
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -51,33 +103,18 @@ function empty(): OrbFrame {
   return { dots: [], lines: [] };
 }
 
-/**
- * A point on an octahedron, from a Fibonacci index.
- *
- * L1 normalisation is what makes it an octahedron; L∞ would make it a cube,
- * which is the shape `solving` already owns.
- */
-function octaSeat(i: number, n: number, half: number, out: number[]): void {
-  const [x, y, z] = fibDir(i, n);
-  const l1 = Math.max(1e-6, Math.abs(x) + Math.abs(y) + Math.abs(z));
-  out[0] = (x / l1) * half;
-  out[1] = (y / l1) * half;
-  out[2] = (z / l1) * half;
-}
-
 /** The vessel's silhouette: a foot, a shoulder, a closing neck. */
 function vesselProfile(u: number): number {
   return 0.36 + 0.52 * Math.sin(Math.PI * u ** 0.78) - 0.1 * Math.sin(TAU * u);
 }
 
 /**
- * `generating`, as one object being fed by one stream of matter.
+ * `generating`: one object, fed by streams of matter.
  *
- * Five bodies share this function rather than having one each, because
- * almost all of it is shared: the clock, the swarm, the ink language, the
- * morph. What a body contributes is two answers — where does this dot sit
- * on me, and where is my work front right now — which is twenty lines each,
- * not a file each.
+ * The body switch sits inside the per-dot loop rather than around it. That
+ * is deliberate: eighteen frame functions would be eighteen copies of the
+ * clock, the swarm, the morph and the ink language, and the last time this
+ * file held one function per variant they had already started to disagree.
  */
 const frameBuild: ModeFrame = (size, t, o, logo) => {
   if (!logo) return empty();
@@ -86,7 +123,7 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const cx = size / 2;
   const R = (size / 2) * 0.82;
   const rs = radiusScale(size, o.rsPow ?? 0.6);
-  const body = o.body ?? BODY_CRYSTAL;
+  const body = Math.max(0, Math.min(BODY_COUNT - 1, Math.round(o.body ?? BODY_CRYSTAL)));
 
   const dwell = o.dwell ?? 5.5;
   const morph = o.morph ?? 1.9;
@@ -102,37 +139,10 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     b.local < dwell ? b.local / dwell : into < morph ? 1 : clamp01(1 - (into - morph) / morph);
   const working = b.local < dwell;
 
-  // Each body gets the camera that shows it: a vessel needs a tilt or its
-  // layers collapse into an outline, a helix needs almost none or its
-  // strands cross into a braid, a torus seen face on is a flat ring.
-  let lean = 0;
-  let tilt = 0.32;
-  let yawAmp = 0.26;
-  let yawRate = 0.24;
-  if (body === BODY_CRYSTAL) {
-    // Turned enough to show two faces at once: seen straight on an
-    // octahedron is a square, which is the one reading to avoid next to a
-    // cube.
-    lean = 0.5;
-    tilt = 0.2;
-    yawAmp = 0.24;
-    yawRate = 0.32;
-  } else if (body === BODY_HELIX) {
-    tilt = 0.1;
-    yawAmp = 0.5;
-    yawRate = 0.3;
-  } else if (body === BODY_TORUS) {
-    tilt = 0.52;
-    yawAmp = 0.2;
-  } else if (body === BODY_FROND) {
-    lean = 0.3;
-    tilt = 0.26;
-    yawAmp = 0.3;
-    yawRate = 0.2;
-  }
+  const cam = body * 4;
   const pt = makeProj(
-    (o.lean ?? lean) + (o.yawAmp ?? yawAmp) * Math.sin(t * (o.yawRate ?? yawRate)) * c,
-    (o.tilt ?? tilt) * c,
+    (o.lean ?? CAMERAS[cam]) + (o.yawAmp ?? CAMERAS[cam + 2]) * Math.sin(t * (o.yawRate ?? CAMERAS[cam + 3])) * c,
+    (o.tilt ?? CAMERAS[cam + 1]) * c,
     cx,
     cx,
     R
@@ -143,19 +153,29 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   // off the end takes an even scatter of the mark rather than one region of
   // it — which matters at the morph, where every dot has to land.
   const share = clamp01(o.swarm ?? 0.22);
-  const objN = Math.max(1, Math.round(n * (1 - share)));
+  const objN = Math.max(8, Math.round(n * (1 - share)));
+  const parts = Math.max(1, n - objN);
 
+  // Carriers travel in a few STREAMS rather than each on its own path.
+  // Independent flights are the obvious way and produce dust: a hundred
+  // specks at a hundred phases, none alive long enough to follow. Phased
+  // along a handful of shared paths they become lines of dots pouring into
+  // the work — legible in a still, unmistakable in motion.
+  const streams = Math.max(2, Math.min(12, Math.round(o.streams ?? 6)));
+  const perStream = Math.max(1, Math.ceil(parts / streams));
+
+  const spin = t * (o.spin ?? (body === BODY_CRYSTAL ? 0.3 : 0.16));
+  const feather = Math.max(1e-4, o.feather ?? 0.035);
+  const headW = Math.max(1e-4, o.headWidth ?? 0.02);
+
+  // --- body constants, resolved once ------------------------------------
   const crystalR = o.crystalR ?? 0.92;
+
   const layers = Math.max(4, Math.round(o.layers ?? 11));
   const perLayer = Math.max(1, Math.ceil(objN / layers));
-  const vesselH = o.vesselH ?? 1.6;
-  const vesselR = o.vesselR ?? 0.76;
-  const twist = o.layerTwist ?? 0.55;
 
   const majorN = Math.max(6, Math.round(o.majorN ?? 22));
   const perMajor = Math.max(1, Math.ceil(objN / majorN));
-  const majorR = o.majorR ?? 0.72;
-  const minorR = o.minorR ?? 0.29;
 
   const steps = Math.max(2, Math.ceil(objN / 2));
   const helixTurns = o.helixTurns ?? 2.4;
@@ -166,28 +186,42 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const lanes = Math.max(1, Math.round(o.lanes ?? 3));
   const groups = branches * lanes;
   const perBranch = Math.max(2, Math.ceil(objN / groups));
-  const reach = o.reach ?? 0.8;
-  const bend = o.bend ?? 0.5;
-  const frond = o.frond ?? 0.36;
-  const stagger = clamp01(o.growStagger ?? 0.26);
 
-  // The crystal turns faster than the rest: it is the one body with flat
-  // faces, and a flat face barely reads as turning until it does.
-  const spin = t * (o.spin ?? (body === BODY_CRYSTAL ? 0.3 : 0.14));
-  const feather = Math.max(1e-4, o.feather ?? 0.035);
-  const headW = Math.max(1e-4, o.headWidth ?? 0.02);
+  const rings = Math.max(3, Math.round(o.rings ?? 4));
+  const perRing = Math.max(1, Math.ceil(objN / rings));
 
-  // Scratch, written by the two functions below. They run once per dot per
-  // frame, and a returned tuple here is the hottest allocation in the
-  // library — the frame functions are meant to be callable from a worklet
-  // sixty times a second without making garbage.
+  const bandW = Math.max(3, Math.round(o.bandW ?? 5));
+  const perBand = Math.max(2, Math.ceil(objN / bandW));
+
+  const levels = Math.max(4, Math.round(o.levels ?? 9));
+  const perLevel = Math.max(1, Math.ceil(objN / levels));
+
+  const waist = Math.max(6, Math.round(o.waistRows ?? 14));
+  const perWaist = Math.max(1, Math.ceil(objN / waist));
+
+  const petals = Math.max(5, Math.round(o.petals ?? 9));
+  const perPetal = Math.max(2, Math.ceil(objN / petals));
+
+  const sheetRows = Math.max(4, Math.round(o.sheetRows ?? 7));
+  const perSheet = Math.max(2, Math.ceil(objN / sheetRows));
+
+  const teeth = Math.max(6, Math.round(o.teeth ?? 10));
+  const perGear = Math.max(2, Math.ceil(objN / 3));
+
+  const arms = Math.max(2, Math.round(o.arms ?? 3));
+
+  // Scratch. These run once per dot per frame and a returned tuple here is
+  // the hottest allocation in the library.
   const at3 = [0, 0, 0];
-  const head3 = [0, 0, 0];
+  const tmp3 = [0, 0, 0];
 
-  /** The unit frame of branch `br`: direction, and two perpendiculars. */
+  /** The unit frame of branch `br`: direction in `tmp3`, perpendiculars. */
   const frame6 = [0, 0, 0, 0, 0, 0];
-  function branchFrame(br: number): [number, number, number] {
-    const [dx, dy, dz] = fibDir(br, branches);
+  function branchFrame(br: number, count: number): void {
+    const [dx, dy, dz] = fibDir(br, count);
+    tmp3[0] = dx;
+    tmp3[1] = dy;
+    tmp3[2] = dz;
     const hx = hashD(br, 1.7) - 0.5;
     const hy = hashD(br, 4.3) - 0.5;
     const hz = hashD(br, 9.1) - 0.5;
@@ -205,203 +239,406 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     frame6[3] = dy * uz - dz * uy;
     frame6[4] = dz * ux - dx * uz;
     frame6[5] = dx * uy - dy * ux;
-    return [dx, dy, dz];
   }
 
-  /** How far branch `br` has grown, in its own length, at `prog`. */
-  function branchAt(br: number): number {
-    const start = hashD(br, 3.3) * stagger;
-    return clamp01(((prog - start) / (1 - start)) ** (1 / 0.85));
+  /** Turn `at3` about the vertical axis by the object's own spin. */
+  function turn(): void {
+    const ca = Math.cos(spin);
+    const sa = Math.sin(spin);
+    const x = at3[0];
+    at3[0] = x * ca + at3[2] * sa;
+    at3[2] = -x * sa + at3[2] * ca;
   }
 
-  /** Where a dot sits on the object → `at3`; returns when it is realised. */
+  /**
+   * Where dot `idx` sits on the object → `at3`; returns when it is realised,
+   * in [0, 1].
+   */
   function seatOn(idx: number): number {
     if (body === BODY_CRYSTAL) {
-      octaSeat(idx, objN, crystalR, at3);
-      const ca = Math.cos(spin);
-      const sa = Math.sin(spin);
-      const x = at3[0];
-      at3[0] = x * ca + at3[2] * sa;
-      at3[2] = -x * sa + at3[2] * ca;
-      // The Fibonacci index itself, which already walks the lattice pole to
-      // pole in a spiral — an ordering the lattice carries for free.
+      // L1 normalisation puts the point on an octahedron; L∞ would put it
+      // on a cube, which is the shape `solving` already owns.
+      const [x, y, z] = fibDir(idx, objN);
+      const l1 = Math.max(1e-6, Math.abs(x) + Math.abs(y) + Math.abs(z));
+      at3[0] = (x / l1) * crystalR;
+      at3[1] = (y / l1) * crystalR;
+      at3[2] = (z / l1) * crystalR;
+      turn();
+      // The Fibonacci index itself already walks the lattice pole to pole
+      // in a spiral — an ordering the lattice carries for free.
       return idx / objN;
     }
+
     if (body === BODY_VESSEL) {
       const layer = idx % layers;
-      const u = layers > 1 ? layer / (layers - 1) : 0;
+      const u = layer / (layers - 1);
       const around = (Math.floor(idx / layers) % perLayer) / perLayer;
-      const ang = around * TAU + u * twist * TAU + spin;
-      const rad = vesselProfile(u) * vesselR;
+      const ang = around * TAU + u * (o.layerTwist ?? 0.55) * TAU + spin;
+      const rad = vesselProfile(u) * (o.vesselR ?? 0.76);
       at3[0] = Math.cos(ang) * rad;
-      at3[1] = (u - 0.5) * vesselH;
+      at3[1] = (u - 0.5) * (o.vesselH ?? 1.6);
       at3[2] = Math.sin(ang) * rad;
-      // Layer-major: all of one layer before any of the next, so the front
-      // circles the object once per layer as it climbs. That circling is
-      // what makes it a nozzle rather than a wipe.
+      // Layer-major, so the front circles the object once per layer as it
+      // climbs. That circling is what makes it a nozzle, not a wipe.
       return (layer + around) / layers;
     }
-    if (body === BODY_TORUS) {
-      const mj = idx % majorN;
-      const around = (Math.floor(idx / majorN) % perMajor) / perMajor;
-      const maj = (mj / majorN) * TAU + spin;
-      const min = around * TAU;
-      const ring = majorR + minorR * Math.cos(min);
-      at3[0] = Math.cos(maj) * ring;
-      at3[1] = minorR * Math.sin(min);
-      at3[2] = Math.sin(maj) * ring;
-      // Wound rather than filled: one turn of the tube per step around.
-      return (mj + around) / majorN;
+
+    if (body === BODY_FROND) {
+      const br = idx % branches;
+      const lane = Math.floor(idx / branches) % lanes;
+      const s = Math.min(1, Math.floor(idx / groups) / (perBranch - 1));
+      branchFrame(br, branches);
+      const dx = tmp3[0];
+      const dy = tmp3[1];
+      const dz = tmp3[2];
+      const [ux, uy, uz, vx, vy, vz] = frame6;
+      // Curvature as the square of length travelled: a branch leaves the
+      // seed straight and only turns once it has length. Curving from the
+      // first dot reads as an arc someone drew, not as growth.
+      const reach = o.reach ?? 0.8;
+      const curve = (o.bend ?? 0.5) * s * s;
+      const frond = o.frond ?? 0.36;
+      const across = lanes > 1 ? lane / (lanes - 1) - 0.5 : 0;
+      const wob = (hashD(br * lanes + lane, 6.1) - 0.5) * 0.4;
+      const side = (across + wob) * frond * s ** 1.25;
+      const lift = (hashD(br * lanes + lane, 2.9) - 0.5) * frond * 0.5 * s ** 1.25;
+      at3[0] = dx * s * reach + ux * (curve + side) + vx * lift;
+      at3[1] = dy * s * reach + uy * (curve + side) + vy * lift;
+      at3[2] = dz * s * reach + uz * (curve + side) + vz * lift;
+      const start = hashD(br, 3.3) * clamp01(o.growStagger ?? 0.26);
+      return start + s ** 0.85 * (1 - start);
     }
+
     if (body === BODY_HELIX) {
       const strand = idx % 2;
-      const k = Math.floor(idx / 2);
-      const u = steps > 1 ? Math.min(1, k / (steps - 1)) : 0;
+      const u = Math.min(1, Math.floor(idx / 2) / (steps - 1));
       const ang = u * helixTurns * TAU + strand * Math.PI + spin;
       at3[0] = Math.cos(ang) * helixR;
       at3[1] = (u - 0.5) * helixH;
       at3[2] = Math.sin(ang) * helixR;
       return u;
     }
-    // FROND — the one body with no axis of symmetry to fall back on.
-    // Everything else here is turned about one, and a set of four solids of
-    // revolution is one solid with four profiles.
-    const br = idx % branches;
-    const lane = Math.floor(idx / branches) % lanes;
-    const s = Math.min(1, Math.floor(idx / groups) / (perBranch - 1));
-    const [dx, dy, dz] = branchFrame(br);
-    const [ux, uy, uz, vx, vy, vz] = frame6;
-    // Curvature as the square of length travelled: a branch leaves the seed
-    // straight and only turns once it has length. Curving from the first
-    // dot reads as an arc someone drew, not as something that grew.
-    const curve = bend * s * s;
-    const across = lanes > 1 ? lane / (lanes - 1) - 0.5 : 0;
-    const wob = (hashD(br * lanes + lane, 6.1) - 0.5) * 0.4;
-    const side = (across + wob) * frond * s ** 1.25;
-    const lift = (hashD(br * lanes + lane, 2.9) - 0.5) * frond * 0.5 * s ** 1.25;
-    at3[0] = dx * s * reach + ux * (curve + side) + vx * lift;
-    at3[1] = dy * s * reach + uy * (curve + side) + vy * lift;
-    at3[2] = dz * s * reach + uz * (curve + side) + vz * lift;
-    const start = hashD(br, 3.3) * stagger;
-    return start + s ** 0.85 * (1 - start);
-  }
 
-  /**
-   * Where the work is happening right now → `head3`, the point matter falls
-   * into.
-   *
-   * `lane` lets a body have several fronts at once: the frond has one per
-   * branch, and a stream aimed at the average of eight growing tips would
-   * be aimed at nothing.
-   */
-  function frontAt(lane: number): void {
-    if (body === BODY_CRYSTAL) {
-      octaSeat(prog * objN, objN, crystalR, head3);
+    if (body === BODY_TORUS) {
+      const mj = idx % majorN;
+      const around = (Math.floor(idx / majorN) % perMajor) / perMajor;
+      const maj = (mj / majorN) * TAU + spin;
+      const min = around * TAU;
+      const ring = (o.majorR ?? 0.72) + (o.minorR ?? 0.29) * Math.cos(min);
+      at3[0] = Math.cos(maj) * ring;
+      at3[1] = (o.minorR ?? 0.29) * Math.sin(min);
+      at3[2] = Math.sin(maj) * ring;
+      // Wound rather than filled: one turn of the tube per step around.
+      return (mj + around) / majorN;
+    }
+
+    if (body === BODY_NAUTILUS) {
+      // A logarithmic coil: every turn is a fixed multiple of the last, so
+      // the chambers grow the way a real shell's do rather than by an even
+      // step, which reads as a coil of rope.
+      //
+      // Stepped along the RADIUS rather than along the angle. Uniform in
+      // angle is the obvious parameterisation and packs most of the dots
+      // into the tight inner turns, where there is least room for them:
+      // the shell came out a bright smudge with a thin thread leaving it.
+      const s = idx / objN;
+      const grow = o.coilGrow ?? 0.95;
+      const rad = 0.14 + s * ((o.coilR ?? 0.82) - 0.14);
+      const th = (Math.log(rad / 0.14) / grow) * TAU;
+      const tube = 0.34 * rad;
+      const ph = frac(idx * 0.6180339887) * TAU;
+      const rr = rad + tube * Math.cos(ph);
+      at3[0] = Math.cos(th + spin) * rr;
+      at3[1] = tube * Math.sin(ph);
+      at3[2] = Math.sin(th + spin) * rr;
+      return s;
+    }
+
+    if (body === BODY_ARMILLARY) {
+      // Nested hoops on different axes — an instrument, not a solid. Each
+      // one is threaded whole before the next begins.
+      const k = idx % rings;
+      const around = (Math.floor(idx / rings) % perRing) / perRing;
+      const rad = 0.92 - k * (0.62 / rings);
+      const a = around * TAU + spin;
+      const x0 = Math.cos(a) * rad;
+      const z0 = Math.sin(a) * rad;
+      const al = k * 0.62;
+      const be = k * 1.1;
+      const y1 = -z0 * Math.sin(al);
+      const z1 = z0 * Math.cos(al);
+      at3[0] = x0 * Math.cos(be) + z1 * Math.sin(be);
+      at3[1] = y1;
+      at3[2] = -x0 * Math.sin(be) + z1 * Math.cos(be);
+      return (k + around) / rings;
+    }
+
+    if (body === BODY_MOBIUS) {
+      const w = idx % bandW;
+      const u = Math.min(1, Math.floor(idx / bandW) / (perBand - 1));
+      const th = u * TAU + spin;
+      const wv = (w / (bandW - 1) - 0.5) * (o.bandWide ?? 0.44);
+      const rr = (o.bandR ?? 0.7) + wv * Math.cos(th / 2);
+      at3[0] = Math.cos(th) * rr;
+      at3[1] = wv * Math.sin(th / 2);
+      at3[2] = Math.sin(th) * rr;
+      return u;
+    }
+
+    if (body === BODY_LATTICE) {
+      // A ball quantised onto a grid: the same dots the sphere would have,
+      // snapped to cells, so it reads as voxels rather than as a surface.
+      const q = o.cell ?? 0.17;
+      const [x, y, z] = fibDir(idx, objN);
+      const rr = 0.9;
+      at3[0] = Math.round((x * rr) / q) * q;
+      at3[1] = Math.round((y * rr) / q) * q;
+      at3[2] = Math.round((z * rr) / q) * q;
+      turn();
+      // A flat wavefront on the diagonal, so cells light in sheets.
+      return clamp01((at3[0] + at3[1] + at3[2] + 3 * rr) / (6 * rr));
+    }
+
+    if (body === BODY_KNOT) {
+      const s = idx / objN;
+      const th = s * TAU;
+      const r1 = o.knotR ?? 0.58;
+      const r2 = o.knotTube ?? 0.24;
+      const ring = r1 + r2 * Math.cos(3 * th);
+      at3[0] = Math.cos(2 * th + spin) * ring;
+      at3[1] = r2 * Math.sin(3 * th);
+      at3[2] = Math.sin(2 * th + spin) * ring;
+      // A cord has thickness, but only just: at 0.09 the crossings blurred
+      // into each other and the trefoil stopped being three lobes.
+      at3[0] += (hashD(idx, 3.1) - 0.5) * 0.045;
+      at3[1] += (hashD(idx, 5.7) - 0.5) * 0.045;
+      at3[2] += (hashD(idx, 8.3) - 0.5) * 0.045;
+      return s;
+    }
+
+    if (body === BODY_TOWER) {
+      // Stepped storeys on a square plan — the one body with corners, and
+      // the only silhouette here that is not a curve.
+      const level = idx % levels;
+      const u = level / (levels - 1);
+      const around = (Math.floor(idx / levels) % perLevel) / perLevel;
+      const half = (o.towerR ?? 0.62) * (1 - 0.55 * u);
+      const side = Math.floor(around * 4) % 4;
+      const f = frac(around * 4) * 2 - 1;
+      let sx = 0;
+      let sz = 0;
+      if (side === 0) {
+        sx = f;
+        sz = -1;
+      } else if (side === 1) {
+        sx = 1;
+        sz = f;
+      } else if (side === 2) {
+        sx = -f;
+        sz = 1;
+      } else {
+        sx = -1;
+        sz = -f;
+      }
       const ca = Math.cos(spin);
       const sa = Math.sin(spin);
-      const x = head3[0];
-      head3[0] = x * ca + head3[2] * sa;
-      head3[2] = -x * sa + head3[2] * ca;
-      return;
+      at3[0] = (sx * ca + sz * sa) * half;
+      at3[1] = (u - 0.5) * (o.towerH ?? 1.5);
+      at3[2] = (-sx * sa + sz * ca) * half;
+      return (level + around) / levels;
     }
-    if (body === BODY_VESSEL) {
-      const at = prog * layers;
-      const layer = Math.min(layers - 1, Math.floor(at));
-      const u = layers > 1 ? layer / (layers - 1) : 0;
-      const ang = frac(at) * TAU + u * twist * TAU + spin;
-      const rad = vesselProfile(u) * vesselR;
-      head3[0] = Math.cos(ang) * rad;
-      head3[1] = (u - 0.5) * vesselH;
-      head3[2] = Math.sin(ang) * rad;
-      return;
+
+    if (body === BODY_HOURGLASS) {
+      const row = idx % waist;
+      const u = (row / (waist - 1)) * 2 - 1;
+      const around = (Math.floor(idx / waist) % perWaist) / perWaist;
+      const rad = 0.72 * Math.abs(u) + 0.05;
+      const a = around * TAU + spin;
+      at3[0] = Math.cos(a) * rad;
+      at3[1] = u * 0.85;
+      at3[2] = Math.sin(a) * rad;
+      // Both cones fill toward the waist, so the work closes on the middle
+      // from two directions at once and arrives there together.
+      return 1 - Math.abs(u);
     }
-    if (body === BODY_TORUS) {
-      const at = prog * majorN;
-      const maj = (Math.min(majorN, at) / majorN) * TAU + spin;
-      const min = frac(at) * TAU;
-      const ring = majorR + minorR * Math.cos(min);
-      head3[0] = Math.cos(maj) * ring;
-      head3[1] = minorR * Math.sin(min);
-      head3[2] = Math.sin(maj) * ring;
-      return;
+
+    if (body === BODY_YARN) {
+      // One continuous strand wound over a ball, the winding axis drifting
+      // so the passes cross instead of stacking into a groove.
+      const s = idx / objN;
+      const a = s * TAU * (o.winds ?? 13) + spin;
+      const bb = Math.asin(0.94 * Math.sin(s * TAU * 1.6 + 0.6));
+      const rr = o.ballR ?? 0.88;
+      at3[0] = Math.cos(a) * Math.cos(bb) * rr;
+      at3[1] = Math.sin(bb) * rr;
+      at3[2] = Math.sin(a) * Math.cos(bb) * rr;
+      return s;
     }
-    if (body === BODY_HELIX) {
-      // Alternating strands, so both rails are visibly being fed.
-      const strand = lane % 2;
-      const ang = prog * helixTurns * TAU + strand * Math.PI + spin;
-      head3[0] = Math.cos(ang) * helixR;
-      head3[1] = (prog - 0.5) * helixH;
-      head3[2] = Math.sin(ang) * helixR;
-      return;
+
+    if (body === BODY_GEAR) {
+      // Two faces and a rim. Teeth are a step function on the radius, so
+      // the profile is square — a cog, not a flower.
+      const part = idx % 3;
+      const k = Math.floor(idx / 3);
+      const a = (k / perGear) * TAU + spin;
+      const toothed = Math.cos(teeth * a) > 0 ? 1 : 0;
+      const rad = (o.gearR ?? 0.58) + (o.toothD ?? 0.19) * toothed;
+      const th = o.gearH ?? 0.16;
+      // Weighted to the rim. Filling the faces evenly buries the teeth in a
+      // disc of dots — what makes a cog a cog is its edge, so the edge is
+      // where the dots go.
+      const rr = part === 2 ? rad : rad * (0.62 + 0.38 * frac(k * 0.6180339887));
+      at3[0] = Math.cos(a) * rr;
+      at3[1] = part === 2 ? (hashD(idx, 4.4) - 0.5) * 2 * th : (part === 0 ? th : -th);
+      at3[2] = Math.sin(a) * rr;
+      return frac(k / perGear);
     }
-    const br = lane % branches;
-    const s = branchAt(br);
-    const [dx, dy, dz] = branchFrame(br);
-    const curve = bend * s * s;
-    head3[0] = dx * s * reach + frame6[0] * curve;
-    head3[1] = dy * s * reach + frame6[1] * curve;
-    head3[2] = dz * s * reach + frame6[2] * curve;
+
+    if (body === BODY_TREE) {
+      // Trunk, boughs, twigs: the same rule applied three times, which is
+      // the whole difference between a tree and a bunch of sticks.
+      const b1 = idx % 4;
+      const b2 = Math.floor(idx / 4) % 3;
+      const per = Math.max(2, Math.ceil(objN / 12));
+      const s = Math.min(1, Math.floor(idx / 12) / (per - 1));
+      const baseY = -0.8;
+      if (s < 0.34) {
+        const f = s / 0.34;
+        at3[0] = (hashD(idx, 2.5) - 0.5) * 0.05;
+        at3[1] = baseY + f * 0.62;
+        at3[2] = (hashD(idx, 7.1) - 0.5) * 0.05;
+        return s;
+      }
+      branchFrame(b1, 4);
+      const d1x = tmp3[0] * 0.9;
+      const d1y = Math.abs(tmp3[1]) * 0.6 + 0.5;
+      const d1z = tmp3[2] * 0.9;
+      const topY = baseY + 0.62;
+      if (s < 0.68) {
+        const f = (s - 0.34) / 0.34;
+        at3[0] = d1x * f * 0.5;
+        at3[1] = topY + d1y * f * 0.5;
+        at3[2] = d1z * f * 0.5;
+        return s;
+      }
+      const f = (s - 0.68) / 0.32;
+      branchFrame(b1 * 3 + b2, 12);
+      at3[0] = d1x * 0.5 + tmp3[0] * f * 0.42;
+      at3[1] = topY + d1y * 0.5 + (Math.abs(tmp3[1]) * 0.5 + 0.35) * f * 0.42;
+      at3[2] = d1z * 0.5 + tmp3[2] * f * 0.42;
+      return s;
+    }
+
+    if (body === BODY_LANTERN) {
+      // Ribs closed one at a time: a paper lamp taking shape, and the only
+      // body here that is hollow in a way you can see through.
+      const rib = idx % petals;
+      const v = Math.min(1, Math.floor(idx / petals) / (perPetal - 1));
+      const ang = (rib / petals) * TAU + spin + 0.35 * Math.sin(v * Math.PI);
+      const rr = Math.sin(v * Math.PI) * (o.lanternR ?? 0.82);
+      at3[0] = Math.cos(ang) * rr;
+      at3[1] = Math.cos(v * Math.PI) * (o.lanternH ?? 0.86);
+      at3[2] = Math.sin(ang) * rr;
+      return (rib + v) / petals;
+    }
+
+    if (body === BODY_SCROLL) {
+      // A sheet rolling itself up: the radius grows with the angle, so the
+      // outer wrap is visibly a later wrap than the inner one.
+      const row = idx % sheetRows;
+      const col = Math.min(1, Math.floor(idx / sheetRows) / (perSheet - 1));
+      const turns = o.scrollTurns ?? 2.4;
+      const th = col * turns * TAU;
+      // The gap between wraps has to beat the dot spacing or the roll reads
+      // as one thick tube instead of as a sheet with an edge.
+      const rr = 0.17 + 0.135 * (th / TAU);
+      at3[0] = Math.cos(th + spin) * rr;
+      at3[1] = (row / (sheetRows - 1) - 0.5) * (o.scrollH ?? 1.4);
+      at3[2] = Math.sin(th + spin) * rr;
+      return col;
+    }
+
+    // GALAXY. Matter already in place and already turning, realised from
+    // the core outward — the one body that is a field rather than a solid.
+    const arm = idx % arms;
+    const q = Math.sqrt((Math.floor(idx / arms) + 0.5) / Math.ceil(objN / arms));
+    const ang = (arm / arms) * TAU + q * (o.swirlTurns ?? 2.4) * TAU + spin + (hashD(idx, 6.6) - 0.5) * 0.5;
+    const rr = q * (o.discR ?? 1.0);
+    at3[0] = Math.cos(ang) * rr;
+    at3[1] = (hashD(idx, 9.4) - 0.5) * 0.14 * (1 - q);
+    at3[2] = Math.sin(ang) * rr;
+    return q;
   }
 
-  const shell = o.shellR ?? 1.12;
-  const flight = Math.max(0.2, o.flight ?? 1.2);
-  const swirl = o.swirlAmp ?? 0.4;
-  const parts = Math.max(1, n - objN);
-  // Carriers travel in a few STREAMS rather than each on its own path.
-  // Independent flights are the obvious way to do it and produce dust: a
-  // hundred specks at a hundred phases, each too short-lived to follow, and
-  // in a still frame indistinguishable from noise. Phased evenly along a
-  // handful of shared paths they become lines of dots pouring into the
-  // front — legible in a still, and unmistakable in motion.
+  // --- pass 1: the object, and where its work front is ------------------
   //
-  // The frond gets one stream per branch, because its work happens at eight
-  // tips at once and a stream aimed at their average is aimed at nothing.
-  const streams = body === BODY_FROND ? branches : Math.max(2, Math.round(o.streams ?? 6));
-  const perStream = Math.max(1, Math.ceil(parts / streams));
+  // The front is not declared by the body, it is observed: whichever
+  // realised dot is closest to `prog` is where the work is. Bucketing by
+  // `idx % streams` gives one front per stream, which matters for a body
+  // whose work happens in several places at once — the frond grows at eight
+  // tips, and a stream aimed at their average is aimed at nothing.
+  const fronts = [];
+  const fdist = [];
+  for (let s = 0; s < streams; s++) {
+    fronts.push(0, 0, 0);
+    fdist.push(1e9);
+  }
 
   const dots: Dot[] = [];
   for (let i = 0; i < n; i++) {
     const seat = seats[i];
+    if (seat >= objN) continue;
+
+    const order = seatOn(seat);
+    const bx = at3[0];
+    const by = at3[1];
+    const bz = at3[2];
+
+    const d = Math.abs(order - prog);
+    const lane = seat % streams;
+    if (d < fdist[lane]) {
+      fdist[lane] = d;
+      fronts[lane * 3] = bx;
+      fronts[lane * 3 + 1] = by;
+      fronts[lane * 3 + 2] = bz;
+    }
+
+    const done = clamp01((prog - order) / feather);
+    const hot = working ? Math.exp(-(((order - prog) / headW) ** 2)) : 0;
+    const unlit = (1 - done) * c;
+
     const lx = p[i * 3];
     const ly = p[i * 3 + 1];
     const lz = p[i * 3 + 2];
+    const [px, py, z] = pt(lx + (bx - lx) * c, ly + (by - ly) * c, lz + (bz - lz) * c);
+    const zx = clamp01((z + 1) / 2);
+    dots.push({
+      x: px,
+      y: py,
+      z,
+      r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.headR ?? 1.0) * hot * c) * rs,
+      white:
+        inkOf(o, zx, e[i] * m + (1 - m)) +
+        (o.unlitInk ?? 0.32) * unlit -
+        (o.headInk ?? 0.4) * hot * c,
+      // Neutral grey until the work reaches it, the brand's colour after.
+      // This is the whole of what "realised" means here, and it is what
+      // lets the object be present from the first frame without giving
+      // away that it is already finished.
+      k: 1 - unlit
+    });
+  }
 
-    if (seat < objN) {
-      // --- the object -------------------------------------------------
-      // Always here, always whole. Only its ink and its colour move.
-      const order = seatOn(seat);
-      const done = clamp01((prog - order) / feather);
-      const hot = working ? Math.exp(-(((order - prog) / headW) ** 2)) : 0;
-      const unlit = (1 - done) * c;
+  // --- pass 2: the matter -----------------------------------------------
+  const shell = o.shellR ?? 1.12;
+  const flight = Math.max(0.2, o.flight ?? 1.2);
+  const swirl = o.swirlAmp ?? 0.4;
+  const spread = o.spread ?? 0.09;
 
-      const [px, py, z] = pt(
-        lx + (at3[0] - lx) * c,
-        ly + (at3[1] - ly) * c,
-        lz + (at3[2] - lz) * c
-      );
-      const zx = clamp01((z + 1) / 2);
-      dots.push({
-        x: px,
-        y: py,
-        z,
-        r: ((o.rBase ?? 0.55) + (o.rDepth ?? 1.4) * zx + (o.headR ?? 1.0) * hot * c) * rs,
-        white:
-          inkOf(o, zx, e[i] * m + (1 - m)) +
-          (o.unlitInk ?? 0.32) * unlit -
-          (o.headInk ?? 0.4) * hot * c,
-        // Neutral grey until the work reaches it, the brand's colour after.
-        // This is the whole of what "realised" means here, and it is what
-        // lets the object be present from the first frame without giving
-        // away that it is already finished.
-        k: 1 - unlit
-      });
-      continue;
-    }
+  for (let i = 0; i < n; i++) {
+    const seat = seats[i];
+    if (seat < objN) continue;
 
-    // --- the matter ---------------------------------------------------
-    // A carrier repeats its own flight on its own period: out of the dark,
-    // curving inward, into the front, gone. Periods are hashed rather than
-    // shared, so the delivery is a stream and not a volley.
     const pj = seat - objN;
     const lane = pj % streams;
     // Evenly spaced along the lane, so the gap between carriers is constant
@@ -411,8 +648,7 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     const u = frac(t / period + along + hashD(lane, 7.3));
     const ease = u * u * (3 - 2 * u);
 
-    frontAt(lane);
-    // The launch point drifts, so consecutive flights of one carrier do not
+    // The launch point drifts, so consecutive flights of one stream do not
     // retrace a line — which reads as a wire, not as weather.
     const [ax, ay, az] = fibDir(lane, streams);
     const drift = t * 0.11 + hashD(lane, 2.2) * TAU;
@@ -426,34 +662,33 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     // peaks halfway and vanishes at both ends, so the path curves into the
     // front and arrives pointing at it.
     const arc = Math.sin(Math.PI * ease) * swirl;
-    // A little per-carrier spread, so a stream is a stream and not a wire.
-    const jx = (hashD(pj, 5.3) - 0.5) * (o.spread ?? 0.09);
-    const jy = (hashD(pj, 8.7) - 0.5) * (o.spread ?? 0.09);
     const fade = 1 - ease;
-    const bx = sx + (head3[0] - sx) * ease + (ay * cd - az * sd) * arc + jx * fade;
-    const by = sy + (head3[1] - sy) * ease + (az * cd - ax * sd) * arc * 0.7 + jy * fade;
-    const bz = sz + (head3[2] - sz) * ease + (ax * sd - ay * cd) * arc;
+    const jx = (hashD(pj, 5.3) - 0.5) * spread * fade;
+    const jy = (hashD(pj, 8.7) - 0.5) * spread * fade;
+    const bx = sx + (fronts[lane * 3] - sx) * ease + (ay * cd - az * sd) * arc + jx;
+    const by = sy + (fronts[lane * 3 + 1] - sy) * ease + (az * cd - ax * sd) * arc * 0.7 + jy;
+    const bz = sz + (fronts[lane * 3 + 2] - sz) * ease + (ax * sd - ay * cd) * arc;
 
+    const lx = p[i * 3];
+    const ly = p[i * 3 + 1];
+    const lz = p[i * 3 + 2];
     const [px, py, z] = pt(lx + (bx - lx) * c, ly + (by - ly) * c, lz + (bz - lz) * c);
     const zx = clamp01((z + 1) / 2);
     // Fades up out of nothing and is consumed at the front — never simply
     // switched off, which is the one thing that reads as a bug rather than
-    // as an event.
-    const born = clamp01(u / 0.14);
-    const spent = clamp01((1 - u) / 0.1);
-    // Present at the mark whatever it was doing: a carrier still in flight
-    // when the logo lands would be a dot missing from the logo.
-    const alpha = working ? born * spent + (1 - born * spent) * m : 1;
-    // Grey cargo, taking the brand's colour as it lands — the same thing
-    // `working` says about a dot in transit.
+    // as an event. And present at the mark whatever it was doing: a carrier
+    // still in flight when the logo lands is a dot missing from the logo.
+    const live = clamp01(u / 0.14) * clamp01((1 - u) / 0.1);
     const k = ease * ease;
     dots.push({
       x: px,
       y: py,
       z,
       r: ((o.partR ?? 0.5) + (o.partRDepth ?? 1.1) * zx) * rs,
-      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.cargoInk ?? 0.16) * (1 - ease) * c,
-      a: alpha,
+      white: inkOf(o, zx, e[i] * m + (1 - m)) + (o.cargoInk ?? 0.16) * fade * c,
+      a: working ? live + (1 - live) * m : 1,
+      // Grey cargo, taking the brand's colour as it lands — the same thing
+      // `working` says about a dot in transit.
       k: k + (1 - k) * m
     });
   }
@@ -468,7 +703,7 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     // a pixel a line stops being a line and becomes a smudge.
     const lw = Math.max(0.55, (o.rungW ?? 0.9) * rs);
     for (let k2 = 0; k2 < steps; k2 += every) {
-      const u = steps > 1 ? k2 / (steps - 1) : 0;
+      const u = k2 / (steps - 1);
       const done = clamp01((prog - u) / feather);
       const a = done * c * (o.rungA ?? 0.5);
       if (a < 0.02) continue;
@@ -484,12 +719,11 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
 };
 
 /**
- * `generating`, dispatched to one of five bodies.
+ * `generating`, dispatched to one of the bodies.
  *
- * A dispatcher rather than five states, because these are five answers to
- * the same question and a product picks one: a caller writes
- * `state="generating"` and tunes `body`, the way it would pick a colour.
- * Five states would put five entries in every switch that handles a state,
- * for a distinction that belongs one level down.
+ * A tune rather than eighteen states: a caller writes `state="generating"`
+ * and picks `body` the way it would pick a colour. Eighteen states would
+ * put eighteen entries in every switch that handles a state, for a
+ * distinction that belongs one level down.
  */
 export const frameLogoGenerate: ModeFrame = frameBuild;

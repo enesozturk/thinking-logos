@@ -69,22 +69,37 @@ work on the user's first paint.
 state, so the two can run in one UI and mean the same thing. `thinking`,
 `waiting` and `generating` have no orb counterpart.
 
-`generating` is five objects rather than one, because generation looks like
-whatever is being generated. Pick one with `tune`:
+`generating` is eighteen objects rather than one, because generation looks
+like whatever is being generated. Pick one with `tune`:
 
 ```tsx
-import { BODY_VESSEL } from 'thinking-logos';
+import { BODY_LANTERN } from 'thinking-logos';
 
-<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_VESSEL }} />
+<ThinkingLogo logo={art} state="generating" tune={{ body: BODY_LANTERN }} />
 ```
 
 | `body` | the object |
 | --- | --- |
-| `BODY_CRYSTAL` (default) | an octahedron, cut face by face by a travelling head |
-| `BODY_VESSEL` | a turned vessel, layer by layer, the front circling as it climbs |
-| `BODY_FROND` | eight branches out of one seed, each with its own growing tip |
-| `BODY_HELIX` | a double strand, transcribed bottom to top, rung by rung |
-| `BODY_TORUS` | a ring wound one turn of its tube at a time |
+| 00 `BODY_CRYSTAL` | an octahedron, cut along a spiral |
+| 01 `BODY_VESSEL` | a turned vessel, layer by layer |
+| 02 `BODY_FROND` | branches out of one seed |
+| 03 `BODY_HELIX` | a double strand, rung by rung |
+| 04 `BODY_TORUS` | a ring, wound a turn at a time |
+| 05 `BODY_NAUTILUS` | a logarithmic shell, chamber by chamber |
+| 06 `BODY_ARMILLARY` | nested hoops on different axes |
+| 07 `BODY_MOBIUS` | a band with a half twist |
+| 08 `BODY_LATTICE` | a ball quantised onto a grid |
+| 09 `BODY_KNOT` | an overhand knot in a thick cord |
+| 10 `BODY_TOWER` | stepped storeys on a square plan |
+| 11 `BODY_HOURGLASS` | two cones filling toward the waist |
+| 12 `BODY_YARN` | one strand wound over a ball |
+| 13 `BODY_GEAR` | a toothed wheel, cut around |
+| 14 `BODY_TREE` | trunk, boughs, twigs |
+| 15 `BODY_LANTERN` | a paper lamp, rib by rib |
+| 16 `BODY_SCROLL` | a sheet rolling itself up |
+| 17 `BODY_GALAXY` | a disc realised from the core out |
+
+All eighteen run side by side on the `/bodies` page of the demo.
 
 All five are the same three things: an object, the particles making it, and
 the front where they meet. The object is on screen for the whole cycle and is

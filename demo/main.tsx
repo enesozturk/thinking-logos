@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { BodyCatalog } from './components/BodyCatalog';
 import { CompanyShowcase } from './components/CompanyShowcase';
 import { BRAND_BY_KEY } from './brands';
 import './tailwind.css';
@@ -8,7 +9,7 @@ import './tailwind.css';
 /**
  * Path routing without a router.
  *
- * There are exactly two kinds of page and no navigation between them, so a
+ * There are three kinds of page and no navigation between them, so a
  * routing library would be a dependency bought to read one string. The base
  * is stripped first because the site is served from a project path, not a
  * domain root.
@@ -16,6 +17,7 @@ import './tailwind.css';
 function route() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const key = location.pathname.replace(base, '').replace(/^\/|\/$/g, '').toLowerCase();
+  if (key === 'bodies') return <BodyCatalog />;
   const brand = key ? BRAND_BY_KEY[key] : undefined;
   return brand ? <CompanyShowcase brand={brand} /> : <App />;
 }

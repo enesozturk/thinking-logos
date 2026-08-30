@@ -22,15 +22,29 @@ export type { LogoPointSet, LogoStyle, ShellMode, SeatMap } from './engine/cloud
 export type { LogoState, LogoMode, LogoPreset, ResolvedLogo } from './logoPresets';
 export { resolveLogo, LOGO_PRESETS, LOGO_STATE_TO_MODE, LOGO_MODE_FRAMES } from './logoPresets';
 
-// `generating` is five objects rather than one — a crystal being cut, a
-// vessel being printed, a growth, a strand being transcribed, a disc of
-// matter collapsing. Pass one as `tune={{ body: BODY_HELIX }}`.
+// `generating` is not one object but eighteen — a crystal being cut, a
+// vessel turned, a shell coiled, a knot tied, a lamp closed rib by rib.
+// Pass one as `tune={{ body: BODY_LANTERN }}`.
 export {
   BODY_CRYSTAL,
   BODY_VESSEL,
   BODY_FROND,
   BODY_HELIX,
-  BODY_TORUS
+  BODY_TORUS,
+  BODY_NAUTILUS,
+  BODY_ARMILLARY,
+  BODY_MOBIUS,
+  BODY_LATTICE,
+  BODY_KNOT,
+  BODY_TOWER,
+  BODY_HOURGLASS,
+  BODY_YARN,
+  BODY_GEAR,
+  BODY_TREE,
+  BODY_LANTERN,
+  BODY_SCROLL,
+  BODY_GALAXY,
+  BODY_COUNT
 } from './engine/logoGenerate';
 
 // Power-user surface: the resolved presets + raw frame painters, for
