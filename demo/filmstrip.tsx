@@ -18,7 +18,7 @@ import { paintFrame } from '../src/engine/core';
 import { adaptTint, paintFrameTinted, parseTint } from '../src/engine/tint';
 import type { LogoState } from '../src/logoPresets';
 import { resolveLogo } from '../src/logoPresets';
-import { BODY_NAMES, BODY_NOTES } from './bodies';
+import { BODY_NAMES, BODY_NOTES } from './lib/bodies';
 import { BRAND_BY_KEY } from './brands';
 
 /** Every `generating` object, in `body` order. */

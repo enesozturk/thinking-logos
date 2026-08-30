@@ -3,7 +3,7 @@ import { ThinkingLogo } from '../../src/ThinkingLogo';
 import type { LogoPointSet } from '../../src/engine/cloud';
 import type { LogoState } from '../../src/logoPresets';
 import type { LogoSource } from '../../src/bake/bake';
-import { BODY_NAMES } from '../bodies';
+import { BODY_NAMES } from '@/lib/bodies';
 import { BRANDS } from '../brands';
 import { buildStandalone } from '@/lib/standalone';
 import { CodeBlock } from './CodeBlock';

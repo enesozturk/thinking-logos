@@ -1,5 +1,12 @@
 // The bodies `generating` can realise, in `body` order.
 //
+// Under `lib/` rather than beside `brands.ts` for one blunt reason: the
+// catalogue page is served at `/bodies`, and Vite's dev server resolves that
+// request against `demo/bodies.ts` — extensionless module resolution runs
+// before the SPA fallback — so the page came back as its own transpiled
+// source. The built site never showed it, because there the route is a real
+// directory. A module must not share a name with a route.
+//
 // Names live here rather than in the engine: the engine ships numbers, and
 // a label is a demo concern. The index IS the `body` value, so the catalogue
 // page and the playground picker cannot drift from the engine's constants.

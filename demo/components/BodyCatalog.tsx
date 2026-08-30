@@ -1,16 +1,16 @@
 import React from 'react';
 import { ThinkingLogo } from '../../src/ThinkingLogo';
-import { BODY_NAMES, BODY_NOTES } from '../bodies';
+import { BODY_NAMES, BODY_NOTES } from '@/lib/bodies';
 import { BRAND_BY_KEY } from '../brands';
 
 /**
- * Every `generating` object at once, numbered.
+ * Every `generating` body at once, numbered.
  *
- * A catalogue rather than a demo: the point is to compare eighteen forms
- * and name the ones worth keeping, so they run on one mark, at one size, on
- * one clock, and each carries its number. Anything that varied between
- * cells would be a reason a cell looked better that has nothing to do with
- * the object.
+ * A catalogue rather than a demo: the point is to compare the forms and
+ * name the ones worth keeping, so they run on one mark, at one size, on one
+ * clock, and each carries its number. Anything that varied between cells
+ * would be a reason a cell looked better that has nothing to do with the
+ * form.
  */
 export function BodyCatalog() {
   const brand = BRAND_BY_KEY.fal;
@@ -19,7 +19,7 @@ export function BodyCatalog() {
   return (
     <main className="mx-auto w-full max-w-[1180px] px-6 py-10">
       <header className="mb-8 flex items-baseline justify-between">
-        <h1 className="font-heading text-2xl leading-none">Generating — the objects</h1>
+        <h1 className="font-heading text-2xl leading-none">Generating — the bodies</h1>
         <span className="text-[13px] text-muted-foreground">
           one mark, one clock, {BODY_NAMES.length} bodies
         </span>
