@@ -1,6 +1,6 @@
 import React from 'react';
 import { ThinkingLogo } from '../../src/ThinkingLogo';
-import { BODY_NAMES, BODY_NOTES } from '@/lib/bodies';
+import { BODY_NAMES } from '@/lib/bodies';
 import { BRAND_BY_KEY } from '../brands';
 
 /**
@@ -17,37 +17,33 @@ export function BodyCatalog() {
   const source = brand.svg ? { svg: brand.svg } : { path: brand.path };
 
   return (
-    <main className="mx-auto w-full max-w-[1180px] px-6 py-10">
-      <header className="mb-8 flex items-baseline justify-between">
+    <main className="mx-auto w-full max-w-[840px] px-6 py-12">
+      <header className="mb-10 text-center">
         <h1 className="font-heading text-2xl leading-none">Generating — the bodies</h1>
-        <span className="text-[13px] text-muted-foreground">
-          one mark, one clock, {BODY_NAMES.length} bodies
-        </span>
       </header>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-6 gap-y-9">
+      {/* Wrapping and centred rather than a grid: eight cells in threes
+          leaves the last row short, and a grid pins those to the left where
+          the block reads as unfinished. Three across is the frame this page
+          is captured at. */}
+      <div className="flex flex-wrap justify-center gap-x-10 gap-y-10">
         {BODY_NAMES.map((name, id) => (
-          <div key={name} className="flex flex-col items-center gap-2.5">
+          <div key={name} className="flex w-[230px] flex-col items-center gap-3">
             <div className="rounded-2xl border border-border/60 bg-card/40 p-2">
               <ThinkingLogo
                 logo={source}
                 state="generating"
-                size={168}
+                size={196}
                 tint={`#${brand.hex}`}
                 tune={{ body: id }}
                 startAtMark
               />
             </div>
-            <div className="text-center">
-              <div className="text-[13px] leading-none">
-                <span className="tabular-nums text-muted-foreground">
-                  {String(id).padStart(2, '0')}
-                </span>{' '}
-                {name}
-              </div>
-              <div className="mt-1 text-[11px] leading-tight text-muted-foreground">
-                {BODY_NOTES[id]}
-              </div>
+            <div className="text-[13px] leading-none">
+              <span className="tabular-nums text-muted-foreground">
+                {String(id).padStart(2, '0')}
+              </span>{' '}
+              {name}
             </div>
           </div>
         ))}
