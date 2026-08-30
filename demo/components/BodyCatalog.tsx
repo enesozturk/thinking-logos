@@ -17,23 +17,22 @@ export function BodyCatalog() {
   const source = brand.svg ? { svg: brand.svg } : { path: brand.path };
 
   return (
-    <main className="mx-auto w-full max-w-[840px] px-6 py-12">
-      <header className="mb-10 text-center">
-        <h1 className="font-heading text-2xl leading-none">Generating — the bodies</h1>
+    <main className="mx-auto w-full max-w-[976px] px-6 py-12">
+      <header className="mb-10">
+        <h1 className="font-heading text-2xl leading-none">Generating</h1>
       </header>
 
-      {/* Wrapping and centred rather than a grid: eight cells in threes
-          leaves the last row short, and a grid pins those to the left where
-          the block reads as unfinished. Three across is the frame this page
-          is captured at. */}
-      <div className="flex flex-wrap justify-center gap-x-10 gap-y-10">
+      {/* Wrapping and centred rather than a grid: a short last row is pinned
+          left by a grid and the block reads as unfinished, where wrapping
+          centres it. Four across is the frame this page is captured at. */}
+      <div className="flex flex-wrap justify-center gap-x-8 gap-y-9">
         {BODY_NAMES.map((name, id) => (
-          <div key={name} className="flex w-[230px] flex-col items-center gap-3">
+          <div key={name} className="flex w-[196px] flex-col items-center gap-2.5">
             <div className="rounded-2xl border border-border/60 bg-card/40 p-2">
               <ThinkingLogo
                 logo={source}
                 state="generating"
-                size={196}
+                size={168}
                 tint={`#${brand.hex}`}
                 tune={{ body: id }}
                 startAtMark
