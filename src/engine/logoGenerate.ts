@@ -121,9 +121,16 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const working = b.local < dwell;
 
   const cam = body * 4;
+  // EVERY camera term is weighted by `c`, the lean included. A held lean is
+  // what a body needs to read as a solid, and it is exactly wrong on the
+  // mark: the artwork is a flat plate, so any yaw still standing when the
+  // logo lands foreshortens it horizontally. At the leans here that is a 4
+  // to 12 per cent narrowing — small enough to look like a squashed logo
+  // rather than like a bug, which is worse.
   const pt = makeProj(
-    (o.lean ?? CAMERAS[cam]) +
-      (o.yawAmp ?? CAMERAS[cam + 2]) * Math.sin(t * (o.yawRate ?? CAMERAS[cam + 3])) * c,
+    ((o.lean ?? CAMERAS[cam]) +
+      (o.yawAmp ?? CAMERAS[cam + 2]) * Math.sin(t * (o.yawRate ?? CAMERAS[cam + 3]))) *
+      c,
     (o.tilt ?? CAMERAS[cam + 1]) * c,
     cx,
     cx,

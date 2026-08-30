@@ -485,7 +485,9 @@ export const frameLogoWork: ModeFrame = (size, t, o, logo) => {
   const c = 1 - m;
 
   const pt = makeProj(
-    (o.lean ?? 0.4) + (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.26)) * c,
+    // Lean weighted by `c` like everything else: the mark is a flat plate,
+    // and a yaw that is still standing when it lands narrows it on screen.
+    ((o.lean ?? 0.4) + (o.yawAmp ?? 0.3) * Math.sin(t * (o.yawRate ?? 0.26))) * c,
     (o.tilt ?? 0.4) * c,
     cx,
     cx,
