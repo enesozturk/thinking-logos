@@ -170,6 +170,39 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
   const strands = Math.max(1, Math.round(o.strands ?? 4));
   const perStrand = Math.max(2, Math.ceil(objN / strands));
 
+  // The voxel body's cells, enumerated once per frame.
+  //
+  // The first version put a low-discrepancy point per dot and rounded it
+  // onto the grid, which is not a voxelisation — it is a scatter that lands
+  // near a grid. Cell populations came out anywhere from one dot to six, the
+  // outer cells were the thinnest of all, and the result had no silhouette
+  // worth reading at the start of the cycle, which is when the viewer is
+  // deciding what they are looking at.
+  //
+  // Enumerating the cells and dealing the dots round-robin fixes both: every
+  // cell gets the same weight, the boundary is the boundary of the ball, and
+  // the shape is a ball of blocks from the first frame. Two hundred-odd
+  // iterations a frame, only for this body.
+  const cells: number[] = [];
+  if (body === BODY_VOXEL) {
+    const q = o.voxel ?? 0.3;
+    const rad = o.voxelR ?? 0.92;
+    const g = Math.floor(rad / q);
+    for (let a = -g; a <= g; a++) {
+      for (let b2 = -g; b2 <= g; b2++) {
+        for (let c2 = -g; c2 <= g; c2++) {
+          const x = a * q;
+          const y = b2 * q;
+          const z = c2 * q;
+          // Cells whose centre is inside the ball. Testing the centre keeps
+          // the surface even; testing any corner leaves a fringe of cells
+          // that are half outside and reads as fuzz.
+          if (x * x + y * y + z * z <= rad * rad) cells.push(x, y, z);
+        }
+      }
+    }
+  }
+
   // Scratch. This runs once per dot per frame and a returned tuple here is
   // the hottest allocation in the library.
   const at3 = [0, 0, 0];
@@ -224,36 +257,24 @@ const frameBuild: ModeFrame = (size, t, o, logo) => {
     }
 
     if (body === BODY_VOXEL) {
-      // Coarse blocks, filled from the core outward.
+      // Coarse blocks, packed out from the core.
       //
-      // This started as the lattice with a middle and was nearly the same
-      // picture: same cell size, same diagonal front, and at spinner size
-      // the only difference was that one of them was hollow. Two things now
-      // separate them and both are structural, not cosmetic. The cells are
-      // three times bigger, and every dot goes to its cell's CENTRE rather
-      // than being rounded onto a grid — so a cell is a clump you can count,
-      // not a point in a mesh. And the front is a growing radius instead of
-      // a plane, so the body fills like something being packed out from the
-      // inside, where the lattice resolves in flat sheets.
+      // Two things separate this from the lattice, and both are structural.
+      // The cells are three times bigger and every dot sits in a cell rather
+      // than on a mesh, so a cell is a clump you can count. And the front is
+      // a growing radius instead of a plane, so the body fills from the
+      // inside where the lattice resolves in flat sheets.
+      const count = cells.length / 3 || 1;
+      const cell = (idx % count) * 3;
       const q = o.voxel ?? 0.3;
-      // A low-discrepancy triple: three golden ratios rather than one, which
-      // in three dimensions lands in stripes.
-      let vx = frac(idx * 0.7548776662) * 2 - 1;
-      let vy = frac(idx * 0.5698402909) * 2 - 1;
-      let vz = frac(idx * 0.3568324) * 2 - 1;
-      const len = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1;
-      // Fold the cube into the ball rather than clipping it: clipping leaves
-      // the outer cells half-populated and the silhouette goes ragged.
-      const keep = Math.min(1, 0.9 / len);
-      vx *= keep;
-      vy *= keep;
-      vz *= keep;
-      at3[0] = Math.round(vx / q) * q + (hashD(idx, 3.4) - 0.5) * q * 0.16;
-      at3[1] = Math.round(vy / q) * q + (hashD(idx, 7.8) - 0.5) * q * 0.16;
-      at3[2] = Math.round(vz / q) * q + (hashD(idx, 5.2) - 0.5) * q * 0.16;
+      // Dots spread inside their own cell — a cell is a little block, not a
+      // point with a crowd on it.
+      at3[0] = cells[cell] + (hashD(idx, 3.4) - 0.5) * q * 0.62;
+      at3[1] = cells[cell + 1] + (hashD(idx, 7.8) - 0.5) * q * 0.62;
+      at3[2] = cells[cell + 2] + (hashD(idx, 5.2) - 0.5) * q * 0.62;
       turn();
       const rad = Math.sqrt(at3[0] * at3[0] + at3[1] * at3[1] + at3[2] * at3[2]);
-      return clamp01(rad / 0.95);
+      return clamp01(rad / (o.voxelR ?? 0.92));
     }
 
     if (body === BODY_RASTER) {
