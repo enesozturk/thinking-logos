@@ -81,6 +81,7 @@ function Picker<T extends string>({
 }) {
   return (
     <ToggleGroup
+      className="flex-wrap"
       disabled={disabled}
       value={[value]}
       onValueChange={(v) => {
